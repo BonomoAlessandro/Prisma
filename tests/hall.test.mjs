@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { HALL_SECONDS as seconds, hallImpulse } from '../src/hall.js';
 import { mulberry32 } from '../src/zufall.js';
-import { ausText, setzeEin } from '../tools/seitenmodule.mjs';
+import { ausText, module } from '../tools/seitenmodule.mjs';
 
 // je Abtastrate: Länge, SHA-256 und Stichproben [links 0, links 1, rechts 0, rechts 1000, links letzter] der alten Kurve
 const REFERENZ = {
@@ -56,8 +56,8 @@ test('Stückgrösse ändert nichts, Stücke wie verlangt', () => {
   assert.equal(b.stuecke, 2 * Math.ceil(153600 / 1000));
   for (let ch = 0; ch < 2; ch++) assert.deepEqual(a.data[ch], b.data[ch]);
 });
-test('Seite: die eingesetzten Module rechnen dasselbe (hallData ohne Worker, in Stücken)', () => {
-  // so, wie die Seite die Module einsetzt (zufall weiter oben, dann hall), als Skript ausgeführt
+test('Seite: die Module rechnen auch als Text ausgeführt dasselbe (hallData ohne Worker, in Stücken)', () => {
+  // als Skript ausgeführt (zufall, dann hall), wie bis Ticket 04 in der Seite
   const text = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
   const { mulberry32: m } = ausText(text('src/zufall.js'), 'src/zufall.js');
   const seite = ausText(text('src/hall.js'), 'src/hall.js', { mulberry32: m });
@@ -67,7 +67,9 @@ test('Seite: die eingesetzten Module rechnen dasselbe (hallData ohne Worker, in 
   do r = steps.next(); while (!r.done);
   assert.equal(r.value[1][1000], REFERENZ[44100][2][3]);
   assert.equal(m(5)(), mulberry32(5)());
-  assert.ok(setzeEin(text('index.html')).includes('function* hallImpulse('), 'hall nicht in der Seite');
+  // die Seite importiert das Modul (seit Ticket 04, vorher setzte sie seinen Text ein)
+  assert.ok(module().some((p) => /^import \{[^}]*\bhallImpulse\b[^}]*\} from '(\.\.?\/)+hall\.js';/m.test(text(p))),
+    'kein Modul der Seite importiert hallImpulse aus src/hall.js');
 });
 test('Worker (src/hall-worker.ts): die Länge aus dem Modul, die Puffer übertragen', () => {
   const w = readFileSync(new URL('../src/hall-worker.ts', import.meta.url), 'utf8');

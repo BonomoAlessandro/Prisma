@@ -3,30 +3,60 @@
 Ein 3D-Licht-Puzzle im Browser: Spiegel und Kristalle drehen, Licht lenken,
 mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 
-- **Starten:** Node 22.12 oder neuer, einmal `npm install` (einzige Abhängigkeit: Vite, Version fest in
-  `package-lock.json`). Dann `npm run dev`: Dev-Server auf `http://localhost:5173/`, lädt bei einer Änderung neu.
-  Three.js r147 (MIT) und die Schrift Jost (SIL OFL 1.1) liegen in `vendor/`, die Lizenztexte daneben.
+- **Starten:** Node 22.12 oder neuer, einmal `npm install` (Abhängigkeiten nur zum Entwickeln: Vite und TypeScript,
+  Versionen fest in `package-lock.json`). Dann `npm run dev`: Dev-Server auf `http://localhost:5173/`, lädt bei einer
+  Änderung neu. Three.js r147 (MIT) und die Schrift Jost (SIL OFL 1.1) liegen in `vendor/`, die Lizenztexte daneben.
 - **Bauen:** `npm run build` legt das fertige Spiel nach `dist/` (nicht im Repo; etwa 2 s), mit relativen Pfaden
   (`base: './'`, läuft also auch in einem Unterordner wie `/Prisma/`). `npm run preview` liefert `dist/` über http
   (`http://localhost:4173/`), mit Service Worker wie später im Netz. Wie gebaut wird, steht im Kopf von
-  `vite.config.mjs`: `index.html` bleibt eine Seite mit klassischen Skripten; was sie direkt lädt, trägt `vite-ignore`;
-  `vendor/`, `icons/`, `favicon.svg`, `manifest.webmanifest` und die Skyboxen des Registers kommen unverändert nach
-  `dist/`, die Schrift mit Hash nach `dist/assets/`.
-- **Module und TypeScript (seit Ticket 03 des Umbaus):** Spiellogik samt Leveln (`src/logik.js`, bis dahin der Bereich
-  `LOGIC` in `index.html`), Zufall (`src/zufall.js`, `mulberry32`) und Hall (`src/hall.js`) sind ES-Module unter
-  `src/` (`src/package.json`: `"type": "module"`). Tests und Werkzeuge importieren sie (`tools/solver.mjs` liefert die
-  Logik als `L`). Die Seite hat noch klassische Skripte mit gemeinsamem globalem Bereich; an der Marke
-  `/* MODUL src/….js */` setzen Build und Dev-Server darum den Text des Moduls ein, ohne seine `import`-Zeilen und
-  seinen `export`-Block am Schluss (`tools/seitenmodule.mjs`): Im Spiel läuft derselbe Code wie vorher. Ein solches
-  Modul hat darum nur `import { … } from './x.js';` am Anfang (x.js steht in der Seite weiter oben) und ein
-  `export { … };` mit allen Namen seiner obersten Ebene am Schluss. Der Worker des Halls ist ein echtes Modul in
-  TypeScript (`src/hall-worker.ts`): Vite übersetzt ihn, im Build eine Datei `dist/assets/hall-worker-<hash>.js`
-  (unverkleinert), deren Pfad das Plugin für `__HALL_WORKER__` einsetzt. Die Module, die Node lädt, sind JavaScript:
-  Der Text, den die Seite einsetzt, bleibt so Zeichen für Zeichen der Code des Moduls. Node 22.12 lädt TypeScript
-  nicht ohne Weiteres; geprüft (für Ticket 04): `node --experimental-strip-types` genügt (ohne Abhängigkeit, mit einer
-  Warnung `ExperimentalWarning`), ebenso ein Lade-Haken über `module.register`, der für `.ts` das Format
-  `module-typescript` meldet (ohne Schalter; danach `await import('…/x.ts')`). Ab Node 22.18 entfernt Node Typen von
-  selbst.
+  `vite.config.mjs`: Vite bündelt die Module zu einer verkleinerten Datei unter `dist/assets/` (mit Source-Map, nicht
+  im Speicher des Service Workers), den Stil zu einer zweiten; was `index.html` direkt lädt (three.js, das Register
+  der Skyboxen), trägt `vite-ignore`; `vendor/`, `icons/`, `favicon.svg`, `manifest.webmanifest` und die Skyboxen
+  des Registers kommen unverändert nach `dist/`, die Schrift mit Hash nach `dist/assets/`.
+- **Aufbau des Codes (seit Ticket 04 des Umbaus):** `index.html` ist nur das Gerüst der Seite: Markup, zwei kleine
+  Skripte im Kopf (Manifest und Service Worker; Massstab der Seite `SEITE`), three.js und das Register der Skyboxen
+  als klassische Skripte, dann das Spiel als ES-Modul `src/main.ts`. Der Stil liegt in `src/stil/` (`index.css`
+  bindet die Teile in ihrer Reihenfolge ein: `grund`, `oberflaeche`, `start`, `geschichte`, `menue`, `uebersicht`,
+  `leistung`, `seite`). Das Spiel in `src/`:
+  - `logik.js` (Strahlregel, Löser-Grundlagen, Level, Geschichte; auch für Node), `zufall.js`, `hall.js`,
+    `hall-worker.ts` (Worker des Halls);
+  - `seite/` die Teile des Spiels, in der Reihenfolge, in der sie laden: `konfiguration.ts` (Fassung, Gerät,
+    Schalter der Adresse, Qualität, Masse), `szene.js` (Renderer, Szene, Hauptschleife `sceneLoop`, Ruhe,
+    Übersetzen der Programme), `texturen.js`, `himmel/` (`sterne.js` Umgebung und Sternenhimmel, `sonnensystem.js`,
+    `skybox.js` Skyboxen aus Blender und `skyTheme`), `brett/brett.js` (Bretter je Himmel, Spiegelung),
+    `bildschritte.js` (Licht, Bloom, Pinsel, letzter Schritt), `kamera.js`, `brett/elemente.js` (3D-Modelle der
+    Elemente), `brett/feld.js` (`game`: Logik und Darstellung verbunden, Laden, Drehen, Würfel), `brett/strahlen.js`,
+    `eingabe.js` (Maus, Finger, Mausrad), `ton.js`, `levelfluss.js` (Lösungsmoment, Übergänge, Fortschritt),
+    `oberflaeche/dom.ts`, `fuehrung.js` (Führung im Dorf), `oberflaeche/` (`ui.js` Kopfzeile, Knöpfe, «Gelöst»,
+    Startbildschirm; `menue.js`; `uebersicht.js`), `geschichte/` (`daten.js` Kapitel und Texte, `buehne.js` Bühne von Prolog und
+    Epilog, `geschichte.js` Ablauf `story`), `aufloesung.js` (Grösse, Uhr, adaptive Auflösung, Spiegelung je Bild),
+    `leistung.js` (Messwerkzeug, Leistungsanzeige `?perf`, Bildrate), `schleife.js` (Hauptschleife, Testschnittstelle
+    `window.__prisma`/`__prismaDebug`, Seitenstart). Dazu `aufgabe.ts` (eine neue Aufgabe abwarten) und
+    `testschnittstelle.ts`.
+  Jeder Teil importiert zuerst den vorherigen, `src/main.ts` den letzten: So laufen sie beim Laden in derselben
+  Reihenfolge wie früher die Skripte, und beim Laden ruft ein Teil nichts aus einem späteren auf (zur Laufzeit schon;
+  zyklische Importe sind darum gewollt). `szene.js` und `kamera.js` warten zuerst auf eine neue Aufgabe (`await` auf
+  oberster Ebene), wo bis Ticket 04 ein neues klassisches Skript begann (Seitenstart in Stücken, Ticket 10 der
+  Leistung). Neue Abhängigkeiten zwischen den Teilen sind gewöhnliche `import`/`export`. Proben lesen über
+  Runtime.evaluate einige Namen der Seite als globale Namen (`game`, `camera`, `draw` …); die zeigt jedes Modul am
+  Schluss mit `alsGlobal` (`src/seite/testschnittstelle.ts`) als Eigenschaften von `window`, `draw` und
+  `renderReflection` auch zum Ersetzen. Braucht eine Probe einen weiteren Namen, kommt er dort dazu.
+- **Module und TypeScript (seit den Tickets 03 und 04 des Umbaus):** `npm run typecheck` (`tsc --noEmit` für
+  `tsconfig.json` und, mit WebWorker statt DOM, `tsconfig.worker.json`) prüft die Typen; es gehört zu `npm test`.
+  Übersetzt (Typen entfernt) wird nur von Vite. Neue und herausgelöste Module dürfen TypeScript sein (`.ts`, import
+  mit Endung `.ts`); der übrige Code ist JavaScript (`allowJs`, nicht geprüft: `checkJs` aus) und wird es Stück für
+  Stück. TypeScript sind heute `src/main.ts`, `src/hall-worker.ts`, `src/seite/konfiguration.ts`,
+  `src/seite/oberflaeche/dom.ts`, `src/seite/aufgabe.ts` und `src/seite/testschnittstelle.ts`; was die klassischen
+  Skripte global bereitstellen (`THREE`), deklariert `src/globale.d.ts`. Tests und Werkzeuge importieren die Spiellogik, den Zufall und den Hall
+  (`tools/solver.mjs` liefert die Logik als `L`; `src/package.json`: `"type": "module"`). Diese drei Module haben eine
+  feste Form, damit Tests und Werkzeuge sie auch als Text ausführen können (etwa die Logik mit weiteren Leveln,
+  `tools/seitenmodule.mjs`): am Anfang nur `import { … } from './x.js';`, am Schluss ein `export { … };` mit allen
+  Namen der obersten Ebene. Tests, die Code der Seite als Text lesen, lesen `index.html` und alle Module zusammen
+  (`spielQuelltext`). Die KI-Tester bauen das Spiel für Kandidaten mit einer anderen Spiellogik (`spielServer` mit
+  `logik`, `PRISMA_LOGIK` in `vite.config.mjs`). Node 22.12 lädt TypeScript nicht ohne Weiteres:
+  `node --experimental-strip-types` genügt (ohne Abhängigkeit, mit einer Warnung `ExperimentalWarning`), ebenso ein
+  Lade-Haken über `module.register`, der für `.ts` das Format `module-typescript` meldet (ohne Schalter; danach
+  `await import('…/x.ts')`). Ab Node 22.18 entfernt Node Typen von selbst.
 - **Auf dem Handy (gleiches WLAN):** `npm run build`, dann `npm run preview -- --host`; Vite nennt die Adresse im Netz
   (`Network: http://192.168.…:4173/`), diese im Browser des Handys öffnen. Der Rechner muss Verbindungen auf Port 4173
   zulassen (Windows-Firewall: beim ersten Mal «Zugriff zulassen» für Node). Über http ohne s gibt es dort keinen Service
@@ -41,9 +71,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   meldet er ab. Wer `dist/` mit `npm run preview` auf `localhost` öffnet, hat danach dort einen Service Worker (er
   liefert das Spiel auch bei gestopptem Server): In den DevTools unter Application → Service Workers „Unregister“ oder
   „Bypass for network“.
-- **Über file://:** Ein Doppelklick auf `index.html` geht nicht mehr: Seit Ticket 03 des Umbaus steht in der Quelle
-  statt der Spiellogik nur eine Marke, die der Build füllt, und der Worker des Halls ist ein Modul. Proben und Tests
-  laufen über http gegen `dist/`.
+- **Über file://:** Ein Doppelklick auf `index.html` geht nicht mehr: Das Spiel sind ES-Module (seit Ticket 04 des
+  Umbaus; seit Ticket 03 stand in der Quelle statt der Spiellogik eine Marke). Proben und Tests laufen über http gegen
+  `dist/`.
 - **Spezifikation:** siehe [SPEC.md](SPEC.md).
 - **Würfel-Level (3D-Prototyp):** Vorgehen, Modell und offene Punkte in [3D-WUERFEL.md](3D-WUERFEL.md).
 - **Plan und offene Punkte:** siehe [PLAN.md](PLAN.md) – was noch umgesetzt werden soll, Entscheidungen, Erledigtes.
@@ -63,17 +93,20 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     einen kleinen Server auf `127.0.0.1` (freier Port), mit einem leeren Service Worker statt `sw.js` (wie früher
     über file:// ohne Vorab-Speichern). `PRISMA_OHNE_BAU=1` nimmt das vorhandene `dist/`, `PRISMA_SPIEL=<url>` eine
     laufende Adresse (etwa den Dev-Server). `--seite`/`--vorher` der Messproben liefern eine Kopie einer früheren
-    `index.html` ungebaut aus ihrem Ordner (eine Fassung ab Ticket 03 braucht den Build). Spiellogik und Hall
+    `index.html` ungebaut aus ihrem Ordner (eine Fassung ab Ticket 03 braucht den Build). Bei `npm test` prüft
+    `tests/typecheck.mjs` auch die Typen (`npm run typecheck`). Spiellogik und Hall
     importieren die Tests als Module aus `src/`; die markierten Bereiche `LEVELS`, `WUERFEL` und `GESCHICHTE` stehen in
     `src/logik.js`, und dorthin schreiben die Werkzeuge (`ordne-level.mjs`, `ordne-wuerfel.mjs`, `geschichte.mjs`,
     `vorrat.mjs`).
   - `node tests/logic.test.mjs` prüft die Strahllogik, im Block „Würfel (dim: 3)“ auch die Würfel-Level. Was er aus der
-    Seite liest, liest er aus `index.html` mit den eingesetzten Modulen. Im Block „Module“ prüft er die Marken und die
-    Form der Module (der `export`-Block nennt alle Namen der obersten Ebene). Im Block „Offline“ baut er das Spiel
-    einmal in einen eigenen Ordner und prüft den Build (Listen von `sw.js`, statische Dateien Byte für Byte,
-    `index.html` bis auf `vite-ignore`, Schrift, Version und Pfad des Workers gleich wie die Quelle mit den Modulen,
-    der gebaute Worker des Halls rechnet bitgleich) und den Dev-Server (Version, Module eingesetzt, Worker übersetzt,
-    kein Service Worker, `vendor/` und `backgrounds/` roh); braucht `npm install`.
+    Seite liest, liest er aus `index.html` und allen Modulen (`spielQuelltext`). Im Block „Module“ prüft er das Gerüst
+    `index.html` (nur ein Modul, keine grossen Skripte), die Reihenfolge der Teile unter `src/seite/` und die Form von
+    Logik, Zufall und Hall (der `export`-Block nennt alle Namen der obersten Ebene). Im Block „Offline“ baut er das
+    Spiel einmal in einen eigenen Ordner und prüft den Build (Listen von `sw.js`, statische Dateien Byte für Byte,
+    `index.html` bis auf `vite-ignore`, Stil und Spiel unter `assets/` gleich wie die Quelle, der Stil enthält genau
+    die Teile aus `src/stil/`, das Spiel ist verkleinert, mit Version, Worker und Source-Map auf die Module, der
+    gebaute Worker des Halls rechnet bitgleich) und den Dev-Server (Version, Module einzeln, Worker übersetzt, kein
+    Service Worker, `vendor/` und `backgrounds/` roh); braucht `npm install`.
   - `node tests/golden.mjs` vergleicht die Strahlbilder aller flachen Level (Start- und Lösungsstellung) mit
     `tests/golden.json`, dazu den Löser für eine Stichprobe aus Spiel und Vorrat: das Tutorial, je Grad der Geschichte
     jedes 10. Level (das erste jeder Welt), jedes 10. flache Level des Vorrats und jedes 10. Würfel-Level (seit Ticket
@@ -109,7 +142,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - `node tests/hall.test.mjs` prüft die Impulsantwort des Halls (`hallImpulse` im Modul `src/hall.js`; Ticket 05 von
     `.scratch/leistung/`): Für 44,1, 48 und 96 kHz ist sie bitgleich mit der alten Berechnung beim ersten Klick
     (Prüfsumme und Stichproben aus dem Stand `963177d`; das Rauschen kommt aus `mulberry32` mit festem Samen),
-    unabhängig von der Stückgrösse, und so, wie die Seite die Module einsetzt, rechnet sie dasselbe (unter 1 s).
+    unabhängig von der Stückgrösse, auch als Text ausgeführt, und die Seite importiert das Modul (unter 1 s).
   - `node tests/beurteilung.test.mjs` prüft die Beurteilung (unter `leise.sh` etwa 40 s, auf einem Thread 90–130 s je
     nach Last): den Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue
     Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von Hand gebauten Leveln geprüft und an den 150 heutigen

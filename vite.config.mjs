@@ -2,23 +2,22 @@
 // in dist/), npm run preview (dist/ über http). base './': relative Pfade, damit dieselbe Ausgabe auf GitHub Pages unter
 // /Prisma/, in Capacitor und in Electron läuft.
 //
-// index.html bleibt eine Seite mit klassischen Skripten. Was sie direkt lädt (three.js r147 in vendor/, das Register der
-// Skyboxen, die Icons), trägt das Attribut vite-ignore: Vite lässt es stehen, wie es ist (und entfernt nur das
-// Attribut). Der Inhalt von <style> geht durch Vite, unverkleinert (cssMinify: false); die Schrift daraus landet mit
-// Hash unter assets/.
+// Das Spiel sind ES-Module unter src/ (seit Ticket 04), Einstieg src/main.ts: Im Build bündelt Vite sie zu einer
+// verkleinerten Datei unter assets/ (mit Source-Map daneben, so zeigen Fehlerorte und Haltepunkte in den DevTools auf
+// die Module), im Dev-Server liefert es sie einzeln. Der Stil (src/stil/index.css) wird eine Datei unter assets/, die
+// Schrift daraus ebenso (unverkleinert, cssMinify: false). Was index.html direkt lädt (three.js r147 in vendor/, das
+// Register der Skyboxen, die Icons), trägt das Attribut vite-ignore: Vite lässt es stehen, wie es ist (und entfernt nur
+// das Attribut). Der Worker des Halls (src/hall-worker.ts) ist ein eigenes Modul: new Worker(new URL(…)) in
+// src/seite/ton.js, Vite macht daraus im Build assets/hall-worker-<hash>.js.
 //
 // Beim Build kommen dazu (Plugin prisma):
 // - die statischen Dateien unverändert nach dist/: vendor/, icons/, favicon.svg, manifest.webmanifest und aus
 //   backgrounds/ das Register skies.js mit den Teilen, die es nennt (alte Stände bleiben weg). Was Vite schon selbst
 //   aus der Quelle übernommen hat (die Schrift), wird nicht noch einmal kopiert;
+// - der <link> des Stils an seine Stelle in der Quelle (stilZurueck);
 // - sw.js mit den Listen FILES und LAZY aus dem, was in dist/ liegt (Regeln im Kopf von sw.js);
-// - APP_VERSION aus package.json (appVersion, die einzige Quelle) in index.html und sw.js; im Dev-Server ebenso in
-//   index.html.
-// Module (Ticket 03): An den Marken «/* MODUL src/….js */» in index.html setzt das Plugin (Build und Dev-Server) den
-// Text des Moduls ein, ohne import-Zeilen und export-Block (tools/seitenmodule.mjs): Die klassischen Skripte sehen die
-// Namen global wie vorher. Der Worker des Halls ist ein echtes Modul (src/hall-worker.ts, TypeScript): Im Build wird er
-// eine eigene Datei unter assets/, im Dev-Server liefert Vite ihn selbst; seinen Pfad setzt das Plugin für
-// __HALL_WORKER__ ein (relativ zur Seite). Ändert sich ein eingesetztes Modul, lädt der Dev-Server die Seite neu.
+// - APP_VERSION aus package.json (appVersion, die einzige Quelle) in src/seite/konfiguration.ts und sw.js; im
+//   Dev-Server ebenso in src/seite/konfiguration.ts.
 // Im Dev-Server registriert die Seite keinen Service Worker (PRISMA_DEV); fragt ein alter, noch registrierter nach
 // sw.js, bekommt er einen, der sich selbst abmeldet und den Speicher leert. vendor/ und backgrounds/ liefert er roh
 // (sonst hängte Vite an die klassischen Skripte eine Source-Map an). tests/logic.test.mjs prüft Build und Dev-Server.
@@ -27,17 +26,18 @@ import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { TYPES } from './tools/spielserver.mjs';
-import { MARKE, setzeEin } from './tools/seitenmodule.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const VERSION = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).appVersion;
 if (typeof VERSION !== 'string' || !VERSION) throw new Error('package.json: appVersion fehlt');
 const PLATZHALTER = '__APP_VERSION__';
-const HALL_WORKER = '__HALL_WORKER__'; // Platzhalter für den Pfad des Workers des Halls in index.html
-const WORKER_QUELLE = 'src/hall-worker.ts';
+const MIT_VERSION = 'src/seite/konfiguration.ts'; // das Modul mit APP_VERSION
 const STATISCH = ['vendor', 'icons', 'favicon.svg', 'manifest.webmanifest'];
-/** Nicht in den Speicher des Service Workers: er selbst und die Lizenztexte (liegen bei, braucht das Spiel nicht). */
-const NICHT_SPEICHERN = /^sw\.js$|(^|\/)(LICENSE|[^/]*\.txt)$/;
+/**
+ * Nicht in den Speicher des Service Workers: er selbst, die Lizenztexte (liegen bei, braucht das Spiel nicht) und die
+ * Source-Maps (lädt nur ein offenes DevTools).
+ */
+const NICHT_SPEICHERN = /^sw\.js$|(^|\/)(LICENSE|[^/]*\.txt)$|\.map$/;
 
 /** Ersetzt den Platzhalter der Version genau einmal (sonst Fehler: Format geändert?). */
 function mitVersion(text, datei) {
@@ -64,43 +64,52 @@ function skyboxen() {
 /** Eine Liste als Quelltext für sw.js, eine Datei je Zeile. */
 const alsListe = (l, nl) => `[${nl}${l.map((d) => `  ${JSON.stringify(d)},`).join(nl)}${nl}]`;
 
-/** Ersetzt den Platzhalter des Worker-Pfads genau einmal durch pfad (relativ zur Seite). */
-function mitWorker(html, pfad) {
-  const n = html.split(HALL_WORKER).length - 1;
-  if (n !== 1) throw new Error(`index.html: ${HALL_WORKER} ${n}-mal statt einmal`);
-  return html.replace(HALL_WORKER, pfad);
+/**
+ * Der Stil (src/stil/index.css, Ticket 04): Vite fügt ihn als eine Datei unter assets/ ein, mit dem <link> am Ende des
+ * Kopfs. Das Skript des Massstabs im Kopf rechnet aber die Medienabfragen der Blätter um und muss sie darum schon
+ * sehen: den <link> an die Stelle zurück, an der er in der Quelle steht (nach der Zeile mit STIL_MARKE).
+ */
+const STIL_MARKE = '<!-- Stil des Spiels: src/stil/';
+function stilZurueck(html) {
+  const links = html.match(/^[ \t]*<link rel="stylesheet" crossorigin href="\.\/assets\/[\w-]+\.css">\r?\n/gm) ?? [];
+  if (links.length !== 1) throw new Error(`index.html: ${links.length} Stile von Vite statt einem`);
+  const marke = html.indexOf(STIL_MARKE);
+  if (marke < 0 || html.indexOf(STIL_MARKE, marke + 1) >= 0) throw new Error('index.html: Marke des Stils nicht genau einmal');
+  html = html.replace(links[0], '');
+  const ende = html.indexOf('\n', marke) + 1;
+  html = html.slice(0, ende) + links[0].trimStart() + html.slice(ende);
+  // Zeilenenden wie die Quelle: Vite fügt seine Zeilen mit \n ein und lässt beim Entfernen des <script> aus der Quelle
+  // ein \r stehen
+  return html.includes('\r\n') ? html.replace(/\r*\n/g, '\r\n') : html;
 }
 
 function prisma() {
   let aus = null; // Ausgabeordner
-  let bauen = false; // npm run build (sonst Dev-Server)
   const vonVite = new Set(); // Quelldateien, die Vite selbst (mit Hash) nach assets/ übernommen hat
   return {
     name: 'prisma',
-    configResolved(config) { aus = resolve(config.root, config.build.outDir); bauen = config.command === 'build'; },
-    buildStart() {
-      // der Worker des Halls als eigene Datei (assets/hall-worker-<hash>.js, ES-Modul)
-      if (bauen) this.emitFile({ type: 'chunk', id: join(root, WORKER_QUELLE), name: 'hall-worker' });
+    configResolved(config) { aus = resolve(config.root, config.build.outDir); },
+    load(id) {
+      // PRISMA_LOGIK=<pfad>: eine andere Spiellogik statt src/logik.js (tools/spielserver.mjs, baue mit logik: die
+      // KI-Tester mit Kandidaten am Ende der Level)
+      const logik = process.env.PRISMA_LOGIK;
+      if (logik && resolve(id) === resolve(root, 'src', 'logik.js')) return readFileSync(logik, 'utf8');
+      return null;
+    },
+    transform(code, id) {
+      // die Version in das Modul, das sie nennt (Build und Dev-Server)
+      if (id.replaceAll('\\', '/') === `${root.replaceAll('\\', '/')}/${MIT_VERSION}`) return { code: mitVersion(code, MIT_VERSION), map: null };
+      return null;
     },
     transformIndexHtml: {
       order: 'pre',
-      handler: (html, ctx) => {
-        html = setzeEin(mitVersion(html, 'index.html'));
-        return {
-          // Build: den Pfad des Workers kennt erst writeBundle
-          html: ctx.server ? mitWorker(html, WORKER_QUELLE) : html,
-          // im Dev-Server kein Service Worker (index.html fragt PRISMA_DEV ab, bevor sie ihn registriert)
-          tags: ctx.server ? [{ tag: 'script', children: 'window.PRISMA_DEV = true;', injectTo: 'head-prepend' }] : [],
-        };
-      },
+      // im Dev-Server kein Service Worker (index.html fragt PRISMA_DEV ab, bevor sie ihn registriert)
+      handler: (html, ctx) => ({
+        html,
+        tags: ctx.server ? [{ tag: 'script', children: 'window.PRISMA_DEV = true;', injectTo: 'head-prepend' }] : [],
+      }),
     },
     configureServer(server) {
-      // ein eingesetztes Modul geändert: Seite neu laden (es steht nicht im Modulgraphen von Vite)
-      server.watcher.on('change', (datei) => {
-        const pfad = relative(root, datei).replaceAll('\\', '/');
-        const html = readFileSync(join(root, 'index.html'), 'utf8');
-        if ([...html.matchAll(MARKE)].some((m) => m[1] === pfad)) server.ws.send({ type: 'full-reload' });
-      });
       server.middlewares.use((req, res, next) => {
         const pfad = decodeURIComponent(new URL(req.url, 'http://x').pathname);
         // vendor/ und backgrounds/ roh wie im Build (Vite hängte an klassische Skripte eine Source-Map an, bei den
@@ -125,13 +134,9 @@ self.addEventListener('activate', (e) => e.waitUntil(caches.keys()
     generateBundle(_, bundle) {
       for (const f of Object.values(bundle)) for (const o of f.originalFileNames ?? []) vonVite.add(o.replaceAll('\\', '/'));
     },
-    writeBundle(_, bundle) {
-      // der Pfad des Workers des Halls in die Seite
-      const worker = Object.values(bundle).filter((f) => f.type === 'chunk'
-        && f.facadeModuleId?.replaceAll('\\', '/').endsWith(`/${WORKER_QUELLE}`));
-      if (worker.length !== 1) throw new Error(`${WORKER_QUELLE}: ${worker.length} Dateien im Build statt einer`);
+    writeBundle() {
       const seite = join(aus, 'index.html');
-      writeFileSync(seite, mitWorker(readFileSync(seite, 'utf8'), worker[0].fileName));
+      writeFileSync(seite, stilZurueck(readFileSync(seite, 'utf8')));
       const kopiere = (pfad) => {
         if (!existsSync(join(root, pfad))) throw new Error(`${pfad} fehlt`);
         if (!vonVite.has(pfad)) cpSync(join(root, pfad), join(aus, pfad));
@@ -162,9 +167,18 @@ export default {
   base: './',
   publicDir: false,
   plugins: [prisma()],
-  // unverkleinert: Der Worker des Halls (die einzige JS-Datei des Builds) rechnet so genau den Code aus src/hall.js;
-  // verkleinert würde etwa Math.pow zu **
-  build: { outDir: 'dist', emptyOutDir: true, cssMinify: false, minify: false },
+  // verkleinert, mit Source-Maps (nicht im Speicher des Service Workers); ohne den Nachlader für modulepreload (das
+  // Spiel ist ein einziges Modul). Die Bitgleichheit des Halls prüft tests/logic.test.mjs an der Prüfsumme des
+  // gebauten Workers (verkleinert wird etwa Math.pow zu **, nach ECMAScript dieselbe Operation).
+  // Namen bleiben (mangle aus, Funktionsnamen behalten): Zwei Worker bekommen ihren Code als Text von Funktionen des
+  // Spiels (skyBitmaps: decode mit OPT, boardTextures: compute samt helpers und compute.name); umbenannt fänden sie die
+  // Namen darin nicht mehr, scheiterten und rechneten im Hauptthread (Lücken bis 700 ms, andere Bilder)
+  build: {
+    outDir: 'dist', emptyOutDir: true, cssMinify: false, minify: true, sourcemap: true, modulePreload: { polyfill: false },
+    chunkSizeWarningLimit: 1500,
+    rolldownOptions: { output: { minify: { mangle: false, compress: { keepNames: { function: true, class: true } } } } },
+  },
+  worker: { format: 'es' },
   // Proben, Werkzeuge und Notizen schreiben viel; der Dev-Server muss davon nichts wissen
   server: { watch: { ignored: ['**/tests/output/**', '**/.scratch/**', '**/tools/**', '**/dist/**'] } },
 };

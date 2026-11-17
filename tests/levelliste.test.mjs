@@ -22,7 +22,6 @@
 // --austausch); die Level, die damals ins Spiel kamen, prüft der Test weiter.
 // Aufruf: node tests/levelliste.test.mjs   (über leise.sh etwa 25 s)
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { L, solve, period, setRot, keyOf } from '../tools/solver.mjs';
@@ -34,6 +33,7 @@ import { gradVon } from '../tools/beurteilung/grad.mjs';
 import { AGENT, MAX_SHIFT, WUERFEL_VERSION, entry } from '../tools/ki-tester/protocol.mjs';
 import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from '../tools/aehnlichkeit.mjs';
+import { spielQuelltext } from '../tools/seitenmodule.mjs';
 import {
   GRADE_OBEN, GRUENDE, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, MAX_ENTZERREN, MAX_ENTZERREN_AUSBAU,
   MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, alleWuerfelUrteile, zaehlendeWuerfelUrteile,
@@ -92,10 +92,11 @@ test('Entlang der Reihenfolge sinkt der Grad nie', () => {
   const sinkt = MAIN.filter((l, i) => i && GRADE.indexOf(l.grad) < GRADE.indexOf(MAIN[i - 1].grad));
   assert.deepEqual(sinkt.map(l => `${MAIN.indexOf(l) + 1} ${l.name}`), []);
 });
-// Die Daten der Anzeige aus index.html (GRAD_ANZEIGE, Ticket 17); wie Kopfzeile und Menü aussehen, prüfen
-// die Proben im Browser (tests/geschichte-probe.mjs). Die Seiten der Levelauswahl gibt es seit Ticket 04 nicht mehr.
+// Die Daten der Anzeige aus dem Spielcode (GRAD_ANZEIGE, Ticket 17; seit Ticket 04 des Umbaus in den Modulen unter
+// src/); wie Kopfzeile und Menü aussehen, prüfen die Proben im Browser (tests/geschichte-probe.mjs). Die Seiten der
+// Levelauswahl gibt es seit Ticket 04 nicht mehr.
 const anzeige = () => {
-  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const html = spielQuelltext();
   const konstante = (k) => html.match(new RegExp(`^const ${k} = [^;]+;`, 'm'))[0];
   const code = ['GRAD_PUNKTE', 'GRAD_ANZEIGE'].map(konstante).join('\n') + '\nreturn { GRAD_PUNKTE, GRAD_ANZEIGE };';
   return new Function(code)();
@@ -853,8 +854,8 @@ test('Speicherstand von Noas Geschichte (Ticket 04): je Grad unter prisma.noa.*,
   + 'gespielte Grad; unlesbar oder fremd von vorn, weitere Felder bleiben, die alten Schlüssel liest das Spiel nicht; '
   + 'Bestwerte je Level (Ticket 06) je für sich, überleben «Von vorn»; Stand des Dorfs (Ticket 07)',
 () => {
-  // progress aus index.html mit einer Attrappe von localStorage
-  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  // progress aus dem Spielcode (src/seite/…) mit einer Attrappe von localStorage
+  const html = spielQuelltext();
   const von = html.indexOf('const progress = {'), bis = html.indexOf('\n};', von) + 3;
   const speicher = new Map();
   const localStorage = { getItem: k => speicher.get(k) ?? null, setItem: (k, v) => speicher.set(k, String(v)),

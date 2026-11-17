@@ -1,6 +1,5 @@
 // Impulsantwort des Halls (Ticket 03 von .scratch/umbau/, bis dahin der Bereich HALL in index.html): reine
-// Berechnung. Die Seite setzt das Modul an seiner Stelle ein (Marke «MODUL src/hall.js», tools/seitenmodule.mjs; den
-// import ersetzt dort mulberry32 aus src/zufall.js weiter oben); der Worker des Halls (src/hall-worker.ts) und
+// Berechnung. Der Ton der Seite (hallData, ohne Worker), der Worker des Halls (src/hall-worker.ts) und
 // tests/hall.test.mjs importieren es.
 import { mulberry32 } from './zufall.js';
 

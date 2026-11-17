@@ -1,6 +1,6 @@
 // Alle Node-Tests ohne Browser nacheinander (npm test; Ticket 02 von .scratch/umbau/): golden ohne --write, die
 // Strahllogik samt Build und Dev-Server, Hall, Vorrat, Geschichte, Levelliste, Würfelliste, KI-Tester, Beurteilung und
-// Generator. Läuft jeder bis zum Ende, auch wenn einer scheitert; am Schluss die Übersicht. Schwer (mehrere Minuten,
+// Generator, dazu die Typen (tsc, Ticket 04). Läuft jeder bis zum Ende, auch wenn einer scheitert; am Schluss die Übersicht. Schwer (mehrere Minuten,
 // der Generator rechnet auf allen Kernen): nur über tools/leise.sh, etwa
 //   LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 3600 npm test
 // Aufruf: node tests/alle.mjs [name …]   (nur diese, etwa: node tests/alle.mjs logic golden)
@@ -20,6 +20,7 @@ const ALLE = {
   'ki-tester': 'ki-tester.test.mjs',
   beurteilung: 'beurteilung.test.mjs',
   generator: 'generator.test.mjs',
+  typecheck: 'typecheck.mjs',
 };
 const wahl = process.argv.slice(2);
 const unbekannt = wahl.filter((n) => !ALLE[n]);

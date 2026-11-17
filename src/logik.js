@@ -1,11 +1,10 @@
 /* SPIELLOGIK ===========================================================
    Reine Rasterlogik ohne Three.js: 2D-Feld und Würfel-Level, ein Durchlauf für beide (tracePass).
 
-   Modul (Ticket 03 von .scratch/umbau/, bis dahin der Bereich LOGIC in index.html): Tests und Werkzeuge importieren
-   es (tools/solver.mjs, tests/logic.test.mjs). Die Seite hat noch klassische Skripte mit gemeinsamem globalem Bereich;
-   beim Build und im Dev-Server setzt vite.config.mjs dieses Modul darum als Text an seiner Stelle in ihr erstes
-   Skript ein (Marke «MODUL src/logik.js», tools/seitenmodule.mjs), ohne den export-Block am Schluss. Im Spiel gelten
-   die Namen so wie bisher global. Darum hier kein import und als einziges export der Block am Schluss, mit allen
+   Modul (Ticket 03 von .scratch/umbau/, bis dahin der Bereich LOGIC in index.html): Die Seite (src/seite/…, seit
+   Ticket 04), Tests und Werkzeuge importieren es (tools/solver.mjs, tests/logic.test.mjs). Tests und Werkzeuge führen
+   es auch als Text aus, etwa mit weiteren Leveln (tools/seitenmodule.mjs: zerlege, ausText; die KI-Tester bauen das
+   Spiel mit einer solchen Logik). Darum hier kein import und als einziges export der Block am Schluss, mit allen
    Namen der obersten Ebene (tests/logic.test.mjs prüft das). Kein Bezug auf Namen der Seite (Node lädt das Modul
    allein).
    Die Level stehen zwischen LEVELS:BEGIN und LEVELS:END, WUERFEL:BEGIN und WUERFEL:END, GESCHICHTE:BEGIN und

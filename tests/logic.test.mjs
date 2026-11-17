@@ -1,7 +1,7 @@
 // Testet die reine Spiellogik (das Modul src/logik.js, bis Ticket 03 von .scratch/umbau/ der Bereich LOGIC in
-// index.html) und Teile der Seite. Was er aus der Seite liest, liest er aus index.html mit den eingesetzten Modulen
-// (setzeEin in tools/seitenmodule.mjs), also aus dem Code, der im Spiel läuft. Im Block «Module» prüft er die Form der
-// Module, die die Seite einsetzt.
+// index.html) und Teile der Seite. Was er aus der Seite liest, liest er aus index.html und allen Modulen unter src/
+// (spielQuelltext in tools/seitenmodule.mjs, seit Ticket 04 ist das Spiel Module), also aus dem Code, der im Spiel
+// läuft. Im Block «Module» prüft er die Form der Module.
 // Die Level, an denen sie die Strahlregel und den Löser prüft (Lösung, Eindeutigkeit, Würfel, Vergleiche), kommen aus
 // Spiel und Vorrat (ALLE im gemeinsamen Lader tools/lader.mjs, Spec .scratch/noa-geschichte/); das Tutorial aus dem
 // Spiel.
@@ -10,7 +10,7 @@
 // Aufruf: node tests/logic.test.mjs
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -18,11 +18,11 @@ import { createHash } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 import { loadSkies, checkSkies, layerTypes, boardTypes, codeSkies, orphans, runCode } from '../tools/sky-schema.mjs';
 import { baue } from '../tools/spielserver.mjs';
-import { MARKE, setzeEin, zerlege } from '../tools/seitenmodule.mjs';
+import { module, spielQuelltext, zerlege } from '../tools/seitenmodule.mjs';
 import * as L from '../src/logik.js';
 
 const quelle = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
-const html = setzeEin(quelle); // die Seite mit den Modulen, wie im Spiel
+const html = spielQuelltext(); // index.html und alle Module, der Code des Spiels
 
 let passed = 0;
 function test(name, fn) {
@@ -1255,17 +1255,39 @@ console.log('Bildrate (Ruhe-Bildrate, ?ruhetakt)');
   });
 }
 
-console.log('Module (Ticket 03 von .scratch/umbau/)');
+console.log('Module (Tickets 03 und 04 von .scratch/umbau/)');
 {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
   const { parseAst } = await import('vite');
-  const marken = [...quelle.matchAll(MARKE)].map((m) => m[1]);
-  test('index.html: Marken für zufall, logik und hall in dieser Reihenfolge, keine Bereiche LOGIC, HALL mehr', () => {
-    assert.deepEqual(marken, ['src/zufall.js', 'src/logik.js', 'src/hall.js']);
-    assert.ok(!/LOGIC:BEGIN|LOGIC:END|HALL:BEGIN|HALL:END/.test(quelle), 'alte Bereiche');
-    assert.equal(quelle.split("'__HALL_WORKER__'").length, 2, 'Platzhalter des Workers nicht genau einmal');
+  const lies = (p) => readFileSync(join(root, p), 'utf8');
+  test('index.html: nur das Gerüst, das Spiel ein Modul (src/main.ts), keine Marken und kein Code mehr', () => {
+    const skripte = [...quelle.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
+    assert.deepEqual(skripte.filter((s) => /type="module"/.test(s[1])).map((s) => s[1].trim()),
+      ['type="module" src="src/main.ts"']);
+    // ausser three.js und dem Register nur die zwei kleinen Skripte im Kopf (Manifest/Service Worker, Massstab)
+    const eingebettet = skripte.filter((s) => !/\bsrc=/.test(s[1]));
+    assert.equal(eingebettet.length, 2);
+    assert.ok(eingebettet.every((s) => s[2].split('\n').length < 80), 'ein Skript in index.html ist gross geworden');
+    assert.ok(!/<style\b/.test(quelle) && !/MODUL src\//.test(quelle), '<style> oder Marken übrig');
+    assert.ok(!/LOGIC:BEGIN|LOGIC:END|HALL:BEGIN|HALL:END/.test(html), 'alte Bereiche');
   });
-  for (const pfad of marken) {
+  test('src/seite/: jedes Modul importiert zuerst das vorherige, src/main.ts das letzte (Reihenfolge beim Laden)', () => {
+    // die Reihenfolge der Teile aus src/main.ts rückwärts: je erste import-Zeile
+    const erstes = (p) => {
+      const m = lies(p).match(/^import (?:\{[^}]*\} from )?'(\.[^']+)';/m);
+      return m ? posix.join(posix.dirname(p), m[1]) : null;
+    };
+    const kette = [];
+    for (let p = erstes('src/main.ts'); p?.startsWith('src/seite/') && !kette.includes(p); p = erstes(p)) kette.unshift(p);
+    // alle Teile ausser den zwei Hilfen, die jeder Teil importieren darf
+    const hilfen = ['src/seite/aufgabe.ts', 'src/seite/testschnittstelle.ts'];
+    const teile = module('src/seite').filter((p) => !hilfen.includes(p));
+    assert.deepEqual([...kette].sort(), teile, 'nicht alle Teile in der Kette');
+    assert.equal(kette[0], 'src/seite/konfiguration.ts');
+    for (const h of hilfen) assert.ok(!/^import /m.test(lies(h)), `${h} importiert etwas (darf nur importiert werden)`);
+  });
+  const feste = ['src/zufall.js', 'src/logik.js', 'src/hall.js'];
+  for (const pfad of feste) {
     test(`${pfad}: der export-Block nennt genau die Deklarationen auf oberster Ebene`, () => {
       const text = readFileSync(join(root, pfad), 'utf8');
       const deklariert = parseAst(text).body.flatMap((n) => (n.type === 'VariableDeclaration'
@@ -1278,14 +1300,12 @@ console.log('Module (Ticket 03 von .scratch/umbau/)');
     const text = readFileSync(join(root, 'src/logik.js'), 'utf8');
     assert.deepEqual(Object.keys(L).sort(), [...zerlege(text, 'logik').namen].sort());
   });
-  test('zerlege: anderes import oder export, kein export-Block, Import, der nicht weiter oben steht: Fehler', () => {
+  test('zerlege: anderes import oder export, kein export-Block: Fehler; import-Zeilen und export-Block', () => {
     assert.throws(() => zerlege('const a = 1;\nexport const b = 2;\nexport { a };\n', 'x'), /export const b/);
     assert.throws(() => zerlege('const a = 1;\n', 'x'), /export-Block/);
     assert.throws(() => zerlege("const a = 1;\nimport b from './b.js';\nexport { a };\n", 'x'), /import b/);
-    const lies = (p) => ({ 'src/a.js': 'const a = 1;\nexport { a };\n',
-      'src/b.js': "import { a } from './a.js';\nconst b = a;\nexport { b };\n" })[p];
-    assert.equal(setzeEin('/* MODUL src/a.js */\n/* MODUL src/b.js */\n', lies), 'const a = 1;\nconst b = a;\n');
-    assert.throws(() => setzeEin('/* MODUL src/b.js */\n/* MODUL src/a.js */\n', lies), /nicht weiter oben/);
+    assert.deepEqual(zerlege("import { a } from './a.js';\nconst b = a;\nexport { b };\n", 'x'),
+      { importe: [{ namen: ['a'], von: 'src/a.js' }], code: 'const b = a;', namen: ['b'] });
   });
 }
 
@@ -1304,11 +1324,16 @@ console.log('Offline');
   const { swFiles, swLazy } = vm.runInContext('({ swFiles: FILES, swLazy: LAZY })', sw);
   const skies = loadSkies(root);
   const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).appVersion;
-  // alles, was die gebaute Seite lädt: <script src>, <link href> (auch das per Skript eingefügte Manifest), CSS url(),
-  // dazu die Icons aus dem Manifest
+  // alles, was die gebaute Seite lädt: <script src>, <link href> (auch das per Skript eingefügte Manifest), CSS url()
+  // in der Seite und in den Stilen (seit Ticket 04 eine Datei unter assets/, url() relativ zu ihr), dazu die Icons aus
+  // dem Manifest
+  const urls = (text, ordner = '') => [...text.matchAll(/url\(\s*["']?([^"')]+)/g)].map(m => m[1])
+    .filter(u => !u.startsWith('#') && !u.startsWith('data:')).map((u) => posix.join(ordner, u));
+  const stile = [...distHtml.matchAll(/<link rel="stylesheet"[^>]*?\bhref="\.\/([^"]+\.css)"/g)].map(m => m[1]);
   const refs = new Set([
     ...[...distHtml.matchAll(/<(?:script|link)\b[^>]*?\b(?:src|href)="([^"]+)"/g)].map(m => m[1]),
-    ...[...distHtml.matchAll(/url\(\s*["']?([^"')]+)/g)].map(m => m[1]).filter(u => !u.startsWith('#') && !u.startsWith('data:')),
+    ...urls(distHtml),
+    ...stile.flatMap((s) => urls(readFileSync(join(aus, s), 'utf8'), posix.dirname(s))),
     ...JSON.parse(readFileSync(join(aus, 'manifest.webmanifest'), 'utf8')).icons.map(i => i.src),
   ].map((r) => r.replace(/^\.\//, '')));
   // existiert genau so geschrieben? (Windows ignoriert Gross-/Kleinschreibung, der Webserver nicht)
@@ -1330,11 +1355,12 @@ console.log('Offline');
     assert.deepEqual(all.filter(f => !existsExactly(f)), []);
     assert.deepEqual(all.filter((f, i) => all.indexOf(f) !== i), []);
   });
-  test('Offline: sw.js kennt jede Datei des Builds (ausser sich selbst und den Lizenztexten), Hash-Namen nur unter assets/', () => {
+  test('Offline: sw.js kennt jede Datei des Builds (ausser sich selbst, den Lizenztexten und den Source-Maps), Hash-Namen nur unter assets/', () => {
     const all = new Set([...swFiles, ...swLazy]);
-    assert.deepEqual(imBau().filter((f) => !all.has(f) && !/^sw\.js$|(^|\/)(LICENSE|[^/]*\.txt)$/.test(f)), []);
+    assert.deepEqual(imBau().filter((f) => !all.has(f) && !/^sw\.js$|(^|\/)(LICENSE|[^/]*\.txt)$|\.map$/.test(f)), []);
+    assert.deepEqual([...all].filter((f) => f.endsWith('.map')), [], 'Source-Maps im Speicher');
     assert.ok(imBau().includes('vendor/three-0.147.0/LICENSE') && imBau().includes('vendor/jost/OFL.txt'), 'Lizenztexte fehlen im Build');
-    assert.deepEqual(imBau().filter((f) => f.startsWith('assets/') && !/-[\w-]{8}\.\w+$/.test(f)), []);
+    assert.deepEqual(imBau().filter((f) => f.startsWith('assets/') && !/-[\w-]{8}\.\w+(\.map)?$/.test(f)), []);
   });
   test('Offline: sw.js nimmt auch unbekannte Dateien unter assets/ und vendor/ in den Speicher (eine neuere Seite unter dem alten Service Worker), andere nicht', () => {
     const key = (p) => vm.runInContext(`cacheKey(${JSON.stringify(`http://prisma.test/${p}`)})`, sw);
@@ -1349,26 +1375,62 @@ console.log('Offline');
       .filter((f) => !existsExactly(f, root) || !readFileSync(join(aus, f)).equals(readFileSync(join(root, f))));
     assert.deepEqual(anders, []);
   });
-  test('Build: index.html wie die Quelle mit den Modulen bis auf vite-ignore, die Schrift unter assets/, APP_VERSION '
-    + 'und den Pfad des Workers', () => {
+  const skripte = [...distHtml.matchAll(/<script type="module" crossorigin src="\.\/(assets\/index-[\w-]+\.js)"><\/script>/g)]
+    .map((m) => m[1]);
+  test('Build: index.html wie die Quelle bis auf vite-ignore, den Stil und das Spiel unter assets/', () => {
     const schrift = [...refs].find((r) => /^assets\/jost-latin-[\w-]+\.woff2$/.test(r));
     assert.ok(schrift, 'Schrift Jost nicht unter assets/');
+    assert.equal(stile.length, 1, 'Stil nicht genau eine Datei');
+    assert.match(stile[0], /^assets\/index-[\w-]+\.css$/);
+    assert.equal(skripte.length, 1, 'Spiel nicht genau ein Modul unter assets/');
+    // der Stil an seiner Stelle in der Quelle (vor dem Skript des Massstabs, vite.config.mjs: stilZurueck), das Modul
+    // im Kopf (Vite; ein Modul läuft ohnehin erst nach dem Lesen der Seite)
+    const zeilen = (t) => t.replaceAll('\r\n', '\n');
+    const erwartet = zeilen(quelle).replaceAll(' vite-ignore>', ' >')
+      .replace('<link rel="stylesheet" href="src/stil/index.css">', `<link rel="stylesheet" crossorigin href="./${stile[0]}">`)
+      .replace('<script type="module" src="src/main.ts"></script>\n', '')
+      .replace('</head>', `  <script type="module" crossorigin src="./${skripte[0]}"></script>\n</head>`);
+    assert.ok(zeilen(distHtml) === erwartet, 'index.html im Build weicht ab');
+    assert.ok(!/vite-ignore|src="src\/main\.ts"|__APP_VERSION__/.test(distHtml), 'Build: vite-ignore oder Quelle übrig');
+  });
+  test('Build: das Spiel ein verkleinertes Modul mit Source-Map (auf die Module unter src/), APP_VERSION und Worker', () => {
+    const js = readFileSync(join(aus, skripte[0]), 'utf8');
+    assert.ok(js.includes(`'${version}'`) || js.includes(`"${version}"`) || js.includes(`\`${version}\``), 'APP_VERSION fehlt');
+    assert.ok(!js.includes('__APP_VERSION__'), 'Platzhalter der Version übrig');
+    const groesse = module().reduce((s, p) => s + readFileSync(join(root, p)).length, 0);
+    assert.ok(js.length < 0.75 * groesse, `nicht verkleinert (${js.length} Bytes, Module ${groesse})`);
+    // Namen bleiben (vite.config.mjs: mangle aus): zwei Worker bekommen ihren Code als Text von Funktionen des Spiels
+    assert.ok(js.includes('const OPT = ${JSON.stringify(OPT)};\\n${decode};') && /async function decode\(url,/.test(js),
+      'Worker der Skyboxen: decode oder OPT umbenannt');
+    assert.ok(/function boardTextures\(specs,compute,arg,helpers=\[\]\)/.test(js) && js.includes('${compute.name}(data)'),
+      'Worker der Bretter: boardTextures umbenannt');
     const worker = imBau().filter((f) => /^assets\/hall-worker-[\w-]+\.js$/.test(f));
     assert.equal(worker.length, 1, 'Worker des Halls nicht genau einmal unter assets/');
-    const erwartet = html.replaceAll(' vite-ignore>', ' >').replace('url(vendor/jost/jost-latin.woff2)', `url(./${schrift})`)
-      .replace("const APP_VERSION = '__APP_VERSION__';", `const APP_VERSION = '${version}';`)
-      .replace("new Worker('__HALL_WORKER__',", `new Worker('${worker[0]}',`);
-    const zeilen = (t) => t.replaceAll('\r\n', '\n');
-    assert.ok(zeilen(distHtml) === zeilen(erwartet), 'index.html im Build weicht ab');
-    assert.ok(!/vite-ignore/.test(distHtml) && !/<script type="module"/.test(distHtml), 'Build: Module oder vite-ignore übrig');
+    assert.ok(js.includes(posix.basename(worker[0])), 'Pfad des Workers fehlt im Spiel');
+    assert.ok(js.trimEnd().endsWith(`//# sourceMappingURL=${posix.basename(skripte[0])}.map`), 'Verweis auf die Source-Map');
+    const karte = JSON.parse(readFileSync(join(aus, `${skripte[0]}.map`), 'utf8'));
+    // Pfade relativ zum Ausgabeordner (hier ein temporärer Ordner); src/main.ts hat keinen eigenen Code
+    const quellen = karte.sources.map((s) => s.replaceAll('\\', '/'));
+    for (const m of ['src/logik.js', ...module('src/seite')]) {
+      assert.ok(quellen.some((q) => q.endsWith(`/${m}`)), `${m} fehlt in der Source-Map`);
+    }
   });
-  test('Build: der Worker des Halls, ein ES-Modul mit hallImpulse und mulberry32, unverkleinert, ohne import', () => {
+  test('Build: der Stil enthält die Teile aus src/stil/ in der Reihenfolge von index.css, sonst nichts', () => {
+    const quelleStil = readFileSync(join(root, 'src/stil/index.css'), 'utf8');
+    const teile = [...quelleStil.matchAll(/^@import "\.\/([\w-]+\.css)";/gm)].map((m) => m[1]);
+    assert.ok(teile.length >= 2, 'index.css ohne @import');
+    const norm = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/url\([^)]*jost[^)]*\)/g, 'url(JOST)')
+      .replace(/\s+/g, ' ').trim();
+    const zusammen = teile.map((t) => readFileSync(join(root, 'src/stil', t), 'utf8')).join('\n');
+    assert.equal(norm(readFileSync(join(aus, stile[0]), 'utf8')), norm(zusammen));
+  });
+  test('Build: der Worker des Halls, ein ES-Modul ohne import, bitgleich (an der Prüfsumme, auch verkleinert)', () => {
+    // verkleinert wird etwa Math.pow(…, 3.2) zu ** 3.2: nach ECMAScript dieselbe Operation (Number::exponentiate);
+    // die Prüfsumme zeigt, dass die Werte gleich bleiben
     const datei = imBau().find((f) => /^assets\/hall-worker-[\w-]+\.js$/.test(f));
     const w = readFileSync(join(aus, datei), 'utf8');
     assert.ok(swFiles.includes(datei), 'Worker nicht in FILES');
-    assert.ok(/function\* hallImpulse\(/.test(w) && /function mulberry32\(/.test(w), 'hallImpulse, mulberry32?');
-    assert.ok(w.includes('Math.pow(1 - i / len, 3.2)'), 'Formel des Halls verändert (verkleinert?)');
-    assert.ok(!/^\s*import\b/m.test(w), 'Worker lädt weitere Module');
+    assert.ok(!/^\s*import\b/m.test(w) && !/\bimport\s*\(/.test(w), 'Worker lädt weitere Module');
     // so ausgeführt, wie ihn die Seite benutzt: Abtastrate hin, [links, rechts] zurück, bitgleich (tests/hall.test.mjs)
     const ctx = vm.createContext({ Float32Array, Math, close() { ctx.zu = true; } });
     ctx.postMessage = (daten, uebertragen) => { ctx.antwort = { daten, uebertragen }; };
@@ -1387,24 +1449,24 @@ console.log('Offline');
   await dev.listen();
   const devUrl = dev.resolvedUrls.local[0], holen = async (p) => (await fetch(devUrl + p)).text();
   const devHtml = await holen(''), devSw = await holen('sw.js'), devWorker = await holen('src/hall-worker.ts');
+  const devKonfig = await holen('src/seite/konfiguration.ts'), devMain = await holen('src/main.ts');
+  const devSpiel = await holen((module('src/seite').find((p) => /^import \{[^}]*\bhallImpulse\b/m.test(readFileSync(join(root, p), 'utf8')))));
   const roh = {};
   for (const f of ['vendor/three-0.147.0/three.min.js', 'backgrounds/skies.js']) {
     roh[f] = Buffer.from(await (await fetch(devUrl + f, { headers: { 'sec-fetch-dest': 'script' } })).arrayBuffer());
   }
   await dev.close();
   test('Dev-Server: Version eingesetzt, PRISMA_DEV vor der Registrierung, sw.js meldet sich nur ab', () => {
-    assert.ok(devHtml.includes(`const APP_VERSION = '${version}';`), 'APP_VERSION fehlt');
+    assert.ok(devKonfig.includes(version) && !devKonfig.includes('__APP_VERSION__'), 'APP_VERSION fehlt');
     const flag = devHtml.indexOf('window.PRISMA_DEV = true'), reg = devHtml.indexOf('navigator.serviceWorker.register');
     assert.ok(flag > 0 && reg > flag, 'PRISMA_DEV fehlt oder steht nach der Registrierung');
     assert.match(devHtml, /'serviceWorker' in navigator && !window\.PRISMA_DEV\)/);
     assert.ok(devSw.includes('unregister()') && !devSw.includes('FILES'), 'sw.js im Dev-Server ist nicht der, der sich abmeldet');
   });
-  test('Dev-Server: Module eingesetzt, der Worker des Halls aus src/hall-worker.ts (von Vite übersetzt)', () => {
-    const z = (t) => t.replaceAll('\r\n', '\n');
-    for (const m of quelle.matchAll(MARKE)) {
-      assert.ok(z(devHtml).includes(z(zerlege(readFileSync(join(root, m[1]), 'utf8'), m[1]).code)), `${m[1]} fehlt`);
-    }
-    assert.ok(devHtml.includes("new Worker('src/hall-worker.ts', { type: 'module' })"), 'Pfad des Workers');
+  test('Dev-Server: die Module einzeln (src/main.ts von Vite übersetzt), der Worker des Halls aus src/hall-worker.ts', () => {
+    assert.match(devHtml, /<script type="module" src="\/?src\/main\.ts"><\/script>/);
+    assert.ok(/^import .*seite\//m.test(devMain), 'src/main.ts lädt die Teile nicht');
+    assert.ok(/new Worker\(new URL\([^)]*hall-worker\.ts[^)]*\)/.test(devSpiel), 'Pfad des Workers');
     assert.ok(/^import .*hall\.js/m.test(devWorker) && !/: MessageEvent/.test(devWorker), 'Worker nicht übersetzt');
   });
   test('Dev-Server: vendor/ und backgrounds/ Byte für Byte wie die Quelle (ohne Source-Map)', () => {
@@ -1552,11 +1614,13 @@ console.log('Offline');
     fehler({ rise: undefined }, 'rise', 'fehlende Farbe');
     fehler({ lava: [1, 0.4, 0.1] }, 'Wert lava unbekannt', 'unbekannter Wert');
   });
-  test('Version: APP_VERSION nur in package.json (appVersion), der Build setzt sie in index.html und sw.js ein (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
+  test('Version: APP_VERSION nur in package.json (appVersion), der Build setzt sie im Spiel (src/seite/konfiguration.ts) und in sw.js ein (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
     assert.ok(typeof version === 'string' && version.length > 0, 'appVersion in package.json fehlt');
-    assert.match(html, /^const APP_VERSION = '__APP_VERSION__';$/m, 'Platzhalter in index.html (Quelle) fehlt');
+    assert.equal(html.split('__APP_VERSION__').length - 1, 1, 'Platzhalter im Spiel nicht genau einmal');
+    assert.match(readFileSync(join(root, 'src/seite/konfiguration.ts'), 'utf8'), /^const APP_VERSION = '__APP_VERSION__';$/m,
+      'Platzhalter in src/seite/konfiguration.ts (Quelle) fehlt');
     assert.match(readFileSync(join(root, 'sw.js'), 'utf8'), /^const APP_VERSION = '__APP_VERSION__';$/m, 'Platzhalter in sw.js (Quelle) fehlt');
-    assert.equal(distHtml.match(/^const APP_VERSION = '([^']+)';$/m)?.[1], version);
+    assert.ok(readFileSync(join(aus, skripte[0]), 'utf8').includes(version), 'Version fehlt im gebauten Spiel');
     assert.equal(vm.runInContext('APP_VERSION', sw), version);
   });
   test('Skyboxen: sw.js nennt den Stand des Registers (pack.mjs; ein neues Register löst so in jedem Browser ein Update aus)', () => {

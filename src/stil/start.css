@@ -1,0 +1,80 @@
+/* Startbildschirm: der Titel entsteht aus einem Lichtstrahl (Ticket 04 von .scratch/umbau/: aus index.html) */
+/* ---------- Startbildschirm: der Titel entsteht aus einem Lichtstrahl ---------- */
+#intro {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at 50% 55%, rgba(14, 12, 30, 0.55), rgba(3, 3, 8, 0.96) 70%);
+  z-index: 8;
+  cursor: pointer;
+  transition: opacity 1.1s ease;
+}
+#intro .stage { position: relative; width: min(720px, 92vw / var(--seite)); height: 120px; display: grid; place-items: center; }
+#intro .beam {
+  position: absolute; left: 0; top: 50%;
+  height: 2px; width: 100%;
+  transform-origin: left center;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.9) 35%, #fff 50%, rgba(255, 255, 255, 0.9) 65%, rgba(255, 255, 255, 0) 100%);
+  box-shadow: 0 0 12px 2px rgba(255, 255, 255, 0.55), 0 0 40px 6px rgba(170, 180, 255, 0.25);
+  animation: intro-beam 2.6s cubic-bezier(0.6, 0, 0.2, 1) 0.3s forwards;
+}
+#intro .word { position: relative; font-size: clamp(38px, 9vw / var(--seite), 76px); }
+#intro .title {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 200;
+  letter-spacing: 0.5em;
+  padding-left: 0.5em; /* gleicht die Laufweite nach dem letzten Buchstaben aus */
+  color: #fff;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.55), 0 0 60px rgba(160, 170, 255, 0.35);
+  clip-path: inset(0 100% 0 0);
+  animation: intro-reveal 1.5s cubic-bezier(0.6, 0, 0.2, 1) 0.45s forwards;
+}
+/* Farbfächer tritt hinter dem letzten Buchstaben aus (Laufweite danach abgezogen) */
+/* Geglättete SVG-Linien: gedrehte 1-px-Elemente würden treppig wirken */
+#intro .spectrum {
+  position: absolute; left: calc(100% - 0.42em); top: 50%;
+  width: min(2.4em, 14vw / var(--seite)); height: auto;
+  transform: translateY(-50%);
+  overflow: visible;
+}
+/* Vor dem Start ein Stück von 1 Einheit mit Deckkraft 0,004 (unsichtbar): So zeichnet der Browser Filter und Verläufe
+   schon vorher einmal. Sonst tat er es beim Erscheinen des Fächers, und die Enthüllung setzte ein Bild aus. */
+#intro .spectrum line {
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-dasharray: 245;
+  stroke-dashoffset: 244;
+  opacity: 0.004;
+  animation: intro-fan 1.4s ease-out 1.75s forwards;
+}
+#intro .sub, #intro .start {
+  opacity: 0;
+  font-size: 10px; letter-spacing: 0.5em; text-transform: uppercase;
+  padding-left: 0.5em;
+  color: var(--ink-dim);
+  animation: intro-fade 1.2s ease 2.3s forwards;
+}
+#intro .sub { margin-top: 8px; }
+/* „Klicken zum Starten“ erst am Ende der Enthüllung (ui.init setzt .ready), vorher startet nichts */
+#intro .start { margin-top: 64px; animation: none; }
+#intro.ready .start { animation: intro-fade 1.2s ease forwards; }
+#intro:not(.ready) { cursor: default; }
+#intro:not(.go) * { animation-play-state: paused !important; }
+#intro .start span { animation: intro-pulse 2.4s ease-in-out 4s infinite; }
+@keyframes intro-beam {
+  0% { transform: scaleX(0); opacity: 1; }
+  55% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0.12; }
+}
+@keyframes intro-reveal { to { clip-path: inset(0 0 0 0); } }
+@keyframes intro-fan {
+  0% { opacity: 0; stroke-dashoffset: 245; }
+  30% { opacity: 1; }
+  100% { opacity: 1; stroke-dashoffset: 0; }
+}
+@keyframes intro-fade { to { opacity: 1; } }
+@keyframes intro-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) {
+  #intro .beam, #intro .title, #intro .spectrum line, #intro .sub, #intro.ready .start { animation-duration: 0.01s; animation-delay: 0s; }
+}

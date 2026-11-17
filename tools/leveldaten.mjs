@@ -99,7 +99,7 @@ export const kandidatName = (level) => `Kandidat ${abdruck(level)}`;
 
 /**
  * Die Spiellogik (der Text von src/logik.js) mit weiteren Leveln am Ende von LEVELS (vor LEVELS:END), für eine Seite
- * mit diesen Leveln (mitLogik in tools/seitenmodule.mjs; die Bilder der KI-Tester von Kandidaten).
+ * mit diesen Leveln (ein Build mit ihr, spielServer mit logik; die Bilder der KI-Tester von Kandidaten).
  */
 export function logikMitLeveln(logik, levels) {
   const nl = logik.includes('\r\n') ? '\r\n' : '\n';
