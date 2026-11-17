@@ -1,6 +1,6 @@
-// Leveldaten als Text für src/logik.js und ein Abdruck je Level (Ticket 23, Austausch): für tools/ordne-level.mjs, das
-// neue Level ins Spiel schreibt, und tools/ki-tester/prepare.mjs, das Kandidaten ohne Platz im Spiel aufnimmt.
-// - levelCode: ein Level als Block zwischen LEVELS:BEGIN und LEVELS:END, im Format der übrigen (Lösungskommentar,
+// Leveldaten als Text für src/daten/level.js und ein Abdruck je Level (Ticket 23, Austausch): für tools/ordne-level.mjs,
+// das neue Level ins Spiel schreibt, und tools/ki-tester/prepare.mjs, das Kandidaten ohne Platz im Spiel aufnimmt.
+// - levelCode: ein Level als Block in FLACH bzw. WUERFEL (src/daten/level.js), im Format der übrigen (Lösungskommentar,
 //   Name, Titel und Grad, je Element eine Zeile, Lösung). Die Elemente bleiben in ihrer Reihenfolge, denn nach ihr
 //   zählt das Spiel die Elemente durch. Dasselbe Format hat der Vorrat (tools/vorrat.mjs).
 // - abdruck und kandidatName: Ein neues Level hat vor der Genehmigung seines Namens noch keinen (Haltepunkt der
@@ -8,9 +8,10 @@
 //   über ihn findet die Levelliste ihr Urteil, wenn das Level mit seinem Namen im Spiel steht. Der Abdruck hängt nur
 //   daran, was das Spiel aus den Daten macht (Elemente wie in createBoard, Lösung), nicht an Name, Titel, Grad,
 //   Kommentaren oder der Reihenfolge der Felder und Elemente.
-// - logikMitLeveln: die Spiellogik (src/logik.js) mit weiteren Leveln am Ende von LEVELS, für eine Seite mit ihnen (die
-//   Screenshots der Kandidaten); logikMitWuerfeln dasselbe am Ende von LEVELS_3D.
+// - datenMitLeveln: die Leveldaten (src/daten/level.js) mit weiteren Leveln am Ende von FLACH, für eine Seite mit ihnen
+//   (die Screenshots der Kandidaten); datenMitWuerfeln dasselbe am Ende von WUERFEL.
 import { createHash } from 'node:crypto';
+import { spielBereich } from './vorrat.mjs';
 
 const TYPE_DE = { mirror: 'Spiegel', prism: 'Prisma', combiner: 'Kombinator' };
 const str = (v) => `'${String(v).replace(/['\\]/g, '\\$&')}'`;
@@ -55,9 +56,9 @@ function loesungText(level) {
 }
 
 /**
- * Ein Level als Block für LEVELS in src/logik.js (Zeilen mit „\n“, ohne Zeilenende am Schluss): Lösungskommentar, dazu
- * die Zeilen aus kommentar (ohne „// “), Name, Titel (wenn gesetzt: der Anzeigename in Noas Geschichte, Spec
- * .scratch/noa-geschichte/) und Grad, Elemente, Lösung. Ein Würfel-Level (dim 3) für LEVELS_3D hat nach dem Namen dim
+ * Ein Level als Block für FLACH in src/daten/level.js (Zeilen mit „\n“, ohne Zeilenende am Schluss): Lösungskommentar,
+ * dazu die Zeilen aus kommentar (ohne „// “), Name, Titel (wenn gesetzt: der Anzeigename in Noas Geschichte, Spec
+ * .scratch/noa-geschichte/) und Grad, Elemente, Lösung. Ein Würfel-Level (dim 3) für WUERFEL hat nach dem Namen dim
  * und size (und height, wenn gesetzt), dazu wahlweise hint. Im selben Format stehen die Level im Vorrat (vorrat.mjs).
  */
 export function levelCode(level, kommentar = []) {
@@ -98,25 +99,21 @@ export function abdruck(level) {
 export const kandidatName = (level) => `Kandidat ${abdruck(level)}`;
 
 /**
- * Die Spiellogik (der Text von src/logik.js) mit weiteren Leveln am Ende von LEVELS (vor LEVELS:END), für eine Seite
- * mit diesen Leveln (ein Build mit ihr, spielServer mit logik; die Bilder der KI-Tester von Kandidaten).
+ * Die Leveldaten (der Text von src/daten/level.js) mit weiteren Leveln am Ende von FLACH (also von LEVELS), für eine
+ * Seite mit diesen Leveln (ein Build mit ihnen, spielServer mit daten; die Bilder der KI-Tester von Kandidaten).
  */
-export function logikMitLeveln(logik, levels) {
-  const nl = logik.includes('\r\n') ? '\r\n' : '\n';
-  const ende = logik.indexOf('  /* LEVELS:END */');
-  if (ende < 0) throw new Error('src/logik.js: LEVELS:END fehlt');
-  return logik.slice(0, ende) + levels.map(l => levelCode(l).replaceAll('\n', nl) + nl).join('') + logik.slice(ende);
+export function datenMitLeveln(daten, levels) {
+  const b = spielBereich(daten, 'flach');
+  return daten.slice(0, b.bis) + levels.map(l => levelCode(l).replaceAll('\n', b.nl) + b.nl).join('')
+    + daten.slice(b.bis);
 }
 
 /**
- * Wie logikMitLeveln, für Würfel-Level: die Spiellogik mit weiteren Leveln am Ende von LEVELS_3D (vor dem „];“, das
- * „const LEVELS_3D = [“ schliesst), je Level eine Zeile JSON. Den Block im Format der übrigen (levelCode im Würfel)
- * braucht erst die Gruppe, die Level ins Spiel schreibt; für die Screenshots genügen die Daten.
+ * Wie datenMitLeveln, für Würfel-Level: die Leveldaten mit weiteren Leveln am Ende von WUERFEL (also von LEVELS_3D), je
+ * Level eine Zeile JSON. Den Block im Format der übrigen (levelCode im Würfel) braucht erst die Gruppe, die Level ins
+ * Spiel schreibt; für die Screenshots genügen die Daten.
  */
-export function logikMitWuerfeln(logik, levels) {
-  const nl = logik.includes('\r\n') ? '\r\n' : '\n';
-  const start = logik.indexOf('const LEVELS_3D = [');
-  const ende = start < 0 ? -1 : logik.indexOf(`${nl}];`, start) + nl.length;
-  if (ende < nl.length) throw new Error('src/logik.js: const LEVELS_3D = [ … ]; fehlt');
-  return logik.slice(0, ende) + levels.map(l => `  ${JSON.stringify(l)},${nl}`).join('') + logik.slice(ende);
+export function datenMitWuerfeln(daten, levels) {
+  const b = spielBereich(daten, 'wuerfel');
+  return daten.slice(0, b.bis) + levels.map(l => `  ${JSON.stringify(l)},${b.nl}`).join('') + daten.slice(b.bis);
 }

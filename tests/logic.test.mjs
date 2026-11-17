@@ -20,6 +20,7 @@ import { loadSkies, checkSkies, layerTypes, boardTypes, codeSkies, orphans, runC
 import { baue } from '../tools/spielserver.mjs';
 import { module, spielQuelltext, zerlege } from '../tools/seitenmodule.mjs';
 import * as L from '../src/logik.js';
+import { REISE as REISE_DATEN, UEBUNGEN as UEBUNGEN_DATEN } from '../src/daten/level.js';
 
 const quelle = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
 const html = spielQuelltext(); // index.html und alle Module, der Code des Spiels
@@ -1286,7 +1287,7 @@ console.log('Module (Tickets 03 und 04 von .scratch/umbau/)');
     assert.equal(kette[0], 'src/seite/konfiguration.ts');
     for (const h of hilfen) assert.ok(!/^import /m.test(lies(h)), `${h} importiert etwas (darf nur importiert werden)`);
   });
-  const feste = ['src/zufall.js', 'src/logik.js', 'src/hall.js'];
+  const feste = ['src/zufall.js', 'src/logik.js', 'src/hall.js', 'src/daten/level.js'];
   for (const pfad of feste) {
     test(`${pfad}: der export-Block nennt genau die Deklarationen auf oberster Ebene`, () => {
       const text = readFileSync(join(root, pfad), 'utf8');
@@ -1306,6 +1307,45 @@ console.log('Module (Tickets 03 und 04 von .scratch/umbau/)');
     assert.throws(() => zerlege("const a = 1;\nimport b from './b.js';\nexport { a };\n", 'x'), /import b/);
     assert.deepEqual(zerlege("import { a } from './a.js';\nconst b = a;\nexport { b };\n", 'x'),
       { importe: [{ namen: ['a'], von: 'src/a.js' }], code: 'const b = a;', namen: ['b'] });
+    // seit Ticket 06: ein Kommentarblock davor (der Kopf der Logik) und die Leveldaten unter daten/
+    assert.deepEqual(zerlege("/* Kopf\n   mehr */\nimport { a, c } from './daten/level.js';\nconst b = a;\nexport { b };\n",
+      'x'), { importe: [{ namen: ['a', 'c'], von: 'src/daten/level.js' }], code: '/* Kopf\n   mehr */\nconst b = a;',
+      namen: ['b'] });
+    assert.throws(() => zerlege("const z = 0;\nimport { a } from './daten/level.js';\nexport { z };\n", 'x'), /import/);
+  });
+  test('src/logik.js: die Level und die Reise kommen aus src/daten/level.js (Ticket 06), keine Markierungen', () => {
+    const text = readFileSync(join(root, 'src/logik.js'), 'utf8');
+    assert.deepEqual(zerlege(text, 'src/logik.js').importe,
+      [{ namen: ['FLACH', 'REISE', 'UEBUNGEN', 'WUERFEL'], von: 'src/daten/level.js' }]);
+    assert.deepEqual(spielQuelltext().match(/(LEVELS|WUERFEL|GESCHICHTE|VORRAT):(BEGIN|END) \*\//g), null, 'Markierung im Code');
+    assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT), [...UEBUNGEN_DATEN]);
+    assert.equal(L.STORY_LEVELS, REISE_DATEN);
+  });
+  test('src/daten/level.js: nur Daten (kein import, je Name ein const mit Literalen, kein Code; Review 06)', () => {
+    // erlaubt: Felder und Listen aus Zahlen, Texten, true/false, auch negativ; dazu das Gerüst und der export-Block
+    const ERLAUBT = new Set(['Program', 'VariableDeclaration', 'VariableDeclarator', 'Identifier', 'ArrayExpression',
+      'ObjectExpression', 'Property', 'Literal', 'UnaryExpression', 'ExportNamedDeclaration', 'ExportSpecifier']);
+    const fremd = (text) => {
+      const gefunden = new Set();
+      const geh = (n) => {
+        if (Array.isArray(n)) { n.forEach(geh); return; }
+        if (!n || typeof n !== 'object' || typeof n.type !== 'string') return;
+        if (!ERLAUBT.has(n.type) || (n.type === 'VariableDeclaration' && n.kind !== 'const')
+          || (n.type === 'Property' && (n.computed || n.method || n.kind !== 'init'))
+          || (n.type === 'UnaryExpression' && n.operator !== '-')) gefunden.add(n.type);
+        for (const [k, v] of Object.entries(n)) if (k !== 'type') geh(v);
+      };
+      geh(parseAst(text));
+      return [...gefunden];
+    };
+    const text = readFileSync(join(root, 'src/daten/level.js'), 'utf8');
+    assert.deepEqual(zerlege(text, 'src/daten/level.js').importe, []);
+    assert.deepEqual(fremd(text), []);
+    // Gegenproben: Code in den Daten fällt auf
+    for (const [code, art] of [['const A = [f()];', 'CallExpression'], ['let A = [];', 'VariableDeclaration'],
+      ['const A = { b: () => 1 };', 'ArrowFunctionExpression'], ['const A = [...B];', 'SpreadElement']]) {
+      assert.ok(fremd(`${code}\nexport { A };\n`).includes(art), code);
+    }
   });
 }
 

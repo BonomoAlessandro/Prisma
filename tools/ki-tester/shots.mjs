@@ -75,13 +75,13 @@ const capture = async (send) => (await send('Page.captureScreenshot', { format: 
  * Nimmt die Level auf. shots: [{ index (in LEVELS, im Spiel mit den Würfel-Leveln ab CUBE_START), label (Kennung in
  * der Kopfzeile, null = wie im Spiel), file (Pfad ohne Endung), angles (wahlweise Blickwinkel je Bildschirm wie
  * CUBE_ANGLES) }]. Schreibt <file>-desktop.png und <file>-handy.png, mit angles je Blickwinkel (imageNames).
- * log(text) meldet den Fortschritt. Die Seite kommt über tools/spielserver.mjs (dist/, frisch gebaut); logik: wahlweise
- * der Pfad einer anderen Spiellogik (src/logik.js mit weiteren Leveln, prepare.mjs), dann zeigt die Seite diese (ein
- * eigener Build mit ihr, spielServer mit logik). Rückgabe: Sekunden je Bildschirm und Level.
+ * log(text) meldet den Fortschritt. Die Seite kommt über tools/spielserver.mjs (dist/, frisch gebaut); daten: wahlweise
+ * der Pfad anderer Leveldaten (src/daten/level.js mit weiteren Leveln, prepare.mjs), dann zeigt die Seite diese (ein
+ * eigener Build mit ihnen, spielServer mit daten). Rückgabe: Sekunden je Bildschirm und Level.
  */
-export async function takeShots(shots, log = console.log, logik = null) {
+export async function takeShots(shots, log = console.log, daten = null) {
   requireQuiet();
-  const spiel = await spielServer(logik ? { logik } : {});
+  const spiel = await spielServer(daten ? { daten } : {});
   try {
     return await aufnehmen(shots, log, spiel.seite(QUERY));
   } finally { await spiel.close(); }

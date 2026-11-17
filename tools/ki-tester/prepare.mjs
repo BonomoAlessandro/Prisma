@@ -14,7 +14,7 @@
 //                  und der Grad dort sind seine Referenz, wie levelliste.mjs (reihenfolge) sie für ein neues Level
 //                  rechnet, und der Grad des Levels muss derselbe sein. Ein Kandidat heisst im Protokoll „Kandidat
 //                  <Abdruck>“ (kandidatName in leveldaten.mjs), bis sein Name genehmigt ist. Seine Bilder kommen von
-//                  einer Seite mit den Kandidaten am Ende der Level (die Spiellogik dazu in <lauf>/seite/logik.js,
+//                  einer Seite mit den Kandidaten am Ende der Level (die Leveldaten dazu in <lauf>/seite/level.js,
 //                  ausserhalb von eingabe/, denn sie enthält die Lösungen; shots.mjs zeigt sie über spielserver.mjs).
 //                  Ausbau auf 500 Level (.scratch/500-level/, Läufe ausbau-…): Steht in der Datei ein Eintrag mit
 //                  ausbau (die ganze Ausgabe von ordne-level.mjs --ausbau … --json), gilt ihre Reihenfolge als Vorschau
@@ -50,7 +50,7 @@
 // gespeicherte Bild.
 // Spiel und Vorrat (Spec .scratch/noa-geschichte/, Ticket 02): Die Reihenfolge im Spiel kommt aus dem gemeinsamen
 // Lader (ALLE in lader.mjs, die Level des Vorrats an ihrem Platz; protocol.mjs). Liegen Level im Vorrat, kommen alle
-// Bilder von einer Seite mit allen Leveln aus Spiel und Vorrat (alleText im Lader, <lauf>/seite/logik.js wie bei den
+// Bilder von einer Seite mit allen Leveln aus Spiel und Vorrat (alleText im Lader, <lauf>/seite/level.js wie bei den
 // Kandidaten).
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -58,7 +58,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { ALLE, VORRAT, alleText } from '../lader.mjs';
 import { findChrome } from '../chrome.mjs';
-import { kandidatName, logikMitLeveln, logikMitWuerfeln } from '../leveldaten.mjs';
+import { datenMitLeveln, datenMitWuerfeln, kandidatName } from '../leveldaten.mjs';
 import {
   VERSION, FINGERPRINT, AGENT, TESTERS, answerPath, brief, fingerprint, gradeOf, loadAnchors, reference, today,
   WUERFEL_VERSION, WUERFEL_FINGERPRINT, WUERFEL_IM_SPIEL, WUERFEL_LAEUFE, WUERFEL_REFERENZ, fingerprintWuerfel,
@@ -155,17 +155,17 @@ for (const l of all) writeFileSync(join(input, `${l.id}.md`), fieldText(daten.ge
 if (wuerfel) writeFileSync(join(input, 'answer.schema.json'), JSON.stringify(schemaOf(ABLAUF), null, 2) + '\n');
 else copyFileSync(join(here, 'answer.schema.json'), join(input, 'answer.schema.json'));
 // Die Kandidaten stehen für die Bilder am Ende von LEVELS (im Würfel von LEVELS_3D, unter ihrem Namen bei den
-// KI-Testern: Nach ihm findet das Spiel beim Neuladen das Level) in einer Spiellogik für die Seite (seite/logik.js,
-// nicht in eingabe/), mit allen Leveln aus Spiel und Vorrat (siehe Kopf); liegen Level im Vorrat, kommen auch die
-// übrigen Bilder von dort
+// KI-Testern: Nach ihm findet das Spiel beim Neuladen das Level) in Leveldaten für die Seite (seite/level.js, nicht in
+// eingabe/), mit allen Leveln aus Spiel und Vorrat (siehe Kopf); liegen Level im Vorrat, kommen auch die übrigen Bilder
+// von dort
 const imSpiel = all.filter(l => !l.kandidat), neu = all.filter(l => l.kandidat);
-const seite = join(dir, 'seite', 'logik.js');
+const seite = join(dir, 'seite', 'level.js');
 const mitVorrat = VORRAT.flach.length + VORRAT.wuerfel.length > 0;
 if (neu.length || mitVorrat) {
   mkdirSync(dirname(seite), { recursive: true });
-  const logik = alleText();
-  writeFileSync(seite, wuerfel ? logikMitWuerfeln(logik, neu.map(l => ({ ...daten.get(l.id), name: l.name })))
-    : logikMitLeveln(logik, neu.map(l => daten.get(l.id))));
+  const text = alleText();
+  writeFileSync(seite, wuerfel ? datenMitWuerfeln(text, neu.map(l => ({ ...daten.get(l.id), name: l.name })))
+    : datenMitLeveln(text, neu.map(l => daten.get(l.id))));
 }
 // Im Würfel: Index in LEVELS der Seite ab CUBE_START (= Zahl der flachen Level), Bilder aus mehreren Blickwinkeln
 const angles = wuerfel ? CUBE_ANGLES : null, images = imageNames('', angles);
