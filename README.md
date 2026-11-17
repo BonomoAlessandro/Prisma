@@ -151,8 +151,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `tools/chrome.mjs` lässt Chrome seinen Port selbst wählen (`--remote-debugging-port=0`), damit viele gleichzeitige
     Chrome nie zusammenstossen, und meldet Deutsch als Sprache des Geräts (`--lang=de`, Option `sprache`; seit Ticket
     07 des Umbaus wählt das Spiel danach seine Sprache, Headless-Chrome meldete sonst die des Rechners). Der
-    Bildvergleich prüft, dass er das deutsche Spiel sieht (`navigator.language`, `lang` des Dokuments). `PRISMA_OHNE_BAU=1` nimmt das vorhandene `dist/`, `PRISMA_SPIEL=<url>` eine
-    laufende Adresse (etwa den Dev-Server). `--seite`/`--vorher` der Messproben liefern eine Kopie einer früheren
+    Bildvergleich prüft, dass er das deutsche Spiel sieht (`navigator.language`, `lang` des Dokuments).
+    `PRISMA_OHNE_BAU=1` nimmt das vorhandene `dist/`, `PRISMA_SPIEL=<url>` eine laufende Adresse (etwa den Dev-Server). `--seite`/`--vorher` der Messproben liefern eine Kopie einer früheren
     `index.html` ungebaut aus ihrem Ordner (eine Fassung ab Ticket 03 braucht den Build). Bei `npm test` prüft
     `tests/typecheck.mjs` auch die Typen (`npm run typecheck`). Spiellogik und Hall
     importieren die Tests als Module aus `src/`; die Level und die Reise stehen seit Ticket 06 in den Leveldaten
