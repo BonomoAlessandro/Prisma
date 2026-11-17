@@ -42,6 +42,14 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Übersicht am Schluss (mehrere Minuten, nur über `leise.sh`: `LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh
     timeout -k 30 3600 npm test`); `node tests/alle.mjs logic golden` nur diese. `npm run test:bild` ist der
     Bildvergleich (Ticket 01 des Umbaus).
+  - **Art der Läufe unter `leise.sh`** (Ticket 13 des Umbaus; siehe `leise.sh` unter Werkzeuge). Leichte Läufe messen
+    keine Zeiten und laufen bis zu vier gleichzeitig: `LEISE_ART=leicht LEISE_MAX_CPU=100 LEISE_CPU=100 sh
+    tools/leise.sh …`. Alleinige (Vorgabe, ohne `LEISE_ART`) laufen nie neben einem anderen Lauf.
+
+    | Art | Läufe |
+    |---|---|
+    | leicht | `npm test` und jeder Node-Test einzeln (`golden`, `logic`, `geschichte`, `generator` …), `bildvergleich.mjs`, `brett-probe.mjs`, `offline.mjs`, `screenshot.mjs`, `spiegel-probe.mjs bilder`, `buehne-messung.mjs bilder`, Werkzeuge (`generiere.mjs`, `ordne-level.mjs`, `geschichte.mjs`, KI-Tester `prepare.mjs` und `shots.mjs` …) |
+    | allein | `leerlauf-probe.mjs`, `ruhetakt-probe.mjs`, `start-probe.mjs`, `buehne-messung.mjs` (messen), `spiegel-probe.mjs` (`pruefe`, `messen`), `geschichte-probe.mjs` (misst in jedem Ablauf die Lücken im Bildtakt), `tools/bench.mjs`, alles mit `--fenster` |
   - **Proben im Browser** öffnen das Spiel über http aus `dist/` (seit Ticket 02 des Umbaus, nicht mehr über file://).
     Die Adresse steht an einer Stelle, `tools/spielserver.mjs`: `spielServer()` baut `dist/` frisch und liefert es über
     einen kleinen Server auf `127.0.0.1` (freier Port), mit einem leeren Service Worker statt `sw.js` (wie früher
@@ -669,14 +677,24 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `leise.sh <befehl …>` (mit `leise.ps1`, nur unter Windows) startet einen Befehl samt allen Unterprozessen in einem
   Job-Objekt mit harter CPU-Obergrenze und Priorität „Leerlauf“, damit der Rechner bedienbar bleibt. Vorgabe sind 20 %
   der ganzen Maschine; der Generator und die Vorbereitung der KI-Tester (`prepare.mjs`, Screenshots) dürfen
-  `LEISE_CPU=50`, mehr nimmt `leise.sh` ohne `LEISE_MAX_CPU` nicht an. Weil Läufe nur nacheinander laufen, bleibt die
-  Arbeit an Tickets insgesamt unter 70 % der Maschine (Vorgabe des Nutzers). Ein Rechner, auf dem mehr erlaubt ist,
+  `LEISE_CPU=50`, mehr nimmt `leise.sh` ohne `LEISE_MAX_CPU` nicht an. Die Grenze gilt je Lauf: Leichte Läufe (unten)
+  laufen bis zu vier gleichzeitig, jeder mit seiner Grenze; wo das zu viel ist, `LEISE_LEICHT_MAX=1` (dann wie bis
+  Ticket 13 des Umbaus alles nacheinander). Ein Rechner, auf dem mehr erlaubt ist,
   hebt die Obergrenze lokal mit der Umgebungsvariablen `LEISE_MAX_CPU` an (Standard 50; nicht versioniert, etwa in
   `.claude/settings.local.json` unter `env`, das gitignored ist), etwa `LEISE_MAX_CPU=65 LEISE_CPU=65 sh tools/leise.sh
   …`. Dieselbe Grenze prüfen Generator, Messskript und Screenshots (`tools/deckel.mjs`). Alle schweren Läufe (Tests,
-  Messungen, Screenshots, Generator) laufen darüber, nie mehrere gleichzeitig: Eine Sperre (`/tmp/prisma-leise.lock`)
-  lässt einen zweiten Lauf warten („leise: warte auf laufenden Lauf“), auch aus parallel arbeitenden Worktrees; ein Aufruf innerhalb eines
-  Laufs läuft direkt, eine verwaiste Sperre (Halter tot, oder über eine Minute ohne pid-Datei) wird übernommen;
+  Messungen, Screenshots, Generator) laufen darüber, auch aus parallel arbeitenden Worktrees, über eine Sperre
+  (`/tmp/prisma-leise.lock`) mit zwei Arten von Läufen (Ticket 13 des Umbaus; welcher Lauf welche Art ist: Tabelle im
+  Abschnitt Tests): **allein** (Vorgabe, Läufe mit Bildzeiten oder Messungen) startet erst, wenn kein anderer Lauf mehr
+  läuft, und solange er läuft, startet keiner („leise: warte auf laufenden Lauf“); **leicht** (`LEISE_ART=leicht`)
+  laufen bis zu `LEISE_LEICHT_MAX` (Vorgabe 4) gleichzeitig und halten die Sperre gemeinsam (der letzte räumt sie weg),
+  so wartet auch eine ältere Kopie von `leise.sh` auf sie. Warten mehrere alleinige, geht die kleinere Zahl
+  `LEISE_VORRANG` vor (Nummer des Tickets, ohne Angabe 500). Ein leichter Lauf lässt jedem wartenden alleinigen mit
+  gleicher oder kleinerer Zahl den Vortritt; einen mit grösserer Zahl überholt er höchstens `LEISE_FRIST` Minuten
+  (Vorgabe 10) lang, danach startet kein leichter mehr, bis der alleinige gelaufen ist. Ein Aufruf innerhalb eines
+  Laufs läuft direkt, eine verwaiste Sperre (Halter tot und kein lebender leichter Lauf darin, oder über eine Minute
+  ohne pid-Datei) wird übernommen. `node tests/leise.test.mjs` prüft das mit eigenen Pfaden (`LEISE_SPERRE`,
+  `LEISE_WARTE`), nie an der echten Sperre;
   `chrome.mjs` steuert Headless-Chrome über das DevTools-Protokoll (für `tests/screenshot.mjs` und die KI-Tester;
   mit `fenster` sichtbar, für Messungen im echten Bildschirmtakt; `on` hört auf Ereignisse wie die eines Traces).
 - **Beurteilung** (`tools/beurteilung/`, nur für die Entwicklung; ADR 0002, Spec „Beurteilung“ und „Feldform“): ein
