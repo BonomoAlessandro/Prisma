@@ -789,8 +789,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   er den Eintrag zurück (sonst warteten beide aufeinander). Stirbt der Halter einer Gruppe hart (`taskkill /F`), trägt
   sich binnen 5 s ein anderer lebender leichter Lauf als Halter ein (Wache je leichtem Lauf). Ein Aufruf innerhalb eines
   Laufs läuft direkt, eine verwaiste Sperre (Halter tot und kein lebender leichter Lauf darin, oder über eine Minute
-  ohne pid-Datei) wird übernommen, unter der Sperre der Gruppe (`<sperre>.leicht`). `node tests/leise.test.mjs` prüft das mit eigenen Pfaden (`LEISE_SPERRE`,
-  `LEISE_WARTE`), nie an der echten Sperre;
+  ohne pid-Datei) wird übernommen, unter der Sperre der Gruppe (`<sperre>.leicht`). `node tests/leise.test.mjs` prüft
+  das mit eigenen Pfaden (`LEISE_SPERRE`, `LEISE_WARTE`), nie an der echten Sperre;
   `chrome.mjs` steuert Headless-Chrome über das DevTools-Protokoll (für `tests/screenshot.mjs` und die KI-Tester;
   mit `fenster` sichtbar, für Messungen im echten Bildschirmtakt; `on` hört auf Ereignisse wie die eines Traces).
 - **Beurteilung** (`tools/beurteilung/`, nur für die Entwicklung; ADR 0002, Spec „Beurteilung“ und „Feldform“): ein
