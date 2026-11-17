@@ -77,7 +77,10 @@ function stilZurueck(html) {
   if (marke < 0 || html.indexOf(STIL_MARKE, marke + 1) >= 0) throw new Error('index.html: Marke des Stils nicht genau einmal');
   html = html.replace(links[0], '');
   const ende = html.indexOf('\n', marke) + 1;
-  return html.slice(0, ende) + links[0].trimStart() + html.slice(ende);
+  html = html.slice(0, ende) + links[0].trimStart() + html.slice(ende);
+  // Zeilenenden wie die Quelle: Vite fügt seine Zeilen mit \n ein und lässt beim Entfernen des <script> aus der Quelle
+  // ein \r stehen
+  return html.includes('\r\n') ? html.replace(/\r*\n/g, '\r\n') : html;
 }
 
 function prisma() {
