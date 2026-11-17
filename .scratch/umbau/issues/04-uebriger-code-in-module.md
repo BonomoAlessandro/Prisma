@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** needs-triage
+**Status:** ready-for-agent (17.11.2026, nach Review 03)
 
 **Blocked by:** 03
 
@@ -24,9 +24,15 @@ und Aussehen bleiben genau gleich.
 - [ ] `window.__prismaDebug` und alle Schalter in der URL (`?noadapt`, `?nointro`, `?sky=`, `?t=`, `?perf`, `?takt=`
       …) funktionieren weiter, die Proben brauchen sie.
 - [ ] README: Aufbau des Codes kurz beschreiben (welcher Teil wo liegt).
-- [ ] Die KI-Tester (`tools/ki-tester/shots.mjs`, `prepare.mjs`) öffnen das Spiel über `tools/spielserver.mjs` statt
-      über file://; mit Modulen geht file:// nicht mehr (offen aus Ticket 02).
+- [x] Die KI-Tester (`tools/ki-tester/shots.mjs`, `prepare.mjs`) öffnen das Spiel über `tools/spielserver.mjs` statt
+      über file://; mit Modulen geht file:// nicht mehr (erledigt in Ticket 03).
 - [ ] Kleinigkeit aus Review 02: Kommentar zu `writeRegistry` in `tools/blender/pack.mjs` nennt noch `importScripts`.
+- [ ] Aus Ticket 03: Die Marken `/* MODUL src/… */` (Build und Dev-Server setzen dort den Text des Moduls ein) werden
+      zu echten Importen; danach zeigen Fehlerorte und Haltepunkte auf die Module (Source-Map).
+- [ ] Aus Review 03: Der Build verkleinert wieder (`minify` an, Ticket 03 hatte `minify: false`). Die Bitgleichheit des
+      Halls prüft man über die Prüfsumme, nicht über den Text (`Math.pow` gegen `**` ist dieselbe Operation; die
+      Textprüfung in `logic.test.mjs` entsprechend anpassen). Grösse von `dist/` vorher und nachher unter «Comments».
+- [ ] Aus Review 03: `tsc --noEmit` prüft auch `src/hall-worker.ts` (siehe erste Checkbox).
 
 ## Hinweise
 
