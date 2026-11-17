@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent (umgesetzt, wartet auf Review)
+**Status:** ready-for-agent (umgesetzt, Review bestanden, wartet auf Merge)
 
 **Blocked by:** 13 (in `feature/umbau`)
 
@@ -98,3 +98,60 @@
 - Die Wache ist ein zusätzlicher Prozess je leichtem Lauf (meist `sleep 5`); nach einem harten Tod des Laufs endet sie
   bei der nächsten Prüfung von selbst.
 - Der Weg über `--jobs` (Teilprozesse geben `fastRuhig` im JSON zurück) ist nicht eigens gelaufen.
+
+### Review (unabhängiger Reviewer, 17.11.2026)
+
+**Ergebnis:** bestanden. Ein kosmetischer Fix selbst gemacht, keine mittleren oder grossen Funde.
+
+**Selbst behoben:** `2eff3b5` README: die neue Zeile zu `leise.sh` (159 Zeichen) auf 120 umbrochen. Die lange Zeile
+im Absatz zum Bildvergleich stammt schon aus Ticket 13 und bleibt.
+
+**Logik von `leise.sh`** (durchgegangen, wo verdächtig nachgestellt):
+
+- **Kein gegenseitiges Warten:** Ein leichter Lauf mit Marke wartet nur auf etwas, das selbst nicht wartet (alleiniger
+  Halter, volle Gruppe, kurz die Übernahme); wer ihm wegen der Marke Vortritt lässt (alleinige mit grösserer Zahl, neue
+  wie aus 13; leichte aus 13 mit gleicher oder grösserer Zahl), ist nie das, worauf er wartet. Lässt er selbst vor,
+  nimmt er die Marke zurück. Damit gibt es keinen Kreis. Reihenfolge der Sperren immer Übernahme vor Gruppe; Wache und
+  `austreten` nehmen nur die Gruppe. Kein endloses Warten: Leichte, die nach einem alleinigen kamen, lassen ihn nach
+  `LEISE_FRIST` vor und nehmen ihre Marken zurück; die vor ihm kamen, sind endlich viele.
+- **Alleiniger neben leichtem:** Eintreten und Austreten der Gruppe, Übernahme und Wache ändern die Sperre nur unter
+  `$SPERRE.leicht`; ein alleiniger nimmt die Sperre per `mkdir` und wartet bei fehlender `pid` eine Minute (halb
+  angelegt). Während `rm -rf` des letzten leichten sieht ein Wartender entweder einen lebenden Halter oder ein frisch
+  geändertes Verzeichnis. Die Wache setzt `pid` nur, wenn ihr eigener Eintrag `leicht.<pid>` noch da ist, also nie in
+  die Sperre eines alleinigen.
+- **Wache:** nach `taskkill /F` auf den Halter (eigene Probe, zwei leichte): binnen 5 s ist der zweite Halter, die Wache
+  des getöteten verschwindet (in `ps` nicht mehr da), Sperre nach dem Ende des zweiten weg. Nach normalem Ende keine
+  Meldung «Terminated», keine übrige Wache (ausser einem `sleep 5` für höchstens 5 s, Ausgabe auf `/dev/null`, hält
+  also keine Pipe offen).
+- **Tote Marke eines wartenden leichten:** wartender leichter (Vorrang 2) hart beendet, alleiniger (500) dahinter: er
+  räumt die Marke weg und läuft nach 5 s; Warteschlange danach leer.
+- **Kopie aus Ticket 13** (`0793a2d:tools/leise.sh` mit `leise.ps1` im Scratchpad, nur eigene Pfade): neuer alleiniger
+  hält, dahinter neuer wartender leichter (2), alter alleiniger (500), alter leichter (500): Reihenfolge A1 → L → alter
+  alleiniger allein → alter leichter, nie überlappend, Sperre und Warteschlange danach leer. Die Angaben des Umsetzers
+  zu den Kopien aus 13 stimmen mit dem Code überein (sie lesen die Zahl vor dem ersten Punkt; ihr `uebernehmen` nimmt
+  die Gruppe weiterhin nicht, das kleine Fenster aus Review 13 bleibt also, solange solche Kopien laufen).
+
+**Beobachtungen (klein, nicht behoben):**
+
+- Ein leichter nimmt seine Marke auch zurück, wenn er einem alleinigen wegen kleinerer oder gleicher Zahl vorlässt
+  (nötig wäre es nur beim Vortritt wegen der Frist). Mit drei Beteiligten (alleiniger mit 1, leichter mit 2, Kette mit
+  500) kann so ein Glied der Kette noch einmal vor den leichten kommen, aber nur, wenn der alleinige mit 1 in weniger
+  als etwa 2 s fertig ist (der leichte trägt sich wieder ein, solange jener läuft). Praktisch bedeutungslos.
+- Wie schon in Review 13: Ein hart beendeter `sh` lässt seinen Befehl (node, Chrome, im Test `sleep`) weiterlaufen; die
+  Gruppe zählt ihn dann nicht mehr. Nicht Teil dieses Tickets.
+
+**Tests:** Die Fälle prüfen das Behauptete, jeder hat den Zeitrahmen von 120 s. Gegenproben selbst gemacht: ohne Wache
+(Start der Wache abgeschaltet) rot in «Halter hart beendet» (`pid` bleibt beim toten); ohne das Zurücknehmen der Marke
+rot in «kein gegenseitiger Vortritt» (Marke bleibt, dann Zeitrahmen 120 s überschritten). Danach `git checkout`.
+
+**«fast ruhig» nur für poco:** vertretbar. Der Ausweg ist für den bekannten Fleck im Lichtstreifen bei Pixeldichte 2,75
+gedacht; bei den drei Grössen mit Pixeldichte 1 wäre eine nicht ruhige Ansicht ein echter Hinweis und ist jetzt rot. Die
+Übersicht zählt die Fälle, auch über `--jobs`.
+
+**Läufe:**
+
+- `node tests/leise.test.mjs` 3×: je 41 Prüfungen, 0 Fehler (26 s, 25 s, 30 s).
+- `LEISE_ART=leicht LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 5400 node tests/bildvergleich.mjs
+  --gpu --jobs 2` (echte Sperre, wartete zuerst auf einen alleinigen Lauf eines anderen Agenten): **grün**, 77 Bilder
+  in 6 min 38 s, grösste Abweichung 6, höchstens 0,014 %; Übersicht «nur «fast ruhig» …: 1, poco-welt-2-vor (0 Pixel,
+  bis 1)», also auch über die Teilprozesse gezählt.
