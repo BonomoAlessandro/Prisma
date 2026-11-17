@@ -116,3 +116,72 @@ hineingeholt (Ticket 13, `8a3e6ca`, ein Konflikt nur im Kopfkommentar von `tests
   `leerlauf`, `ruhetakt`, `spiegel`, `buehne-messung`). Mit gekürzten Namen ändert sich der Text von
   `onBeforeCompile` (three unterscheidet Programme danach); die Hülle ist für alle Materialien dieselbe Funktion, also
   gleich viele Programme – im Review an `start-probe`/Shader-Zahl gegenprüfen.
+
+### Review (unabhängiger Reviewer, 17.11.2026)
+
+**Ergebnis:** bestanden. Ein kosmetischer Fix selbst gemacht, keine mittleren oder grossen Funde.
+
+**Selbst behoben:** `fdfbed4` README: zwei neue Zeilen (Aufzählung der TypeScript-Module, Block «Offline» von
+`logic`) auf 120 Zeichen umbrochen.
+
+**Geprüft im Code:**
+
+- Speicherschicht: Schlüssel und Format unverändert. `progress` ist Zeichen für Zeichen der alte Code, nur `read`,
+  `write` und `remove` gehen über `speicher`; der Ton liest und schreibt `prisma.muted` mit `'1'`/`'0'` wie vorher.
+  Auf der Basis nannten nur `levelfluss.js` und `ton.js` (dazu ein Kommentar in `schleife.js`) `localStorage`; jetzt
+  nur `src/speicher.ts` (gesucht in `src/`, `index.html`, `sw.js`). Jeder Zugriff steht in `try`, wie vorher. Kein
+  Test oder Werkzeug brauchte `audio.storageKey` oder ersetzte `progress.read/write`.
+- Schnittstelle: synchron (`lesen`/`schreiben`/`loeschen`, Text). Passt für `localStorage` und die WebView von
+  Capacitor. Für Electron mit einer Datei für Steam Cloud oder Capacitor Preferences (asynchron) braucht es später einen
+  Zwischenspeicher, der beim Start einmal geladen wird und dann synchron antwortet. Das ist ein Hinweis für Ticket
+  10/12, kein Fund.
+- Worker: Die sechs Rechnungen samt `makeNoise2D` und `decode` sind Zeichen für Zeichen gleich mit der Basis (per
+  Skript verglichen). Im Browser (Build, Wald und Meer) starten alle Worker als `type: 'module'`
+  (`brettdaten-worker` zweimal, `hall-worker`, `himmelbild-worker` mit 5 Antworten), jeder antwortet, keiner meldet
+  einen Fehler. Die Konsole ist leer, und Ton aus, «zuletzt» und Platz werden aus dem Stand gelesen. Hinweis: In sehr
+  alten Browsern ohne Modul-Worker (Firefox < 114, Safari < 15) fällt die Skybox jetzt auf ein Bild ohne Streifen
+  zurück statt in den Worker. Für die Stores ohne Belang.
+- `mangle` und Shader-Programme: Gezählt wurde `renderer.info.programs` im Menü und in jeder der 6 Welten vor und
+  nach dem Lösen, auf der Basis und auf diesem Stand, jeweils auf der GPU. Die Zahlen sind gleich (74; 81, 78, 72, 75,
+  58, 58). Auch die Prüfsummen der Quelltexte aller Programme sind gleich. Gekürzte Namen lassen also keine zwei
+  Materialien ein Programm teilen und erzeugen keine zusätzlichen Programme.
+- `tests/speicher.test.mjs` und `tests/testschnittstelle.test.mjs` prüfen, was sie behaupten. Gegenprobe der
+  Testschnittstelle an der Basis: Ohne `RUHE_NACH_MS` in `alsGlobal` (`leistung.js`) schlagen beide Prüfungen fehl
+  und nennen den Namen. Grenze: Einen Namen, den eine Probe erst über eine Variable an `ev` gibt, sieht der Test nicht.
+  Das ist für den Zweck ausreichend.
+- `tools/ts-modul.mjs`: Der Haken meldet nur Dateien auf `.ts` als `module-typescript`, wird einmal angemeldet und
+  unterdrückt nur die Warnung «Type Stripping». Ab Node 22.18 ist er überflüssig, schadet aber nicht. Robust genug.
+
+**Läufe** (alle über `leise.sh`; die leichten liefen parallel zu `npm test`, zum Bildvergleich und zu Läufen
+anderer Tickets):
+
+- `npm test` (leicht): alles grün, 43 min (golden 10 s, logic 152 s, speicher 1 s, testschnittstelle 5 s, geschichte
+  1726 s, levelliste 159 s, beurteilung 223 s, generator 205 s, typecheck 6 s, leise 34 s …).
+- `golden --voll`: grün, alle 842 Level, 58 s.
+- Bildvergleich SwiftShader ganz (leicht, `--jobs 1`): 76 von 77 Bildern grün, 57 min 32 s. Rot war nur
+  `quer-dorf-uebung-2` (45 Pixel, grösste Abweichung 6, 0,014 %, einige Sternpunkte über dem Titel); «fast ruhig»
+  war nur `poco-start`. Allein wiederholt (`--groesse quer --nur dorf --jobs 1`): alle 5 Bilder mit grösster
+  Abweichung 0. Also ein Wackler unter Last.
+- `offline.mjs`: leicht nach 900 s abgebrochen (Zeitgrenze, neben dem Bildvergleich, bis dahin alles ok). Allein
+  wiederholt: bestanden, 726 s.
+- Shader-Programme und Worker: eigene Skripte (oben), grün.
+- Proben mit Zeitmessung (allein, `GPU=1`):
+  - `start-probe`: in Ordnung. Neu: Knopf 4,10 s, Himmel ganz 9,98 s. Weiter: spielt 6,28 s nach «Weiter».
+  - `leerlauf-probe`: OK, 146 s.
+  - `ruhetakt-probe`: OK, Ruhe 30,1 Bilder/s.
+  - `spiegel-probe pruefe`: OK, 192 s.
+  - `buehne-messung messen`: p95 17 ms, max 17,5 ms, 0 Bilder über 20 ms, Konsole leer.
+  - `geschichte-probe --handy`: bestanden, 675 s. `--quer`: bestanden, 674 s. `--menue`: bestanden, 82 s.
+  - `brett-probe` ganz: Mechanik, Netz, Menü und Formen (alle Paarungen ohne Lücke im Kernquader) in Ordnung. In der
+    «Reise» eine Lücke von 152 ms bei 6,9 s. Gegen die Basis abwechselnd `--nur reise`: Hier rot in 4 von 6 Läufen
+    (152, 129, 190, 422 ms; sonst 56/69 ms), auf der Basis rot in 3 von 5 (113, 503, 171 ms; sonst 52/55 ms), meist
+    um 6,8–7,0 s, wenn das Gezeitenbecken kommt. Dasselbe Bild auf der Basis, also nicht von diesem Ticket.
+  - `geschichte-probe --uebersicht`: hier 3 von 3 rot (Lücken 142/134/161/340, 178, 107 ms), auf der Basis 2 von 3
+    rot (186/138/158, 144/387 ms). «Spiel → Übersicht» war in jedem roten Lauf auf beiden Seiten dabei. Bekannt, nicht
+    von diesem Ticket.
+  - `geschichte-probe --dorf`: rot mit 2 Lücken «Menü → Prolog → Überspringen» (253 ms). Auf der Basis derselbe Fehler
+    (359 ms). Bekannt, nicht von diesem Ticket.
+
+**Funde:** keine mittleren oder grossen. Hinweise (ohne Handlung jetzt): synchrone Schnittstelle (für asynchrone
+Plattformen später ein Zwischenspeicher, Ticket 10/12) und die Skybox ohne Worker in sehr alten Browsern (siehe
+oben).
