@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** umgesetzt, wartet auf Review
+**Status:** done (Review 17.11.2026 bestanden; Funde in Ticket 14)
 
 **Blocked by:** 01, 02 (Review fertig, in `feature/umbau`)
 
