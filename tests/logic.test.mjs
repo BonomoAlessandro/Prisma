@@ -1312,6 +1312,32 @@ console.log('Module (Tickets 03 und 04 von .scratch/umbau/)');
     assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT), [...UEBUNGEN_DATEN]);
     assert.equal(L.STORY_LEVELS, REISE_DATEN);
   });
+  test('src/daten/level.js: nur Daten (kein import, je Name ein const mit Literalen, kein Code; Review 06)', () => {
+    // erlaubt: Felder und Listen aus Zahlen, Texten, true/false, auch negativ; dazu das Gerüst und der export-Block
+    const ERLAUBT = new Set(['Program', 'VariableDeclaration', 'VariableDeclarator', 'Identifier', 'ArrayExpression',
+      'ObjectExpression', 'Property', 'Literal', 'UnaryExpression', 'ExportNamedDeclaration', 'ExportSpecifier']);
+    const fremd = (text) => {
+      const gefunden = new Set();
+      const geh = (n) => {
+        if (Array.isArray(n)) { n.forEach(geh); return; }
+        if (!n || typeof n !== 'object' || typeof n.type !== 'string') return;
+        if (!ERLAUBT.has(n.type) || (n.type === 'VariableDeclaration' && n.kind !== 'const')
+          || (n.type === 'Property' && (n.computed || n.method || n.kind !== 'init'))
+          || (n.type === 'UnaryExpression' && n.operator !== '-')) gefunden.add(n.type);
+        for (const [k, v] of Object.entries(n)) if (k !== 'type') geh(v);
+      };
+      geh(parseAst(text));
+      return [...gefunden];
+    };
+    const text = readFileSync(join(root, 'src/daten/level.js'), 'utf8');
+    assert.deepEqual(zerlege(text, 'src/daten/level.js').importe, []);
+    assert.deepEqual(fremd(text), []);
+    // Gegenproben: Code in den Daten fällt auf
+    for (const [code, art] of [['const A = [f()];', 'CallExpression'], ['let A = [];', 'VariableDeclaration'],
+      ['const A = { b: () => 1 };', 'ArrowFunctionExpression'], ['const A = [...B];', 'SpreadElement']]) {
+      assert.ok(fremd(`${code}\nexport { A };\n`).includes(art), code);
+    }
+  });
 }
 
 console.log('Offline');
