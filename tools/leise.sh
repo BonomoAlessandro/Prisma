@@ -60,11 +60,19 @@ verwaist() {
   halter
   if [ -n "$h_pid" ]; then lebt && return 1; lebende; [ "$l_n" -eq 0 ]; else alt "$SPERRE"; fi
 }
+# Sperre der Gruppe (für Augenblicke): Eintreten und Austreten leichter Läufe und das Übernehmen einer verwaisten Sperre
+# ändern die Sperre nie gleichzeitig. Älter als eine Minute ist sie verwaist.
+GRUPPE="$SPERRE.leicht"
+sperren() { until mkdir "$GRUPPE" 2>/dev/null; do alt "$GRUPPE" && rmdir "$GRUPPE" 2>/dev/null; sleep 0.2; done; }
+entsperren() { rmdir "$GRUPPE" 2>/dev/null; }
 uebernehmen() {
   alt "$SPERRE.uebernahme" && rm -rf "$SPERRE.uebernahme"
-  # Übernahme selbst sperren und darin neu prüfen, sonst löscht ein Wartender die frische Sperre eines anderen.
+  # Übernahme selbst sperren und darin neu prüfen, sonst löscht ein Wartender die frische Sperre eines anderen; dazu die
+  # Sperre der Gruppe, sonst tritt zwischen Prüfen und Löschen ein leichter Lauf in die tote Gruppe ein (Review 13).
   if mkdir "$SPERRE.uebernahme" 2>/dev/null; then
+    sperren
     verwaist && rm -rf "$SPERRE"
+    entsperren
     rmdir "$SPERRE.uebernahme"
   fi
 }
@@ -107,11 +115,6 @@ if [ "$ART" = allein ]; then
   rm -f "$MARKE"
   trap 'halter; [ "$h_pid" = "$$" ] && rm -rf "$SPERRE"' EXIT
 else
-  # Sperre der Gruppe (nur zwischen leichten Läufen, für Augenblicke): Eintreten und Austreten ändern die Sperre nie
-  # gleichzeitig. Älter als eine Minute ist sie verwaist.
-  GRUPPE="$SPERRE.leicht"
-  sperren() { until mkdir "$GRUPPE" 2>/dev/null; do alt "$GRUPPE" && rmdir "$GRUPPE" 2>/dev/null; sleep 0.2; done; }
-  entsperren() { rmdir "$GRUPPE" 2>/dev/null; }
   # pid ersetzen, ohne dass sie je leer oder halb geschrieben ist (ein Wartender hielte die Sperre sonst für verwaist)
   setze_halter() { echo "$1 $2" > "$SPERRE/pid.$$" && mv -f "$SPERRE/pid.$$" "$SPERRE/pid"; }
   # Wartet ein alleiniger Lauf, dem dieser Vortritt lässt? (gleicher oder kleinerer Vorrang, oder länger als FRIST)
