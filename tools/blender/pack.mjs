@@ -20,6 +20,7 @@ import { dirname, join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { SKY_FORMAT, loadSkies, checkSkies, layerTypes, boardTypes, codeSkies } from '../sky-schema.mjs';
+import { spielQuelltext } from '../seitenmodule.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
@@ -134,7 +135,7 @@ function readAuthor(id) {
 
 /** Register prüfen (tools/sky-schema.mjs) mit den Ebenentypen, Arten der Bretter und Hintergründen des Spiels */
 function checkRegistry(skies, pending = {}) {
-  const html = readFileSync(join(root, 'index.html'), 'utf8');
+  const html = spielQuelltext(); // der Code des Spiels (seit Ticket 04 des Umbaus Module unter src/)
   return checkSkies(skies, { root, types: layerTypes(html), boards: boardTypes(html), reserved: codeSkies(html), pending });
 }
 

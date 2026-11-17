@@ -12,13 +12,12 @@
 // Geschichte, vor der Milchstrasse wie bisher, ?sky=milky), Herauswachsen und Aufleuchten mit __prismaDebug.settle
 // vorspulen statt sie über 150 s Bild für Bild abzuwarten, zwei Bilder rendern lassen und aufnehmen. Gültig ist eine
 // Aufnahme erst, wenn eine zweite nach weiterem Vorspulen byte-gleich ist: Dann ist die Szene ruhig.
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { gedeckelt, deckelText } from '../deckel.mjs';
 import { startChrome, emulate, evaluate, sleep } from '../chrome.mjs';
 import { L } from '../solver.mjs';
-import { mitLogik } from '../seitenmodule.mjs';
-import { DIST, spielServer } from '../spielserver.mjs';
+import { spielServer } from '../spielserver.mjs';
 
 const QUERY = 'noadapt&nointro&t=12&sky=milky';
 export const VIEWS = [
@@ -77,15 +76,14 @@ const capture = async (send) => (await send('Page.captureScreenshot', { format: 
  * der Kopfzeile, null = wie im Spiel), file (Pfad ohne Endung), angles (wahlweise Blickwinkel je Bildschirm wie
  * CUBE_ANGLES) }]. Schreibt <file>-desktop.png und <file>-handy.png, mit angles je Blickwinkel (imageNames).
  * log(text) meldet den Fortschritt. Die Seite kommt über tools/spielserver.mjs (dist/, frisch gebaut); logik: wahlweise
- * der Pfad einer anderen Spiellogik (src/logik.js mit weiteren Leveln, prepare.mjs), dann zeigt die Seite diese
- * (mitLogik in tools/seitenmodule.mjs). Rückgabe: Sekunden je Bildschirm und Level.
+ * der Pfad einer anderen Spiellogik (src/logik.js mit weiteren Leveln, prepare.mjs), dann zeigt die Seite diese (ein
+ * eigener Build mit ihr, spielServer mit logik). Rückgabe: Sekunden je Bildschirm und Level.
  */
 export async function takeShots(shots, log = console.log, logik = null) {
   requireQuiet();
-  const spiel = await spielServer(logik ? { seiten: { 'kandidaten.html': () => mitLogik(
-    readFileSync(join(DIST, 'index.html'), 'utf8'), readFileSync(logik, 'utf8')) } } : {});
+  const spiel = await spielServer(logik ? { logik } : {});
   try {
-    return await aufnehmen(shots, log, logik ? `${spiel.url('kandidaten.html')}?${QUERY}` : spiel.seite(QUERY));
+    return await aufnehmen(shots, log, spiel.seite(QUERY));
   } finally { await spiel.close(); }
 }
 

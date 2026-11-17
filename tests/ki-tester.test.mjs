@@ -25,7 +25,7 @@ import * as protocol from '../tools/ki-tester/protocol.mjs';
 import { fieldText } from '../tools/ki-tester/field.mjs';
 import { ladeLevelliste } from '../tools/levelliste.mjs';
 import { kandidatName, logikMitLeveln, logikMitWuerfeln } from '../tools/leveldaten.mjs';
-import { LOGIK, ausText, mitLogik, zerlege } from '../tools/seitenmodule.mjs';
+import { LOGIK, ausText, zerlege } from '../tools/seitenmodule.mjs';
 import { AUFZUG, KERN } from './wuerfel-handgebaut.mjs';
 
 const {
@@ -437,10 +437,9 @@ test('Logik mit Kandidaten: src/logik.js mit den Kandidaten am Ende von LEVELS, 
   // Ausser den zwei Blöcken vor LEVELS:END ist sie src/logik.js
   const ende = text.indexOf('  /* LEVELS:END */');
   assert.ok(logik.startsWith(text.slice(0, ende)) && logik.endsWith(text.slice(ende)), 'sonst gleich');
-  // die Seite (shots.mjs): die gebaute Seite mit dieser Logik an der Stelle der aus src/logik.js
-  const seite = `<script>\n${zerlege(text, 'src/logik.js').code}\n</script>`;
-  assert.equal(mitLogik(seite, logik), `<script>\n${zerlege(logik, 'Kandidaten').code}\n</script>`);
-  assert.throws(() => mitLogik('<script></script>', logik), /nicht genau einmal/);
+  // die Seite (shots.mjs): ein Build mit dieser Logik statt src/logik.js (spielServer mit logik, vite.config.mjs
+  // PRISMA_LOGIK); dafür hat sie dieselbe Form und dieselben Namen
+  assert.deepEqual(zerlege(logik, 'Kandidaten').namen, zerlege(text, 'src/logik.js').namen);
 });
 test('prepare.mjs --kandidaten: Name „Kandidat <Abdruck>“, Referenz am Platz der Formel, Feld und Seite aus den Daten',
   () => {

@@ -8,14 +8,16 @@
 //   vorhandene dist/), sw (Vorgabe false: statt sw.js ein leerer Service Worker ohne Fetch-Handler, der nichts abfängt
 //   und nichts speichert; die Seite läuft so wie früher über file://, und die Messungen bleiben frei vom
 //   Vorab-Speichern. Eine 404 meldete Chrome als Fehler in der Konsole, an dem die Proben scheitern), seiten (weitere
-//   Seiten nur im Speicher, { 'pfad.html': Text oder () => Text }, etwa das Spiel mit Kandidaten der KI-Tester).
+//   Seiten nur im Speicher, { 'pfad.html': Text oder () => Text }), logik (Pfad einer anderen Spiellogik statt
+//   src/logik.js: ein eigener Build damit in einem temporären Ordner, etwa das Spiel mit Kandidaten der KI-Tester).
 // - seiteAus(pfad): Optionen für spielServer zu einer Datei (--seite, --vorher der Proben).
 // - PRISMA_SPIEL=<url>: statt eines eigenen Servers diese Adresse, etwa der Dev-Server (npm run dev,
 //   http://localhost:5173/) oder npm run preview; ordner und bauen gelten dann nicht.
-// - baue(ausgabe): Build in einen Ordner (Vorgabe dist/), still ausser bei einem Fehler.
+// - baue(ausgabe, { logik }): Build in einen Ordner (Vorgabe dist/), still ausser bei einem Fehler.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,14 +26,20 @@ export const DIST = join(root, 'dist');
 
 export const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript',
   '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.txt': 'text/plain' };
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.txt': 'text/plain',
+  '.map': 'application/json' };
 
-/** Baut das Spiel nach ausgabe (Vorgabe dist/); wirft mit der Ausgabe von Vite, wenn es scheitert. */
-export function baue(ausgabe = DIST) {
+/**
+ * Baut das Spiel nach ausgabe (Vorgabe dist/); wirft mit der Ausgabe von Vite, wenn es scheitert. logik: wahlweise der
+ * Pfad einer anderen Spiellogik statt src/logik.js (vite.config.mjs, PRISMA_LOGIK; die KI-Tester mit Kandidaten).
+ */
+export function baue(ausgabe = DIST, { logik = null } = {}) {
   const vite = join(root, 'node_modules', 'vite', 'bin', 'vite.js');
   if (!existsSync(vite)) throw new Error('Vite fehlt: zuerst npm install');
+  const env = { ...process.env };
+  if (logik) env.PRISMA_LOGIK = resolve(logik); else delete env.PRISMA_LOGIK;
   const r = spawnSync(process.execPath, [vite, 'build', '--outDir', ausgabe, '--emptyOutDir', '--logLevel', 'warn'],
-    { cwd: root, encoding: 'utf8' });
+    { cwd: root, encoding: 'utf8', env });
   if (r.status !== 0) throw new Error(`Build gescheitert:\n${r.stdout}\n${r.stderr}`);
   return ausgabe;
 }
@@ -41,7 +49,15 @@ export const seiteAus = (pfad) => ({ ordner: dirname(resolve(pfad)), datei: base
 
 /** Liefert das Spiel über http (siehe Kopf). */
 export async function spielServer({ ordner = DIST, datei = 'index.html', bauen = ordner === DIST, sw = false,
-  seiten = {} } = {}) {
+  seiten = {}, logik = null } = {}) {
+  let aufraeumen = () => {};
+  if (logik) { // eigener Build mit dieser Spiellogik, in einem Ordner nur für diesen Server
+    if (process.env.PRISMA_SPIEL) throw new Error('PRISMA_SPIEL: ohne andere Spiellogik');
+    ordner = mkdtempSync(join(tmpdir(), 'prisma-logik-'));
+    aufraeumen = () => rmSync(ordner, { recursive: true, force: true });
+    baue(ordner, { logik });
+    bauen = false;
+  }
   ordner = resolve(ordner);
   const fertig = (base, close) => ({ base, close,
     url: (pfad) => new URL(pfad, base).href,
@@ -76,6 +92,6 @@ export async function spielServer({ ordner = DIST, datei = 'index.html', bauen =
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   return fertig(`http://127.0.0.1:${server.address().port}/`, () => new Promise((r) => {
     server.closeAllConnections?.();
-    server.close(r);
+    server.close(() => { aufraeumen(); r(); });
   }));
 }

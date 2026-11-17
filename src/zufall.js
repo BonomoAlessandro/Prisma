@@ -1,7 +1,6 @@
 // Deterministischer Zufall (Ticket 03 von .scratch/umbau/): mulberry32(seed) liefert eine Funktion, die bei jedem
-// Aufruf die nächste Zahl der Folge aus seed gibt, in [0, 1). Die Seite setzt das Modul an seiner Stelle in ihr erstes
-// Skript ein (Marke «MODUL src/zufall.js», tools/seitenmodule.mjs: dort ist mulberry32 global wie bisher), der Hall
-// importiert es (src/hall.js).
+// Aufruf die nächste Zahl der Folge aus seed gibt, in [0, 1). Die Seite (?t=, Sterne, Bühne …) und der Hall
+// (src/hall.js) importieren es.
 function mulberry32(seed) {
   return function () {
     seed |= 0; seed = seed + 0x6D2B79F5 | 0;
