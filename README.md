@@ -51,11 +51,15 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     | leicht | `npm test` und jeder Node-Test einzeln (`golden`, `logic`, `geschichte`, `generator` …), `bildvergleich.mjs`, `brett-probe.mjs`, `offline.mjs`, `screenshot.mjs`, `spiegel-probe.mjs bilder`, `buehne-messung.mjs bilder`, Werkzeuge (`generiere.mjs`, `ordne-level.mjs`, `geschichte.mjs`, KI-Tester `prepare.mjs` und `shots.mjs` …) |
     | allein | `leerlauf-probe.mjs`, `ruhetakt-probe.mjs`, `start-probe.mjs`, `buehne-messung.mjs` (messen), `spiegel-probe.mjs` (`pruefe`, `messen`), `geschichte-probe.mjs` (misst in jedem Ablauf die Lücken im Bildtakt), `tools/bench.mjs`, alles mit `--fenster` |
 
-    **Regeln für die Agenten** (Nutzer, 16.11.2026): Umsetzer lassen nur die schnellen Prüfungen laufen, als leichte
-    Läufe: Node-Tests (`npm test` oder die betroffenen), Golden, Bildvergleich, dazu die Proben, die ihr Ticket direkt
-    betrifft. Der Reviewer lässt den ganzen Satz einmal laufen; die Proben mit Zeitmessung (alleinige) nur er. Wackelt
-    ein paralleler Lauf (Zeitüberschreitung, Flake), ihn als alleinigen wiederholen (ohne `LEISE_ART`, beim
-    Bildvergleich dazu `--jobs 1`), bevor man einen Fehler meldet.
+    **Regeln für die Agenten** (Nutzer, 16. und 17.11.2026): Umsetzer lassen nur die schnellen Prüfungen laufen, als
+    leichte Läufe: Node-Tests (`npm test` oder die betroffenen), Golden, den Bildvergleich **auf der Grafikkarte**
+    (`--gpu`, etwa 8 min), dazu die Proben, die ihr Ticket direkt betrifft. Der Reviewer lässt den ganzen Satz einmal
+    laufen, den Bildvergleich in **SwiftShader** (ohne `--gpu`, die genaue Prüfung, etwa 35 min); die Proben mit
+    Zeitmessung (alleinige) nur er. Wackelt ein paralleler Lauf (Zeitüberschreitung, Flake), ihn als alleinigen
+    wiederholen (ohne `LEISE_ART`, beim Bildvergleich dazu `--jobs 1`), bevor man einen Fehler meldet. Nach einem
+    Treiberupdate der Grafikkarte (oder einer neuen Fassung von Chrome) kann der GPU-Weg überall rot werden: dann zuerst
+    den Bildvergleich in SwiftShader laufen lassen, und erst wenn er grün ist, die GPU-Referenzen mit `--gpu --write`
+    neu schreiben.
     **Proben mit Bildtakt** (`geschichte-probe`, `brett-probe`, `leerlauf-probe`, `ruhetakt-probe`, `start-probe`):
     Eine einzelne Lücke über 100 ms kommt auf diesem Rechner schon auf der Basis vor (Review Ticket 01 des Umbaus:
     `geschichte-probe --dorf` in 2 von 3 Läufen auf dem alten Stand). Scheitert eine solche Probe an einer Lücke, sie
@@ -90,15 +94,23 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Ticket 21 hielt die Referenz für 24 Level auch die alte Wertung (`score`) fest, und diese Einträge bildeten die
     Stichprobe.
   - `LEISE_ART=leicht LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 5400 node
-    tests/bildvergleich.mjs [--write] [--groesse desktop,handy,quer,poco] [--nur start,dorf,welt-1-2,welt-3-4,welt-5-6]
-    [--jobs n]` ist der Bildvergleich des Umbaus (`.scratch/umbau/`, Ticket 01; etwa 35 min allein: gemessen 27–33 min
+    tests/bildvergleich.mjs [--gpu] [--write] [--groesse desktop,handy,quer,poco]
+    [--nur start,dorf,welt-1-2,welt-3-4,welt-5-6] [--jobs n]` ist der Bildvergleich des Umbaus (`.scratch/umbau/`, Ticket 01; etwa 35 min allein: gemessen 27–33 min
     für die drei ersten Grössen unter `leise.sh` mit 100 %, davon Desktop 16–20 min, Handy hochkant und quer je 5–7 min,
     dazu «poco» gut 6 min; neben anderen leichten Läufen entsprechend länger; mit `--groesse` und `--nur` kürzer). Er
     nimmt eine feste Liste von Ansichten in Headless-Chrome auf und vergleicht sie mit den Referenzbildern in
     `tests/bildvergleich/referenz/` (77 JPEG, 8,5 MB). `--jobs n` lässt die Abläufe je Grösse in n eigenen Prozessen
     laufen (Ticket 13); auf diesem Rechner bringt das nichts, denn SwiftShader rechnet schon in einem Chrome auf allen
     Kernen (nacheinander 27 min, mit 2 Prozessen 29 min, mit 4 Prozessen 29 min, mit 6 Zeitüberschreitungen), Vorgabe
-    darum 1. Ansichten: Startbildschirm, Menü mit den vier Graden, Übersicht, jede Welt der Geschichte mit ihrem
+    darum 1. **`--gpu`** (oder `GPU=1`; Entscheid des Nutzers 17.11.2026, Ticket 13) zeichnet auf der Grafikkarte statt
+    in SwiftShader: alle 77 Bilder in knapp 8 min, mit eigenen Referenzen in `tests/bildvergleich/referenz-gpu/`, eigener
+    Toleranz (`TOLERANZ_GPU`, 0,03 % statt 0,01 %; zwischen GPU-Läufen weichen nur Sternpunkte im Bild der Planeten um
+    bis 6 ab) und Ausgabe nach `tests/output/bildvergleich-gpu/`. Headless nimmt Chrome sonst die eingebaute Intel UHD
+    630; der Bildvergleich startet es mit `--force_high_performance_gpu` (`tools/chrome.mjs`, Option `hochleistung`)
+    und bricht ab, wenn `WEBGL_debug_renderer_info` nicht die NVIDIA meldet (andere Karte: `PRISMA_GPU=<Muster>`).
+    Höchstens zwei GPU-Bildvergleiche zeichnen gleichzeitig (Plätze `prisma-bildvergleich-gpu-<n>` im Temp-Verzeichnis),
+    ein dritter wartet. Der GPU-Weg ist der schnelle für Umsetzer; die genaue Prüfung bleibt SwiftShader (Regeln oben).
+    Ansichten: Startbildschirm, Menü mit den vier Graden, Übersicht, jede Welt der Geschichte mit ihrem
     Himmel je in einem Level vor und nach dem Lösen, die vier Übungen im Dorf mit Band, Lichtkegel und Hand, Prolog,
     Reise (Bergwald → Meer) und Epilog; jedes Element steht mindestens einmal im Bild. Je in drei Grössen: Desktop
     1280 × 800, Handy hochkant 390 × 844 und Handy quer 844 × 390 (Pixeldichte 1); dazu «poco» wie das Poco F4 GT

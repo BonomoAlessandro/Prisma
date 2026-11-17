@@ -17,8 +17,11 @@ Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/age
 Schwere Läufe über `tools/leise.sh` mit Zeitgrenze. Läufe ohne Zeitmessung (Node-Tests, Golden, Bildvergleich,
 `brett-probe`, `offline`, `screenshot`, Werkzeuge) als leichte (`LEISE_ART=leicht`, bis zu vier gleichzeitig), Proben
 mit Bildzeiten oder Messungen allein (ohne `LEISE_ART`); Tabelle im README, Abschnitt Tests.
-- Umsetzer: nur die schnellen Prüfungen (Node-Tests, Golden, Bildvergleich) und die Proben, die ihr Ticket direkt
-  betrifft. Der Reviewer lässt den ganzen Satz einmal laufen, die Proben mit Zeitmessung nur er.
+- Umsetzer: nur die schnellen Prüfungen (Node-Tests, Golden, Bildvergleich auf der Grafikkarte mit `--gpu`) und die
+  Proben, die ihr Ticket direkt betrifft. Der Reviewer lässt den ganzen Satz einmal laufen, den Bildvergleich in
+  SwiftShader (ohne `--gpu`), die Proben mit Zeitmessung nur er.
+- Nach einem Treiberupdate (oder neuem Chrome) die GPU-Referenzen (`referenz-gpu/`) erst mit `--gpu --write` neu
+  schreiben, wenn der Bildvergleich in SwiftShader grün ist.
 - Wackelt ein paralleler Lauf (Zeitüberschreitung, Flake), als alleinigen wiederholen (Bildvergleich mit `--jobs 1`).
 - Proben mit Bildtakt: Eine einzelne Lücke über 100 ms kommt auf diesem Rechner schon auf der Basis vor. Dann
   wiederholen bzw. mit der Basis vergleichen; es zählt nur ein Fehler, der auf der Basis nicht kommt.
