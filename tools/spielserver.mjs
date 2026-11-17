@@ -10,7 +10,8 @@
 //   vorhandene dist/, ohne zu bauen), sw (Vorgabe false: statt sw.js ein leerer Service Worker ohne Fetch-Handler, der nichts abfängt
 //   und nichts speichert; die Seite läuft so wie früher über file://, und die Messungen bleiben frei vom
 //   Vorab-Speichern. Eine 404 meldete Chrome als Fehler in der Konsole, an dem die Proben scheitern), seiten (weitere
-//   Seiten nur im Speicher, { 'pfad.html': Text oder () => Text }, etwa das Spiel mit Kandidaten der KI-Tester).
+//   Seiten nur im Speicher, { 'pfad.html': Text oder (ordner) => Text }, etwa das Spiel mit Kandidaten der KI-Tester;
+//   ordner ist der Ordner, aus dem der Server liefert, seit Ticket 13 meist der eigene Bau im Temp-Verzeichnis).
 // - seiteAus(pfad): Optionen für spielServer zu einer Datei (--seite, --vorher der Proben).
 // - PRISMA_SPIEL=<url>: statt eines eigenen Servers diese Adresse, etwa der Dev-Server (npm run dev,
 //   http://localhost:5173/) oder npm run preview; ordner und bauen gelten dann nicht.
@@ -68,7 +69,7 @@ export async function spielServer({ ordner = DIST, datei = 'index.html', bauen =
     const file = join(ordner, pfad), mehr = seiten[pfad.slice(1)];
     if (Object.hasOwn(seiten, pfad.slice(1))) {
       res.writeHead(200, { 'Content-Type': TYPES[extname(pfad)] || 'application/octet-stream' });
-      res.end(typeof mehr === 'function' ? mehr() : mehr);
+      res.end(typeof mehr === 'function' ? mehr(ordner) : mehr);
       return;
     }
     if (!sw && pfad === '/sw.js') {

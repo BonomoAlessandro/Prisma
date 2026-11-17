@@ -18,7 +18,7 @@ import { gedeckelt, deckelText } from '../deckel.mjs';
 import { startChrome, emulate, evaluate, sleep } from '../chrome.mjs';
 import { L } from '../solver.mjs';
 import { mitLogik } from '../seitenmodule.mjs';
-import { DIST, spielServer } from '../spielserver.mjs';
+import { spielServer } from '../spielserver.mjs';
 
 const QUERY = 'noadapt&nointro&t=12&sky=milky';
 export const VIEWS = [
@@ -82,8 +82,10 @@ const capture = async (send) => (await send('Page.captureScreenshot', { format: 
  */
 export async function takeShots(shots, log = console.log, logik = null) {
   requireQuiet();
-  const spiel = await spielServer(logik ? { seiten: { 'kandidaten.html': () => mitLogik(
-    readFileSync(join(DIST, 'index.html'), 'utf8'), readFileSync(logik, 'utf8')) } } : {});
+  // die gebaute Seite aus dem Ordner, aus dem der Server liefert (seit Ticket 13 ein eigener Bau im Temp-Verzeichnis,
+  // nicht dist/: dort stünde ein alter Bau mit anderen Namen der Assets oder gar keiner)
+  const spiel = await spielServer(logik ? { seiten: { 'kandidaten.html': (ordner) => mitLogik(
+    readFileSync(join(ordner, 'index.html'), 'utf8'), readFileSync(logik, 'utf8')) } } : {});
   try {
     return await aufnehmen(shots, log, logik ? `${spiel.url('kandidaten.html')}?${QUERY}` : spiel.seite(QUERY));
   } finally { await spiel.close(); }
