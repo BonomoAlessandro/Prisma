@@ -1,11 +1,13 @@
 // Prüft die Sperre von tools/leise.sh (Ticket 13 von .scratch/umbau/): leichte Läufe gleichzeitig bis
-// LEISE_LEICHT_MAX, ein alleiniger nie neben einem anderen Lauf, Vorrang und Frist, verwaiste Sperren. Jeder Fall mit
+// LEISE_LEICHT_MAX, ein alleiniger nie neben einem anderen Lauf, Vorrang und Frist, verwaiste Sperren; seit Ticket 14
+// Vorrang wartender leichter gegen eine Kette alleiniger, kein gegenseitiger Vortritt, harter Tod des Halters (Wache);
+// jeder Fall mit Zeitrahmen (120 s), danach werden seine Läufe beendet. Jeder Fall mit
 // eigener Sperre und eigenem Warteordner (LEISE_SPERRE, LEISE_WARTE) im Temp-Verzeichnis, nie mit der echten unter /tmp;
 // die Fälle laufen darum gleichzeitig (etwa 40 s). Die Läufe sind kurze sh-Befehle, die Beginn und Ende mit der Uhr in
 // eine Datei schreiben; geprüft wird an diesen Zeiten. Nur unter Windows (leise.ps1).
 // Aufruf: node tests/leise.test.mjs   (in tests/alle.mjs)
-import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync, utimesSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -41,7 +43,7 @@ function fall(name) {
     p.stderr.on('data', (d) => { err += d; });
     p.stdout.on('data', () => {});
     const fertig = new Promise((r) => p.on('exit', (code) => r({ code, err })));
-    laeufe.push({ n, fertig });
+    laeufe.push({ n, fertig, p });
     return fertig;
   };
   /** Zeiten je Lauf { n: { start, ende } } */
@@ -58,10 +60,12 @@ function fall(name) {
     for (let i = 0; i < sekunden * 10; i++) { if (zeiten()[n]?.start) return; await sleep(100); }
     throw new Error(`${name}: ${n} beginnt nicht`);
   };
-  /** warten, bis ein Lauf in WARTE eingetragen ist (alleinige) */
-  const wartet = async (sekunden = 30) => {
+  /** warten, bis ein Lauf in WARTE eingetragen ist (muster: Teil des Namens oder RegExp); gibt den Namen der Marke */
+  const wartet = async (sekunden = 30, muster = '') => {
+    const passt = (m) => (muster instanceof RegExp ? muster.test(m) : m.includes(muster));
     for (let i = 0; i < sekunden * 10; i++) {
-      if (existsSync(join(dir, 'warte')) && readdirSync(join(dir, 'warte')).length) return;
+      const m = existsSync(join(dir, 'warte')) && readdirSync(join(dir, 'warte')).find(passt);
+      if (m) return m;
       await sleep(100);
     }
     throw new Error(`${name}: kein Wartender`);
@@ -69,7 +73,16 @@ function fall(name) {
   const alle = async () => { const r = await Promise.all(laeufe.map((l) => l.fertig)); return r; };
   const aufgeraeumt = () => !existsSync(join(dir, 'lock')) && !existsSync(join(dir, 'lock.leicht'))
     && (!existsSync(join(dir, 'warte')) || readdirSync(join(dir, 'warte')).length === 0);
-  return { name, dir, lauf, zeiten, begonnen, wartet, alle, aufgeraeumt, weg: () => rmSync(dir, { recursive: true, force: true }) };
+  /** nach einer Zeitüberschreitung: alle noch laufenden Läufe samt Unterprozessen beenden */
+  const toeten = () => {
+    for (const { p } of laeufe) {
+      if (p.exitCode === null && p.signalCode === null) {
+        spawnSync('taskkill', ['/F', '/T', '/PID', String(p.pid)], { stdio: 'ignore', timeout: 30000 });
+      }
+    }
+  };
+  return { name, dir, lauf, zeiten, begonnen, wartet, alle, aufgeraeumt, toeten,
+    weg: () => rmSync(dir, { recursive: true, force: true }) };
 }
 /** höchste Zahl gleichzeitig laufender Läufe aus den Zeiten */
 const gleichzeitig = (z, namen = Object.keys(z)) => {
@@ -166,6 +179,72 @@ const FAELLE = {
     ok(z.A2.start >= z.L2.ende, `${f.name}: alleiniger wartet auf den lebenden leichten Lauf`);
     ok(f.aufgeraeumt(), `${f.name}: am Ende weg`);
   },
+  async 'Vorrang eines wartenden leichten gegen eine Kette alleiniger'(f) {
+    // Ticket 14: Ein Agent hängt alleinige Läufe direkt aneinander; ohne Marke gewann jeder davon das Rennen um die
+    // freie Sperre gegen den wartenden leichten Lauf mit kleinerer Zahl.
+    const kette = f.lauf('A1', { vorrang: 500, s: 6 })
+      .then(() => f.lauf('A2', { vorrang: 500, s: 2 })).then(() => f.lauf('A3', { vorrang: 500, s: 1 }));
+    await f.begonnen('A1');
+    f.lauf('L', { art: 'leicht', vorrang: 2, s: 2 });
+    await f.wartet(30, '.leicht.');
+    await kette;
+    const r = await f.alle();
+    ok(r.every((x) => x.code === 0), `${f.name}: alle mit 0 beendet`);
+    const z = f.zeiten();
+    ok(z.L.start < z.A2.start, `${f.name}: L (Vorrang 2) vor A2 (500) aus der Kette`);
+    ok(['A1', 'A2', 'A3'].every((a) => alleinIn(z, a, ['A1', 'A2', 'A3', 'L'].filter((b) => b !== a))),
+      `${f.name}: jeder alleinige allein`);
+    ok(f.aufgeraeumt(), `${f.name}: Sperre und Warteschlange danach leer`);
+  },
+  async 'kein gegenseitiger Vortritt nach der Frist'(f) {
+    // Ticket 14: Der leichte L (Vorrang 2) wartet mit Marke; A2 (500) wartete schon vor ihm und überschreitet nun die
+    // Frist. A2 lässt L wegen der Zahl den Vortritt, L ihm wegen der Frist: L muss seine Marke zurücknehmen, sonst
+    // warten beide ewig. Die Frist (1 min) wird simuliert, indem die Marke von A2 zurückdatiert wird.
+    f.lauf('A1', { vorrang: 500, s: 15 });
+    await f.begonnen('A1');
+    f.lauf('A2', { vorrang: 500, s: 2 });
+    const a2 = await f.wartet(30, /^500\.\d+$/);
+    await sleep(1100);
+    f.lauf('L', { art: 'leicht', vorrang: 2, frist: 1, s: 1 });
+    const l = await f.wartet(30, '.leicht.');
+    const vorher = (Date.now() - 120000) / 1000;
+    utimesSync(join(f.dir, 'warte', a2), vorher, vorher);
+    await sleep(4500); // L sieht die alte Marke und nimmt seine zurück
+    ok(!existsSync(join(f.dir, 'warte', l)), `${f.name}: L nimmt seine Marke zurück, solange er A2 vorlässt`);
+    const r = await f.alle();
+    ok(r.every((x) => x.code === 0), `${f.name}: alle mit 0 beendet`);
+    const z = f.zeiten();
+    ok(z.A2.start < z.L.start && alleinIn(z, 'A2', ['A1', 'L']), `${f.name}: A2 (Frist um) vor L, allein`);
+    ok(f.aufgeraeumt(), `${f.name}: Sperre und Warteschlange danach leer`);
+  },
+  async 'Halter hart beendet, leichter lebt weiter'(f) {
+    // Ticket 14: Der Halter der Gruppe stirbt hart (taskkill /F, keine Falle läuft); der zweite leichte Lauf trägt sich
+    // binnen weniger Sekunden als Halter ein (so hält auch eine ältere Kopie, die nur pid kennt, die Gruppe nicht für
+    // verwaist), und ein alleiniger startet erst nach ihm.
+    const lock = join(f.dir, 'lock');
+    const L1 = f.lauf('L1', { art: 'leicht', s: 15 });
+    await f.begonnen('L1');
+    const L2 = f.lauf('L2', { art: 'leicht', s: 12 });
+    await f.begonnen('L2');
+    const [pid1, wp1] = readFileSync(join(lock, 'pid'), 'utf8').trim().split(' ');
+    const mitglieder = readdirSync(lock).filter((d) => d.startsWith('leicht.')).map((d) => d.slice(7));
+    ok(mitglieder.length === 2 && mitglieder.includes(pid1), `${f.name}: zwei Mitglieder, Halter ist eines (${mitglieder})`);
+    spawnSync('taskkill', ['/F', '/PID', wp1], { stdio: 'ignore', timeout: 30000 });
+    const r1 = await L1;
+    ok(r1.code !== 0, `${f.name}: Halter hart beendet (Rückgabe ${r1.code})`);
+    let neu = pid1;
+    for (let i = 0; i < 150 && neu === pid1; i++) {
+      await sleep(100);
+      try { neu = readFileSync(join(lock, 'pid'), 'utf8').trim().split(' ')[0]; } catch { /* gerade ersetzt */ }
+    }
+    ok(neu !== pid1 && mitglieder.includes(neu), `${f.name}: der lebende leichte Lauf ist binnen 15 s Halter (${neu})`);
+    f.lauf('A', { s: 1 });
+    const r = await Promise.all([L2, f.alle()]);
+    ok(r[0].code === 0, `${f.name}: L2 mit 0 beendet`);
+    const z = f.zeiten();
+    ok(z.A?.start >= z.L2.ende, `${f.name}: alleiniger startet erst nach dem lebenden leichten Lauf`);
+    ok(f.aufgeraeumt(), `${f.name}: Sperre danach weg`);
+  },
   async 'Argumente'(f) {
     const r = await f.lauf('X', { art: 'schwer' });
     ok(r.code === 1 && /LEISE_ART/.test(r.err) && !f.zeiten().X, `${f.name}: unbekannte Art bricht ab`);
@@ -180,8 +259,11 @@ await Promise.all(Object.entries(FAELLE).filter(([n]) => !wahl.length || wahl.so
   .map(async ([n, fn]) => {
     const f = fall(n.replace(/[^a-z]+/gi, '-').slice(0, 20));
     f.name = n;
-    try { await fn(f); } catch (e) { fehler++; console.log(`  FEHLER ${n}: ${e.message}`); }
-    finally { f.weg(); }
+    // Zeitrahmen je Fall: Warten zwei Läufe ewig aufeinander, wird der Fall rot statt endlos
+    let uhr;
+    const frist = new Promise((_, nein) => { uhr = setTimeout(() => nein(new Error('Zeitrahmen 120 s überschritten')), 120000); });
+    try { await Promise.race([fn(f), frist]); } catch (e) { fehler++; console.log(`  FEHLER ${n}: ${e.message}`); }
+    finally { clearTimeout(uhr); f.toeten(); f.weg(); }
     console.log(`  fertig: ${n}`);
   }));
 console.log(`leise.sh: ${pruefungen} Prüfungen, ${fehler} Fehler, ${Math.round((Date.now() - t0) / 1000)} s`);

@@ -13,10 +13,12 @@
 #   Werkzeuge). Bis zu LEISE_LEICHT_MAX (Vorgabe 4) laufen gleichzeitig. Sie halten die Sperre gemeinsam: Der erste legt
 #   sie an (mit der Datei „art“), jeder trägt sich darin als „leicht.<pid>“ ein, in „pid“ steht immer ein lebender von
 #   ihnen, der letzte räumt sie weg. So wartet jeder alleinige Lauf auf sie, auch eine ältere Kopie dieses Skripts, die
-#   von leichten Läufen nichts weiss (ein Lauf der alten Kopie zählt als alleiniger). Ein leichter Lauf startet nicht,
-#   solange ein alleiniger wartet, dessen Vorrang gleich oder kleiner ist; einer mit grösserer Zahl wird höchstens
-#   LEISE_FRIST Minuten (Vorgabe 10) überholt, danach startet kein leichter mehr, bis er gelaufen ist. Wartende leichte
-#   Läufe tragen sich nirgends ein (ein alleiniger kommt vor ihnen dran, sobald die Sperre frei ist).
+#   von leichten Läufen nichts weiss (ein Lauf der alten Kopie zählt als alleiniger). Stirbt der Halter hart, trägt sich
+#   binnen 5 s ein anderer lebender leichter Lauf ein (Wache, Ticket 14). Ein leichter Lauf startet nicht, solange ein
+#   alleiniger wartet, dessen Vorrang gleich oder kleiner ist; einer mit grösserer Zahl, der schon vor ihm wartete, wird
+#   höchstens LEISE_FRIST Minuten (Vorgabe 10) überholt, danach lässt ihn jeder leichte vor. Wartende leichte Läufe
+#   tragen sich als „<vorrang>.leicht.<pid>“ in die Warteschlange ein (Ticket 14), so lässt ihnen jeder alleinige mit
+#   grösserer Zahl den Vortritt, auch eine Kette alleiniger Läufe und die Kopien aus Ticket 13.
 # Ein Aufruf innerhalb eines Laufs (LEISE_AKTIV) läuft direkt. Eine verwaiste Sperre (Halter tot und kein lebender
 # leichter Lauf darin, oder über eine Minute ohne pid-Datei) wird übernommen. Zum Prüfen dieses Skripts ohne die echte
 # Sperre: LEISE_SPERRE und LEISE_WARTE auf eigene Pfade (tests/leise.test.mjs).
@@ -60,11 +62,19 @@ verwaist() {
   halter
   if [ -n "$h_pid" ]; then lebt && return 1; lebende; [ "$l_n" -eq 0 ]; else alt "$SPERRE"; fi
 }
+# Sperre der Gruppe (für Augenblicke): Eintreten und Austreten leichter Läufe und das Übernehmen einer verwaisten Sperre
+# ändern die Sperre nie gleichzeitig. Älter als eine Minute ist sie verwaist.
+GRUPPE="$SPERRE.leicht"
+sperren() { until mkdir "$GRUPPE" 2>/dev/null; do alt "$GRUPPE" && rmdir "$GRUPPE" 2>/dev/null; sleep 0.2; done; }
+entsperren() { rmdir "$GRUPPE" 2>/dev/null; }
 uebernehmen() {
   alt "$SPERRE.uebernahme" && rm -rf "$SPERRE.uebernahme"
-  # Übernahme selbst sperren und darin neu prüfen, sonst löscht ein Wartender die frische Sperre eines anderen.
+  # Übernahme selbst sperren und darin neu prüfen, sonst löscht ein Wartender die frische Sperre eines anderen; dazu die
+  # Sperre der Gruppe, sonst tritt zwischen Prüfen und Löschen ein leichter Lauf in die tote Gruppe ein (Review 13).
   if mkdir "$SPERRE.uebernahme" 2>/dev/null; then
+    sperren
     verwaist && rm -rf "$SPERRE"
+    entsperren
     rmdir "$SPERRE.uebernahme"
   fi
 }
@@ -74,8 +84,8 @@ mkdir -p "$WARTE"
 gemeldet=
 
 if [ "$ART" = allein ]; then
-  # wie bis Ticket 13: wer eine kleinere Zahl lebend vor sich sieht, lässt ihm die Sperre; Marken toter Wartender werden
-  # weggeräumt
+  # wie bis Ticket 13: wer eine kleinere Zahl lebend vor sich sieht, lässt ihm die Sperre (seit Ticket 14 auch einem
+  # wartenden leichten Lauf, „<vorrang>.leicht.<pid>“); Marken toter Wartender werden weggeräumt
   MARKE="$WARTE/$VORRANG.$$"
   echo "$$ $WP" > "$MARKE"
   trap 'rm -f "$MARKE"' EXIT
@@ -107,30 +117,40 @@ if [ "$ART" = allein ]; then
   rm -f "$MARKE"
   trap 'halter; [ "$h_pid" = "$$" ] && rm -rf "$SPERRE"' EXIT
 else
-  # Sperre der Gruppe (nur zwischen leichten Läufen, für Augenblicke): Eintreten und Austreten ändern die Sperre nie
-  # gleichzeitig. Älter als eine Minute ist sie verwaist.
-  GRUPPE="$SPERRE.leicht"
-  sperren() { until mkdir "$GRUPPE" 2>/dev/null; do alt "$GRUPPE" && rmdir "$GRUPPE" 2>/dev/null; sleep 0.2; done; }
-  entsperren() { rmdir "$GRUPPE" 2>/dev/null; }
   # pid ersetzen, ohne dass sie je leer oder halb geschrieben ist (ein Wartender hielte die Sperre sonst für verwaist)
   setze_halter() { echo "$1 $2" > "$SPERRE/pid.$$" && mv -f "$SPERRE/pid.$$" "$SPERRE/pid"; }
-  # Wartet ein alleiniger Lauf, dem dieser Vortritt lässt? (gleicher oder kleinerer Vorrang, oder länger als FRIST)
-  # Marken anderer Läufe nur lesen, nie löschen.
+  # Wartet ein alleiniger Lauf, dem dieser Vortritt lässt? Einer mit gleichem oder kleinerem Vorrang, oder einer, der
+  # schon vor diesem wartete und das seit über FRIST Minuten. Marken anderer Läufe nur lesen, nie löschen; Marken
+  # wartender leichter Läufe übergehen (zwei leichte liessen einander sonst ewig den Vortritt).
+  T0=$(date +%s)
   vortritt() {
+    jetzt=$(date +%s)
     for m in "$WARTE"/*.*; do
       [ -f "$m" ] || continue
+      case ${m##*/} in *.leicht.*) continue ;; esac
       n=${m##*/}; n=${n%%.*}
       read -r h_pid h_wp 2>/dev/null < "$m" || continue
       lebt || continue
-      if [ "$n" -le "$VORRANG" ] 2>/dev/null || [ -n "$(find "$m" -maxdepth 0 -mmin +"$FRIST" 2>/dev/null)" ]; then
-        v_pid=$h_pid; return 0
-      fi
+      [ "$n" -le "$VORRANG" ] 2>/dev/null && { v_pid=$h_pid; return 0; }
+      t=$(stat -c %Y "$m" 2>/dev/null) || continue
+      [ "$t" -le "$T0" ] && [ $((jetzt - t)) -ge $((FRIST * 60)) ] && { v_pid=$h_pid; return 0; }
     done
     return 1
   }
+  # Wartend trägt sich ein leichter Lauf als „<vorrang>.leicht.<pid>“ in die Warteschlange ein (Review 13), so lässt ihm
+  # jeder alleinige mit grösserer Zahl den Vortritt, auch eine Kette alleiniger Läufe und ältere Kopien dieses Skripts
+  # (sie lesen die Zahl vor dem ersten Punkt). Solange er selbst einem alleinigen Vortritt lässt, nimmt er die Marke
+  # zurück; sonst liessen beide einander den Vortritt (der alleinige wegen der Zahl, er wegen der Frist).
+  MARKE="$WARTE/$VORRANG.leicht.$$"
+  trap 'rm -f "$MARKE"' EXIT
   melde() { [ "$gemeldet" = "$1" ] || { echo "leise: $2" >&2; gemeldet=$1; }; }
+  versucht=
   while :; do
-    if vortritt; then melde vortritt "lasse alleinigen Lauf vor (PID $v_pid)"; sleep 2; continue; fi
+    if vortritt; then
+      rm -f "$MARKE"; melde vortritt "lasse alleinigen Lauf vor (PID $v_pid)"; sleep 2; continue
+    fi
+    [ -n "$versucht" ] && [ ! -f "$MARKE" ] && echo "$$ $WP" > "$MARKE"
+    versucht=1
     sperren
     if mkdir "$SPERRE" 2>/dev/null; then
       echo leicht > "$SPERRE/art"
@@ -151,10 +171,13 @@ else
     if verwaist; then uebernehmen; continue; fi
     melde allein "warte auf laufenden alleinigen Lauf (PID ${h_pid:-?})"; sleep 2
   done
+  rm -f "$MARKE"
   # Austreten: der letzte räumt die Sperre weg; sonst bekommt ein anderer lebender leichter Lauf die pid, wenn sie auf
   # diesen oder einen toten zeigt
   austreten() {
     sperren
+    # die Wache nur unter der Sperre der Gruppe beenden: dann hält sie sie gerade nicht
+    [ -n "$WACHE" ] && kill "$WACHE" 2>/dev/null
     rm -f "$SPERRE/leicht.$$"
     if [ -f "$SPERRE/art" ]; then
       lebende raeumen
@@ -165,8 +188,24 @@ else
     entsperren
   }
   trap austreten EXIT
+  # Wache (Review 13): Stirbt der Halter hart (taskkill /F, kill -9), räumt er die pid nicht mehr weg. Eine ältere Kopie
+  # dieses Skripts, die nur pid kennt, hielte die Gruppe dann für verwaist und liefe neben den übrigen leichten Läufen.
+  # Darum prüft jeder leichte Lauf alle 5 s, ob der Halter lebt, und trägt sich sonst selbst ein. Sie endet, sobald
+  # dieser Lauf ausgetreten oder tot ist.
+  wache() {
+    trap - EXIT INT TERM
+    while sleep 5; do
+      sperren
+      if [ "$(cat "/proc/$$/winpid" 2>/dev/null)" = "$WP" ] && [ -f "$SPERRE/leicht.$$" ]; then
+        halter; lebt || setze_halter "$$" "$WP"
+        entsperren
+      else entsperren; exit 0
+      fi
+    done
+  }
 fi
 trap 'exit 130' INT
 trap 'exit 143' TERM
 powershell -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w "$(dirname "$0")")\leise.ps1" -ProcessId "$WP" -Percent "${LEISE_CPU:-20}" || { echo "leise: Job nicht gesetzt, Abbruch" >&2; exit 1; }
+[ "$ART" = leicht ] && { wache </dev/null >/dev/null 2>&1 & WACHE=$!; }
 LEISE_AKTIV=1 LEISE_ART=$ART "$@"

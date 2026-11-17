@@ -174,7 +174,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `?t=12` (Zeit steht, Zufall fest, dazu `phasenZufall`), `?noadapt`, SwiftShader; was bei stehender Zeit nie fertig
     oder still würde (Strahlen, Feier, CSS-Animationen, Uhr der Bühne, Hand im Dorf, Glühwürmchen der Reise), hält die
     Prüfung nur in der Seite fest. Die Bühne von Prolog und Epilog friert sie erst ein, wenn ihre Bewegungen fertig und
-    ihre Texturen ganz gerastert sind (sonst unter Last rot, Ticket 13). Verglichen wird JPEG mit JPEG je Pixel: rot, wenn mehr als 0,01 % der Pixel in einem
+    ihre Texturen ganz gerastert sind (sonst unter Last rot, Ticket 13). Aufgenommen wird eine Ansicht, wenn zwei
+    Aufnahmen gleich sind; nur bei «poco» gilt sie nach 7 Aufnahmen auch als ruhig, wenn die letzten zwei innerhalb der
+    Toleranz liegen (ein Fleck im Lichtstreifen des Titels wechselt dort von Bild zu Bild). Diese Fälle meldet der Lauf
+    («fast ruhig») und zählt sie in der Übersicht am Schluss (Ticket 14). Verglichen wird JPEG mit JPEG je Pixel: rot, wenn mehr als 0,01 % der Pixel in einem
     Farbkanal um mehr als 3 abweichen (`TOLERANZ`; ausgenommen nur ein Rechteck im Wasser von Handy quer, Meer 1, das
     das Spiel nicht in jedem Lauf gleich zeichnet, `AUSNAHMEN`); bei Rot liegen Bild, Referenz und Differenzbild unter
     `tests/output/bildvergleich/`. Ab Ticket 02 muss er nach jedem Schritt des Umbaus grün sein. `--write` schreibt die
@@ -779,11 +782,15 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   laufen bis zu `LEISE_LEICHT_MAX` (Vorgabe 4) gleichzeitig und halten die Sperre gemeinsam (der letzte räumt sie weg),
   so wartet auch eine ältere Kopie von `leise.sh` auf sie. Warten mehrere alleinige, geht die kleinere Zahl
   `LEISE_VORRANG` vor (Nummer des Tickets, ohne Angabe 500). Ein leichter Lauf lässt jedem wartenden alleinigen mit
-  gleicher oder kleinerer Zahl den Vortritt; einen mit grösserer Zahl überholt er höchstens `LEISE_FRIST` Minuten
-  (Vorgabe 10) lang, danach startet kein leichter mehr, bis der alleinige gelaufen ist. Ein Aufruf innerhalb eines
+  gleicher oder kleinerer Zahl den Vortritt; einen mit grösserer Zahl, der schon vor ihm wartete, überholt er höchstens
+  `LEISE_FRIST` Minuten (Vorgabe 10) lang, danach lässt ihn jeder leichte vor. Ein wartender leichter Lauf trägt sich
+  in die Warteschlange ein (`<vorrang>.leicht.<pid>`, Ticket 14), so lässt ihm jeder alleinige mit grösserer Zahl den
+  Vortritt, auch eine Kette alleiniger Läufe eines anderen Agenten; solange er selbst einen alleinigen vorlässt, nimmt
+  er den Eintrag zurück (sonst warteten beide aufeinander). Stirbt der Halter einer Gruppe hart (`taskkill /F`), trägt
+  sich binnen 5 s ein anderer lebender leichter Lauf als Halter ein (Wache je leichtem Lauf). Ein Aufruf innerhalb eines
   Laufs läuft direkt, eine verwaiste Sperre (Halter tot und kein lebender leichter Lauf darin, oder über eine Minute
-  ohne pid-Datei) wird übernommen. `node tests/leise.test.mjs` prüft das mit eigenen Pfaden (`LEISE_SPERRE`,
-  `LEISE_WARTE`), nie an der echten Sperre;
+  ohne pid-Datei) wird übernommen, unter der Sperre der Gruppe (`<sperre>.leicht`). `node tests/leise.test.mjs` prüft
+  das mit eigenen Pfaden (`LEISE_SPERRE`, `LEISE_WARTE`), nie an der echten Sperre;
   `chrome.mjs` steuert Headless-Chrome über das DevTools-Protokoll (für `tests/screenshot.mjs` und die KI-Tester;
   mit `fenster` sichtbar, für Messungen im echten Bildschirmtakt; `on` hört auf Ereignisse wie die eines Traces).
 - **Beurteilung** (`tools/beurteilung/`, nur für die Entwicklung; ADR 0002, Spec „Beurteilung“ und „Feldform“): ein
