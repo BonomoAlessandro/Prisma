@@ -158,6 +158,8 @@ else
   # diesen oder einen toten zeigt
   austreten() {
     sperren
+    # die Wache nur unter der Sperre der Gruppe beenden: dann hält sie sie gerade nicht
+    [ -n "$WACHE" ] && kill "$WACHE" 2>/dev/null
     rm -f "$SPERRE/leicht.$$"
     if [ -f "$SPERRE/art" ]; then
       lebende raeumen
@@ -168,8 +170,24 @@ else
     entsperren
   }
   trap austreten EXIT
+  # Wache (Review 13): Stirbt der Halter hart (taskkill /F, kill -9), räumt er die pid nicht mehr weg. Eine ältere Kopie
+  # dieses Skripts, die nur pid kennt, hielte die Gruppe dann für verwaist und liefe neben den übrigen leichten Läufen.
+  # Darum prüft jeder leichte Lauf alle 5 s, ob der Halter lebt, und trägt sich sonst selbst ein. Sie endet, sobald
+  # dieser Lauf ausgetreten oder tot ist.
+  wache() {
+    trap - EXIT INT TERM
+    while sleep 5; do
+      sperren
+      if [ "$(cat "/proc/$$/winpid" 2>/dev/null)" = "$WP" ] && [ -f "$SPERRE/leicht.$$" ]; then
+        halter; lebt || setze_halter "$$" "$WP"
+        entsperren
+      else entsperren; exit 0
+      fi
+    done
+  }
 fi
 trap 'exit 130' INT
 trap 'exit 143' TERM
 powershell -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w "$(dirname "$0")")\leise.ps1" -ProcessId "$WP" -Percent "${LEISE_CPU:-20}" || { echo "leise: Job nicht gesetzt, Abbruch" >&2; exit 1; }
+[ "$ART" = leicht ] && { wache </dev/null >/dev/null 2>&1 & WACHE=$!; }
 LEISE_AKTIV=1 LEISE_ART=$ART "$@"

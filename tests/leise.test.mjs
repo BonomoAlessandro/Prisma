@@ -4,7 +4,7 @@
 // die Fälle laufen darum gleichzeitig (etwa 40 s). Die Läufe sind kurze sh-Befehle, die Beginn und Ende mit der Uhr in
 // eine Datei schreiben; geprüft wird an diesen Zeiten. Nur unter Windows (leise.ps1).
 // Aufruf: node tests/leise.test.mjs   (in tests/alle.mjs)
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -165,6 +165,34 @@ const FAELLE = {
     const z = f.zeiten();
     ok(z.A2.start >= z.L2.ende, `${f.name}: alleiniger wartet auf den lebenden leichten Lauf`);
     ok(f.aufgeraeumt(), `${f.name}: am Ende weg`);
+  },
+  async 'Halter hart beendet, leichter lebt weiter'(f) {
+    // Ticket 14: Der Halter der Gruppe stirbt hart (taskkill /F, keine Falle läuft); der zweite leichte Lauf trägt sich
+    // binnen weniger Sekunden als Halter ein (so hält auch eine ältere Kopie, die nur pid kennt, die Gruppe nicht für
+    // verwaist), und ein alleiniger startet erst nach ihm.
+    const lock = join(f.dir, 'lock');
+    const L1 = f.lauf('L1', { art: 'leicht', s: 15 });
+    await f.begonnen('L1');
+    const L2 = f.lauf('L2', { art: 'leicht', s: 12 });
+    await f.begonnen('L2');
+    const [pid1, wp1] = readFileSync(join(lock, 'pid'), 'utf8').trim().split(' ');
+    const mitglieder = readdirSync(lock).filter((d) => d.startsWith('leicht.')).map((d) => d.slice(7));
+    ok(mitglieder.length === 2 && mitglieder.includes(pid1), `${f.name}: zwei Mitglieder, Halter ist eines (${mitglieder})`);
+    spawnSync('taskkill', ['/F', '/PID', wp1], { stdio: 'ignore', timeout: 30000 });
+    const r1 = await L1;
+    ok(r1.code !== 0, `${f.name}: Halter hart beendet (Rückgabe ${r1.code})`);
+    let neu = pid1;
+    for (let i = 0; i < 150 && neu === pid1; i++) {
+      await sleep(100);
+      try { neu = readFileSync(join(lock, 'pid'), 'utf8').trim().split(' ')[0]; } catch { /* gerade ersetzt */ }
+    }
+    ok(neu !== pid1 && mitglieder.includes(neu), `${f.name}: der lebende leichte Lauf ist binnen 15 s Halter (${neu})`);
+    f.lauf('A', { s: 1 });
+    const r = await Promise.all([L2, f.alle()]);
+    ok(r[0].code === 0, `${f.name}: L2 mit 0 beendet`);
+    const z = f.zeiten();
+    ok(z.A?.start >= z.L2.ende, `${f.name}: alleiniger startet erst nach dem lebenden leichten Lauf`);
+    ok(f.aufgeraeumt(), `${f.name}: Sperre danach weg`);
   },
   async 'Argumente'(f) {
     const r = await f.lauf('X', { art: 'schwer' });
