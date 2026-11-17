@@ -151,3 +151,94 @@ Kopie des Commits im Scratchpad (die Sperre hielten lange andere Läufe; so konn
   `index.html` und allen Modulen (`spielQuelltext`); `ki-tester`: `mitLogik` entfällt, `shots.mjs` baut für Kandidaten
   einen eigenen Build (`spielServer({ logik })`).
 - `--seite`/`--vorher` der Messproben wie seit 03: eine Fassung ab hier braucht den Build.
+
+### Review (unabhängiger Reviewer)
+
+17.11.2026, Stand `c2509b3`. Ergebnis: **bestanden**, mit zwei eigenen Korrekturen (unten). Läufe über `tools/leise.sh`
+(`LEISE_MAX_CPU=100 LEISE_CPU=100 LEISE_VORRANG=2`), Browserläufe nacheinander, Proben mit `GPU=1`. Zum Vergleich ein
+Worktree von `3c8ce0b` (Basis).
+
+**Eigene Korrekturen**
+
+- `8b13fe2` Testschnittstelle unvollständig: Proben lesen weitere Namen der Seite als globale Namen, die `alsGlobal`
+  nicht zeigte: `RUHE_NACH_MS` (`ruhetakt-probe`, wäre am Tippen gescheitert), `composer`, `bloomPass`, `brushPass`,
+  `finalPass` (`spiegel-probe messen`, `perf-probe.js`, `geschichte-probe` beim Aufzeichnen des Himmels) und `wagen`
+  (`geschichte-probe --wagen`). Gefunden mit einer Suche aller Namen der obersten Ebene von `src/` (nicht nur der
+  exportierten) in allen Proben, Skripten und Werkzeugen mit Chrome; dazu `alsGlobal` in `bildschritte.js`,
+  `leistung.js`, `geschichte/daten.js`. Jetzt 69 Namen.
+- `530853a` README: Die Teile laden `levelfluss` → `oberflaeche/dom.ts` → `fuehrung.js` → `oberflaeche/ui.js` →
+  `menue` → `uebersicht` (wie in der Basis: `$`, dann Führung, dann UI); das README nannte `fuehrung.js` nach der
+  Übersicht. Ein Kommentar in `vite.config.mjs` nannte `src/seite/spiel.js` statt `ton.js`.
+
+**Läufe (Ticket mit den Korrekturen / Basis)**
+
+- `npm test`: alle grün (golden, logic 2080, hall 7, vorrat 18, geschichte 35, levelliste 54, wuerfelliste 20,
+  ki-tester 84, beurteilung 206, generator 31, typecheck).
+- `golden.mjs --voll` ohne `--write`: alle 842 Level wie in `golden.json`, Löser für alle Level.
+- Bildvergleich ganz, ohne `--write`: **GRÜN**, 66 Bilder in 27 min 32 s, grösste Abweichung 2, Anteil 0,000 %.
+- `start-probe`, drei Läufe auf dem Ticket, zwei auf der Basis, bei ruhigem Rechner: alle «in Ordnung». «neu» `.go`
+  1,27 / 1,02 / 1,46 s (Basis 1,29 / 0,73 s), ganz 9,61 / 10,12 s (Basis 9,92 / 9,39 s); «weiter» spielt nach 6,05 /
+  5,99 / 6,16 s (Basis 6,10 / 6,11 s). Im Rauschen. Im ersten Lauf einmal eine Lücke von 442 ms und «ganz» nicht
+  erreicht; in den zwei Wiederholungen nicht mehr.
+- `leerlauf-probe`: OK; Ruhe 28,4 Bilder/s, GPU 741 ms/s (Basis 28,4, 738 ms/s).
+- `ruhetakt-probe`: OK (Basis OK). `spiegel-probe pruefe`: OK (Basis OK).
+- `geschichte-probe --handy`, `--quer`, `--menue`: bestanden, Konsole ohne Fehler. `--uebersicht`: rot mit zwei
+  Lücken (124 ms «Spiel → Übersicht», 221 ms «Übersicht → Spiel»), Basis ebenso rot (144, 194, 161 ms; bekannt,
+  `.scratch/energie/spec.md`). `--dorf`: rot mit 352 ms «Übung 3 wiederholen → Übung 4» und 144 ms «Prolog →
+  Überspringen», Basis an denselben zwei Stellen (386 und 368 ms). Kein Unterschied durch das Ticket.
+- `buehne-messung`: gelaufen, Konsole leer. `brett-probe`: «Brett: in Ordnung». `offline.mjs`: bestanden.
+- **Dev-Server** (native Module mit zyklischen Importen und `await` auf oberster Ebene, nicht gebündelt):
+  `PRISMA_SPIEL=<npm run dev> start-probe --nur neu`: in Ordnung (`.go` 1,84 s, ganz 10,07 s).
+- **KI-Tester mit Kandidat:** `takeShots` mit `logikMitLeveln(alleText(), [Kandidat])`, ein Level des Spiels und der
+  Kandidat am Ende von `LEVELS`: alle vier Bilder geschrieben, Kopfzeile «Kandidat»; der temporäre Build
+  (`prisma-logik-*`) ist danach weg.
+- **Werkzeuge am echten Stand:** `geschichte.mjs spiel`: «nichts zu schreiben»; `ordne-level.mjs --schreiben`:
+  «Reihenfolge und Grade stimmen …»; `ordne-wuerfel.mjs --schreiben` meldet «geschrieben», schreibt aber dieselben
+  Bytes; `vorrat.mjs ablegen Fingerzeig Alkaid`, dann `zurueckholen`. Danach `src/logik.js`, `tools/vorrat/flach.js`,
+  `tools/vorrat/wuerfel.js`, `index.html` byte-gleich (md5). `tools/levelliste.json` wieder LF statt CRLF, `git diff`
+  leer (wie schon in Review 03, älter als dieses Ticket).
+
+**Bewertung**
+
+1. *Verhalten.* Strikt war jedes der alten Skripte schon (`'use strict'`). Die Spiellogik und der Zufall laufen jetzt
+   vor dem Rumpf von `konfiguration.ts` (Importe zuerst), früher am Ende des ersten Skripts: beide rein (kein
+   `Math.random`, kein DOM), also gleich. Funktionen sind jetzt über alle Module schon beim Laden bekannt (früher erst
+   ab ihrem Skript): nur nachsichtiger. Nichts im Spiel hört auf `load`, `DOMContentLoaded` oder `readyState`
+   (gesucht).
+   *Fehler beim Laden hält alle späteren Teile an:* vertretbar. Früher scheiterten die späteren Skripte nach einem
+   Fehler meist auch (Namen des gescheiterten Teils im TDZ oder nicht da); einen Fehler-Handler gibt es nicht.
+   *`load` und Service Worker:* gemessen beim ersten Besuch (frischer Chrome, echter `sw.js`, Build über http):
+   `load` und Registrierung kommen jetzt nach 0,15 s, vor dem Aufbau der Szene; auf der Basis nach 3,9 s (Desktop)
+   bzw. 4,4 s (Handy), nach den drei Skripten. Das Installieren (alle `FILES` mit `cache: 'reload'`, mehrere MB)
+   läuft so während des ganzen Seitenstarts statt erst während seiner zweiten Hälfte. Lokal ohne Folgen: `.go`
+   8,09 gegen 7,84 s (Desktop), 6,29 gegen 6,48 s (Handy, SwiftShader). Gar nicht registriert werden kann er nicht:
+   Der Hörer auf `load` steht im Kopf vor dem Modul; `offline.mjs` grün, `controller` nach dem ersten Besuch gesetzt.
+   **Mittel, offen:** Im echten Netz (erster Besuch auf Pages, langsames Handy) teilen sich Vorab-Speichern und
+   Seitenstart die Leitung früher als bisher. Wer den alten Zeitpunkt will: registrieren, wenn `load` da ist **und**
+   `src/main.ts` fertig geladen hat (etwa ein Ereignis am Ende von `main.ts`, auf das das Skript im Kopf zusätzlich
+   wartet). Entscheiden spätestens mit Ticket 09 (Pages); in Capacitor (10) spielt der Service Worker keine Rolle.
+2. *Worker mit Funktionstext.* Mit `mangle: false` heute sicher: Im Bündel stehen `decode`, `OPT`, `stoneData`,
+   `mulberry32`, `makeNoise2D` usw. mit ihrem Namen; `__name`-Hilfen (keepNames) kommen nicht vor. Auch ein späterer
+   Namenskonflikt zwischen Modulen bräche sie nicht: rolldown benennt dann beide Stellen gleich um (`stoneData$1`,
+   und `.name` ist ebenfalls `stoneData$1`; an einem kleinen Bündel mit denselben Optionen geprüft). Der Test in
+   `logic` prüft aber nur den Text von `decode`/`boardTextures`, nicht dass die Worker laufen; ein Rückfall in den
+   Hauptthread fiele nur mittelbar auf (Lücken in `brett-probe`, `geschichte-probe --dorf`, so wie in `04c`).
+   **Mittel, Empfehlung für später:** `decode` als eigenes Worker-Modul wie der Hall wäre klein (die Funktion ist schon
+   eigenständig); `boardTextures` mit sechs Rechenfunktionen und Hilfen grösser (ein Worker-Modul, das die Funktionen
+   importiert). Danach ginge auch `mangle` wieder (rund 77 KB weniger). Bis dahin wäre ein Zähler in `__prismaDebug`
+   «im Hauptthread gerechnet», den eine Probe prüft, die engere Wache.
+3. *Source-Maps:* nicht im Speicher des Service Workers (`NICHT_SPEICHERN`, im gebauten `sw.js` geprüft; holte
+   DevTools eine `.map` über den Service Worker, läge sie bis zum nächsten Aktivieren im Speicher, harmlos). In `dist/`
+   2,31 MB (`index-….js.map`) und 4 KB (Worker); `dist/` 34,0 MB statt 31,6 MB. Mit Ticket 09 gehen sie auf Pages
+   (öffentlich, das Repo ist es ohnehin), mit Ticket 10 in die APK: **dort bewusst entscheiden** (Pages behalten oder
+   `sourcemap: 'hidden'`; in der App weglassen).
+4. *KI-Tester:* `spielServer({ logik })` geprüft, siehe Läufe.
+5. *Typisierung nur von fünf Modulen:* vertretbar. Die Spec sagt «dürfen TypeScript sein», die grossen Teile wären
+   unter `strict` ohne Typen von three r147 eine eigene Arbeit. `konfiguration.ts` und `dom.ts` sind allerdings fast
+   typfrei; ein nächster billiger Schritt wäre `// @ts-check` in einzelnen kleinen JS-Modulen.
+6. *Schnitt der Module:* sinnvoll, an den alten Abschnitten, Reihenfolge wie die Basis (geprüft an der Reihenfolge der
+   Auswertung ab `src/main.ts`). README nach `530853a` richtig. Grosse Teile bleiben gross (`skybox.js` 3900,
+   `brett.js` 2700, `geschichte.js` 2400 Zeilen); weiter teilen ist Sache späterer Tickets.
+7. *Werkzeuge:* siehe Läufe. Empfehlung (klein, für später): ein Test, der die Namen prüft, die Proben über
+   Runtime.evaluate global lesen (wie die Suche oben), damit die Liste von `alsGlobal` nicht wieder still Lücken
+   bekommt.
