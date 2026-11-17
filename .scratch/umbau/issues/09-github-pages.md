@@ -17,6 +17,10 @@ Pages. Die Adresse `bonomoalessandro.github.io/Prisma/` ist danach fest (PLAN 4.
 - [ ] Datenschutzerklärung als einfache Seite in derselben Veröffentlichung (PLAN 4.9: Fortschritt nur lokal, keine
       Abrufe bei fremden Servern). Text auf Deutsch und Englisch.
 - [ ] README: Adresse, wie veröffentlicht wird.
+- [ ] Aus Review 04: Der Service Worker wird seit Ticket 04 schon nach 0,15 s registriert (vorher nach rund 4 s), sein
+      Vorab-Speichern läuft während des Seitenstarts mit. Erst registrieren, wenn `load` da ist **und** `main.ts` fertig
+      geladen hat; mit `start-probe` vorher und nachher messen.
+- [ ] Aus Review 04: Source-Maps (2,3 MB) auf Pages bewusst entscheiden: behalten oder `hidden`.
 - [ ] Der Nutzer stellt in den Einstellungen des Repos GitHub Pages auf «GitHub Actions» um (falls der Agent das nicht
       mit `gh` kann, Schritt für Schritt beschreiben).
 

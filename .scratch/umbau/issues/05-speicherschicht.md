@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** needs-triage
+**Status:** ready-for-agent (17.11.2026, nach Review 04)
 
 **Blocked by:** 04
 
@@ -19,6 +19,11 @@ Steam Cloud), ohne dass sich das Spiel ändert.
 - [ ] Schlägt das Speichern fehl (privater Modus, voller Speicher), läuft das Spiel weiter wie heute.
 - [ ] Bildvergleich, Golden, alle Tests und Proben grün.
 - [ ] Begriff «Speicherschicht» in `CONTEXT.md`.
+- [ ] Aus Review 04: Ein Test prüft, dass jeder Name, den die Proben global lesen (`tools/*-probe*`, `perf-probe.js`
+      …), in der Testschnittstelle steht (`alsGlobal`), damit die Liste nicht wieder still Lücken bekommt.
+- [ ] Aus Review 04: Der Worker für `decode` (Skyboxen) wird ein eigenes Worker-Modul wie der Hall, statt Funktionstext
+      zu bekommen. Wenn auch `boardTextures` sauber geht, ebenso; dann `mangle` im Build wieder an (rund 77 KB weniger).
+      Sonst bleibt `mangle: false`, und `__prismaDebug` zählt «im Hauptthread gerechnet», damit ein Rückfall auffällt.
 
 ## Hinweise
 

@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent (umgesetzt, wartet auf Review)
+**Status:** done (Review 17.11.2026 bestanden; mittlere Funde in 05, 09 und 10)
 
 **Blocked by:** 03
 
