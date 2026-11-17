@@ -14,7 +14,7 @@
 // und Lösungen für die flachen Level aus Spiel und Vorrat (ALLE im gemeinsamen Lader tools/lader.mjs, in der Folge wie
 // nach dem Zurückholen aller; die Herkunft im Kommentar aus alleText); die Anzeige der Grade prüft das Spiel selbst
 // (L). Seit Noas Geschichte (Ticket 04) ist das Spiel die Geschichte: Die Seiten der Levelauswahl gibt es nicht mehr,
-// und statt des alten Fortschritts prüft der Test den Speicherstand je Grad (progress in index.html, prisma.noa.*).
+// und statt des alten Fortschritts prüft der Test den Speicherstand je Grad (progress in src/spielstand.js, prisma.noa.*).
 // Seit Ticket 08 setzt kein Test mehr eine feste Reihe von 500 Leveln im Spiel voraus: Die Reihe ist die Folge aller
 // flachen Level aus Spiel und Vorrat (ADR 0005, „Folgen“), mit dem Bestand der heutigen Reihenfolge und den Leveln
 // des Ausbaus, wie viele es auch werden; die Wahl der Geschichte prüft tests/geschichte.test.mjs. Weggefallen sind mit
@@ -34,6 +34,7 @@ import { AGENT, MAX_SHIFT, WUERFEL_VERSION, entry } from '../tools/ki-tester/pro
 import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from '../tools/aehnlichkeit.mjs';
 import { spielQuelltext } from '../tools/seitenmodule.mjs';
+import { tsModul } from '../tools/ts-modul.mjs';
 import {
   GRADE_OBEN, GRUENDE, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, MAX_ENTZERREN, MAX_ENTZERREN_AUSBAU,
   MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, alleWuerfelUrteile, zaehlendeWuerfelUrteile,
@@ -41,6 +42,8 @@ import {
   festePlaetze, korrigiere, korrigiereNachZiel, ladeLevelliste, maxEntzerren, obenIn, reihenfolge, stark, zaehlendeUrteile, zaehlt, zehner,
   zustimmung, zuWeitGilt, zuWeitKorrigiert,
 } from '../tools/levelliste.mjs';
+
+const { progress } = await tsModul('src/spielstand.js'); // Speicherstand von Noas Geschichte
 
 let passed = 0;
 function test(name, fn) {
@@ -854,14 +857,12 @@ test('Speicherstand von Noas Geschichte (Ticket 04): je Grad unter prisma.noa.*,
   + 'gespielte Grad; unlesbar oder fremd von vorn, weitere Felder bleiben, die alten Schlüssel liest das Spiel nicht; '
   + 'Bestwerte je Level (Ticket 06) je für sich, überleben «Von vorn»; Stand des Dorfs (Ticket 07)',
 () => {
-  // progress aus dem Spielcode (src/seite/…) mit einer Attrappe von localStorage
+  // progress aus dem Spielcode (src/spielstand.js, seit Ticket 05 des Umbaus über die Speicherschicht) mit einer
+  // Attrappe von localStorage
   const html = spielQuelltext();
-  const von = html.indexOf('const progress = {'), bis = html.indexOf('\n};', von) + 3;
   const speicher = new Map();
-  const localStorage = { getItem: k => speicher.get(k) ?? null, setItem: (k, v) => speicher.set(k, String(v)),
+  globalThis.localStorage = { getItem: k => speicher.get(k) ?? null, setItem: (k, v) => speicher.set(k, String(v)),
     removeItem: k => speicher.delete(k) };
-  const progress = new Function('localStorage', 'STORY_LEVELS',
-    `${html.slice(von, bis)}\nreturn progress;`)(localStorage, L.STORY_LEVELS);
   // neu: von vorn
   assert.deepEqual(progress.load('sehr schwer', 60), { platz: 0, geloest: [], gesehen: [], geschafft: false });
   assert.equal(progress.last(), null);
