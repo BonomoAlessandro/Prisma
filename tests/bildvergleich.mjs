@@ -41,17 +41,19 @@
 // Laufzeit siehe README (Abschnitt Tests).
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { startChrome, emulate, evaluate, sleep } from '../tools/chrome.mjs';
 import { requireQuiet } from '../tools/ki-tester/shots.mjs';
+import { spielServer } from '../tools/spielserver.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
- * Die Adresse des Spiels, an dieser einen Stelle (Ticket 02 stellt auf den Dev-Server bzw. dist/ um). query: die
- * Parameter ohne «?».
+ * Die Adresse des Spiels, an dieser einen Stelle: dist/ über http (tools/spielserver.mjs, seit Ticket 02 des Umbaus;
+ * baut dist/ frisch). query: die Parameter ohne «?».
  */
-const seite = (query) => `${pathToFileURL(join(root, 'index.html')).href}?${query}`;
+const spiel = await spielServer();
+const seite = (query) => spiel.seite(query);
 
 const REFERENZ = join(root, 'tests', 'bildvergleich', 'referenz');
 const OUT = join(root, 'tests', 'output', 'bildvergleich');
@@ -453,6 +455,7 @@ for (const view of GROESSEN.filter((g) => !nurGroessen || nurGroessen.includes(g
   }
 }
 if (rechner) await rechner.chrome.close();
+await spiel.close();
 
 // jedes Element mindestens einmal im Bild (nur bei einem ganzen Lauf)
 if (!nurAnsichten) {

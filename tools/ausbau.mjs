@@ -71,7 +71,7 @@ function standDesCodes() {
     stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   try {
     const geaendert = git('status', '--porcelain', '--', 'tools/generator', 'tools/beurteilung', 'tools/solver.mjs',
-      'tools/ausbau.mjs', 'index.html');
+      'tools/ausbau.mjs', 'src/logik.js');
     if (geaendert) console.error(`pool: Generator, Beurteilung oder Spiellogik geändert, Stand mit „+“:\n${geaendert}`);
     return git('rev-parse', '--short=7', 'HEAD') + (geaendert ? '+' : '');
   } catch (e) {

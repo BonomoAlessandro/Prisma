@@ -1,6 +1,7 @@
 // Löser für PRISMA-Level. Wie schwer ein Level ist, sagt allein die Beurteilung (tools/beurteilung/); die alte
 // Wertung (metrics mit score) gibt es seit Ticket 21 nicht mehr.
-// Lädt die reine Spiellogik aus index.html (Bereich LOGIC:BEGIN … LOGIC:END), genau wie die Tests.
+// Die reine Spiellogik kommt aus dem Modul src/logik.js (L, seit Ticket 03 von .scratch/umbau/; vorher der Bereich
+// LOGIC in index.html), dieselbe wie im Spiel.
 //
 // Idee: Statt alle Stellungen durchzuprobieren (bei 10 drehbaren Elementen bis zu 8^10), folgt der
 // Löser den Strahlen und verzweigt erst, wenn ein Strahl ein drehbares Element erreicht, dessen
@@ -8,16 +9,9 @@
 // Stellung ist für das Ergebnis egal (sie vervielfachen dann die Zahl der Lösungen).
 // Abgeschnitten wird, sobald ein Ziel Licht einer falschen Farbe erhält: Licht lässt sich durch
 // spätere Entscheidungen nur hinzufügen, nie wegnehmen (Treffer sind additive Farbmasken).
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import * as L from '../src/logik.js';
 
-const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
-const code = html.slice(html.indexOf('/* LOGIC:BEGIN'), html.indexOf('/* LOGIC:END'));
-export const L = new Function(code + `
-  return { DIRS, COLORS, COLOR_NAMES, MAX_BOUNCES, EDGE_RUN, MIRROR_HALF_WIDTH, ELEMENT_TYPES, reflectOnMirror,
-    mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT,
-    mod8, OPEN, LEVELS_3D, AXES, planeDir, planeIndex, reflect3, refractInPrism3, STORY_LEVELS };`)();
+export { L };
 
 /** Wirksame Stellungen: Spiegel 4 (rot und rot + 4 wirken gleich), Prisma und Kombinator 8. */
 export const period = (el) => (el.type === 'mirror' ? 4 : 8);

@@ -12,6 +12,21 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `vite.config.mjs`: `index.html` bleibt eine Seite mit klassischen Skripten; was sie direkt lädt, trägt `vite-ignore`;
   `vendor/`, `icons/`, `favicon.svg`, `manifest.webmanifest` und die Skyboxen des Registers kommen unverändert nach
   `dist/`, die Schrift mit Hash nach `dist/assets/`.
+- **Module und TypeScript (seit Ticket 03 des Umbaus):** Spiellogik samt Leveln (`src/logik.js`, bis dahin der Bereich
+  `LOGIC` in `index.html`), Zufall (`src/zufall.js`, `mulberry32`) und Hall (`src/hall.js`) sind ES-Module unter
+  `src/` (`src/package.json`: `"type": "module"`). Tests und Werkzeuge importieren sie (`tools/solver.mjs` liefert die
+  Logik als `L`). Die Seite hat noch klassische Skripte mit gemeinsamem globalem Bereich; an der Marke
+  `/* MODUL src/….js */` setzen Build und Dev-Server darum den Text des Moduls ein, ohne seine `import`-Zeilen und
+  seinen `export`-Block am Schluss (`tools/seitenmodule.mjs`): Im Spiel läuft derselbe Code wie vorher. Ein solches
+  Modul hat darum nur `import { … } from './x.js';` am Anfang (x.js steht in der Seite weiter oben) und ein
+  `export { … };` mit allen Namen seiner obersten Ebene am Schluss. Der Worker des Halls ist ein echtes Modul in
+  TypeScript (`src/hall-worker.ts`): Vite übersetzt ihn, im Build eine Datei `dist/assets/hall-worker-<hash>.js`
+  (unverkleinert), deren Pfad das Plugin für `__HALL_WORKER__` einsetzt. Die Module, die Node lädt, sind JavaScript:
+  Der Text, den die Seite einsetzt, bleibt so Zeichen für Zeichen der Code des Moduls. Node 22.12 lädt TypeScript
+  nicht ohne Weiteres; geprüft (für Ticket 04): `node --experimental-strip-types` genügt (ohne Abhängigkeit, mit einer
+  Warnung `ExperimentalWarning`), ebenso ein Lade-Haken über `module.register`, der für `.ts` das Format
+  `module-typescript` meldet (ohne Schalter; danach `await import('…/x.ts')`). Ab Node 22.18 entfernt Node Typen von
+  selbst.
 - **Auf dem Handy (gleiches WLAN):** `npm run build`, dann `npm run preview -- --host`; Vite nennt die Adresse im Netz
   (`Network: http://192.168.…:4173/`), diese im Browser des Handys öffnen. Der Rechner muss Verbindungen auf Port 4173
   zulassen (Windows-Firewall: beim ersten Mal «Zugriff zulassen» für Node). Über http ohne s gibt es dort keinen Service
@@ -26,8 +41,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   meldet er ab. Wer `dist/` mit `npm run preview` auf `localhost` öffnet, hat danach dort einen Service Worker (er
   liefert das Spiel auch bei gestopptem Server): In den DevTools unter Application → Service Workers „Unregister“ oder
   „Bypass for network“.
-- **Über file://:** Ein Doppelklick auf `index.html` ist nicht mehr der Weg (Vite lädt Module nicht über file://,
-  ab Ticket 03 des Umbaus geht es darum nicht mehr). Proben und Tests laufen über http gegen `dist/`.
+- **Über file://:** Ein Doppelklick auf `index.html` geht nicht mehr: Seit Ticket 03 des Umbaus steht in der Quelle
+  statt der Spiellogik nur eine Marke, die der Build füllt, und der Worker des Halls ist ein Modul. Proben und Tests
+  laufen über http gegen `dist/`.
 - **Spezifikation:** siehe [SPEC.md](SPEC.md).
 - **Würfel-Level (3D-Prototyp):** Vorgehen, Modell und offene Punkte in [3D-WUERFEL.md](3D-WUERFEL.md).
 - **Plan und offene Punkte:** siehe [PLAN.md](PLAN.md) – was noch umgesetzt werden soll, Entscheidungen, Erledigtes.
@@ -47,12 +63,17 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     einen kleinen Server auf `127.0.0.1` (freier Port), mit einem leeren Service Worker statt `sw.js` (wie früher
     über file:// ohne Vorab-Speichern). `PRISMA_OHNE_BAU=1` nimmt das vorhandene `dist/`, `PRISMA_SPIEL=<url>` eine
     laufende Adresse (etwa den Dev-Server). `--seite`/`--vorher` der Messproben liefern eine Kopie einer früheren
-    `index.html` ungebaut aus ihrem Ordner. Markierte Bereiche (`LOGIC`, `HALL`, `LEVELS`, `WUERFEL`, `GESCHICHTE`)
-    lesen die Tests weiter aus der Quelldatei `index.html`, und die Werkzeuge schreiben weiter dorthin.
-  - `node tests/logic.test.mjs` prüft die Strahllogik, im Block „Würfel (dim: 3)“ auch die Würfel-Level. Im Block
-    „Offline“ baut er das Spiel einmal in einen eigenen Ordner und prüft den Build (Listen von `sw.js`, statische Dateien
-    Byte für Byte, `index.html` bis auf `vite-ignore`, Schrift und Version gleich wie die Quelle) und den Dev-Server
-    (Version, kein Service Worker, `vendor/` und `backgrounds/` roh); braucht `npm install`.
+    `index.html` ungebaut aus ihrem Ordner (eine Fassung ab Ticket 03 braucht den Build). Spiellogik und Hall
+    importieren die Tests als Module aus `src/`; die markierten Bereiche `LEVELS`, `WUERFEL` und `GESCHICHTE` stehen in
+    `src/logik.js`, und dorthin schreiben die Werkzeuge (`ordne-level.mjs`, `ordne-wuerfel.mjs`, `geschichte.mjs`,
+    `vorrat.mjs`).
+  - `node tests/logic.test.mjs` prüft die Strahllogik, im Block „Würfel (dim: 3)“ auch die Würfel-Level. Was er aus der
+    Seite liest, liest er aus `index.html` mit den eingesetzten Modulen. Im Block „Module“ prüft er die Marken und die
+    Form der Module (der `export`-Block nennt alle Namen der obersten Ebene). Im Block „Offline“ baut er das Spiel
+    einmal in einen eigenen Ordner und prüft den Build (Listen von `sw.js`, statische Dateien Byte für Byte,
+    `index.html` bis auf `vite-ignore`, Schrift, Version und Pfad des Workers gleich wie die Quelle mit den Modulen,
+    der gebaute Worker des Halls rechnet bitgleich) und den Dev-Server (Version, Module eingesetzt, Worker übersetzt,
+    kein Service Worker, `vendor/` und `backgrounds/` roh); braucht `npm install`.
   - `node tests/golden.mjs` vergleicht die Strahlbilder aller flachen Level (Start- und Lösungsstellung) mit
     `tests/golden.json`, dazu den Löser für eine Stichprobe aus Spiel und Vorrat: das Tutorial, je Grad der Geschichte
     jedes 10. Level (das erste jeder Welt), jedes 10. flache Level des Vorrats und jedes 10. Würfel-Level (seit Ticket
@@ -85,10 +106,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Chrome, wenn der Vergleich davon rot wird, und dann begründet). `--diag` gibt
     je Bild den Zustand aus (Kamera, Uhren, Ziele), wenn zwei Läufe voneinander abweichen. Die Adresse des Spiels steht
     an einer Stelle (`seite`).
-  - `node tests/hall.test.mjs` prüft die Impulsantwort des Halls (`hallImpulse`, Bereich HALL:BEGIN … HALL:END in
-    `index.html`; Ticket 05 von `.scratch/leistung/`): Für 44,1, 48 und 96 kHz ist sie bitgleich mit der alten
-    Berechnung beim ersten Klick (Prüfsumme und Stichproben aus dem Stand `963177d`; das Rauschen kommt aus `mulberry32`
-    mit festem Samen), unabhängig von der Stückgrösse, und ihr Quelltext läuft für sich wie im Worker (unter 1 s).
+  - `node tests/hall.test.mjs` prüft die Impulsantwort des Halls (`hallImpulse` im Modul `src/hall.js`; Ticket 05 von
+    `.scratch/leistung/`): Für 44,1, 48 und 96 kHz ist sie bitgleich mit der alten Berechnung beim ersten Klick
+    (Prüfsumme und Stichproben aus dem Stand `963177d`; das Rauschen kommt aus `mulberry32` mit festem Samen),
+    unabhängig von der Stückgrösse, und so, wie die Seite die Module einsetzt, rechnet sie dasselbe (unter 1 s).
   - `node tests/beurteilung.test.mjs` prüft die Beurteilung (unter `leise.sh` etwa 40 s, auf einem Thread 90–130 s je
     nach Last): den Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue
     Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von Hand gebauten Leveln geprüft und an den 150 heutigen
@@ -169,7 +190,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     er rot. Dazu Kandidaten ohne Platz im Spiel: die Seite mit den Kandidaten für die Bilder und `prepare.mjs
     --kandidaten` (Name, Referenz, Feld als Text, Abweisung bei falschem Grad; ohne Bilder).
   - `node tests/vorrat.test.mjs` prüft den Vorrat und den gemeinsamen Lader (`.scratch/noa-geschichte/`, Ticket 02;
-    wenige Sekunden, auf Kopien der Texte im Speicher): Ablegen und Zurückholen sind verlustfrei (`index.html` und der
+    wenige Sekunden, auf Kopien der Texte im Speicher): Ablegen und Zurückholen sind verlustfrei (`src/logik.js` und
     Vorrat byte-gleich, auch in Teilen, in anderer Gruppierung und Reihenfolge, über mehrere Schritte, für alle Level
     und mit CRLF), die Folge nach dem Zurückholen, das Format (Block wie im Spiel, Platz, Titel), Auswahl und Fehler;
     dazu der Lader auf dem Stand der Dateien (jedes Level genau einmal, wie nach dem Zurückholen aller) und seit dem
@@ -195,7 +216,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     gutem Urteil; `ausbauListe` für `ordne-level.mjs --ausbau`. Dazu Gegenproben an erfundenen Änderungen und Pools
     (auch zur Regel der 3 Plätze über die Weltgrenze, gegen alle Anordnungen eines kleinen Falls zur kleinsten
     Verschiebung und gegen alle Mengen kleiner Fälle zur Suche über den ganzen Grad). Die Wahl im Spiel (Ticket 04):
-    `index.html` enthält das Tutorial und genau die 240 mit dem Titel aus `wahl.json`, in der Reihenfolge der Reihe,
+    `src/logik.js` hat das Tutorial und genau die 240 mit dem Titel aus `wahl.json`, in der Reihenfolge der Reihe,
     keine Würfel-Level; der Datenblock der Geschichte (`STORY_LEVELS`) ist die Reise aus `wahl.json`;
     `geschichte.mjs spiel` ändert danach nichts und bringt an Kopien der Texte ein Level der Wahl aus dem Vorrat zurück
     und ein anderes hin (ohne Titel), byte-gleich.
@@ -572,7 +593,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Ist nur die Eindeutigkeit gefragt, hält `solve(level, { unique: true })` bei der zweiten Lösung an;
   `show.mjs` zeigt Level als Textfeld, Start und Lösung, mit Grad, drehbaren Elementen, Zielen und Klicks und, wo sie
   vorliegt, der Beurteilung: die JSON-Zeilen von `generiere.mjs` mit Schwierigkeit, Spielwert und Kernideen
-  (`… generiere.mjs leicht --anzahl 3 | node tools/show.mjs`), ein Level aus index.html mit `--level <platz|name>`
+  (`… generiere.mjs leicht --anzahl 3 | node tools/show.mjs`), ein Level aus dem Spiel mit `--level <platz|name>`
   (Platz in LEVELS ab 1, das Tutorial mitgezählt). `--beurteilen` beurteilt Level ohne mitgegebene Beurteilung (alle
   Regeln, mit ihrem Grad; je Level bis einige Sekunden) und nennt dazu die Ausschlussgründe;
   `ordne-level.mjs [--ausbau datei] [--schreiben] [--json datei]` (über `leise.sh`, etwa 40 s) ordnet die flachen Level
@@ -631,7 +652,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `wuerfel.mjs bedarf` zeigt Bestand und Bedarf; `ordne-wuerfel.mjs [--kandidaten datei] [--json datei]
   [--schreiben]` ordnet die Würfel-Level nach den Regeln in `wuerfelliste.mjs` (eine eigene Reihenfolge ohne Bestand,
   Grade nach der Schwelle, Korrekturen der KI-Tester aus Läufen `wuerfel-…`) und schreibt sie in Spiel und Vorrat
-  (`index.html` zwischen `WUERFEL:BEGIN` und `WUERFEL:END`, `tools/vorrat/wuerfel.js`; neue in den Vorrat, solange
+  (`src/logik.js` zwischen `WUERFEL:BEGIN` und `WUERFEL:END`, `tools/vorrat/wuerfel.js`; neue in den Vorrat, solange
   dort Würfel-Level liegen);
   `aehnlichkeit.mjs` misst, wie ähnlich zwei Level aufgebaut sind (Elemente mit Art, Farbe und Zelle, das Höchste über
   die acht Symmetrien des Felds, im Würfel über seine 48 mit der Drehachse von Spiegel, Prisma und Kombinator); ab 0,5
@@ -892,12 +913,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     beurteilen (Probelauf). `--kandidaten` nimmt neue Level ohne Platz in der Reihe auf (Ausbau, Läufe `ausbau-…`, mit
     der Vorschau aus `ordne-level.mjs --ausbau … --json`; einst Austausch, Läufe `ersatz-…`): eine JSON-Liste
     `{ formel, level }`; ohne Vorschau ist die Referenz der Platz nach der Formel mit dem Grad dort, im Protokoll heisst
-    ein Kandidat „Kandidat <Abdruck>“, und seine Bilder kommen von einer Kopie von index.html mit den Kandidaten am Ende
-    von `LEVELS` (`<lauf>/seite/`, ausserhalb von `eingabe/`).
+    ein Kandidat „Kandidat <Abdruck>“, und seine Bilder kommen von einer Seite mit den Kandidaten am Ende
+    von `LEVELS` (ihre Spiellogik in `<lauf>/seite/logik.js`, ausserhalb von `eingabe/`; `shots.mjs` zeigt sie über
+    `tools/spielserver.mjs`, alle Bilder kommen über http aus `dist/`).
     Die Bilder der Anker kommen aus einem Zwischenspeicher (`tests/output/ki-tester/anker-bilder/`), solange sich nichts
-    geändert hat, was sie beeinflusst: Fingerabdruck des Ablaufs, `index.html`, `vendor/`, `backgrounds/`, `shots.mjs`,
-    `chrome.mjs`, der Chrome selbst, Leveldaten, Platz und Kennung des Ankers. `--ohne-zwischenspeicher` nimmt sie neu
-    auf. Unter `tests/output/ki-tester/<lauf>/` entstehen:
+    geändert hat, was sie beeinflusst: Fingerabdruck des Ablaufs, `index.html`, `src/`, `vendor/`, `backgrounds/`,
+    `shots.mjs`, `chrome.mjs`, der Chrome selbst, Leveldaten, Platz und Kennung des Ankers. `--ohne-zwischenspeicher`
+    nimmt sie neu auf. Unter `tests/output/ki-tester/<lauf>/` entstehen:
     - `eingabe/`: das Feld als Text je Level (`field.mjs`: Raster, Elemente, Licht der Startstellung, ohne Lösung, Name
       und Markierung), Screenshots der Startstellung auf Desktop und Handy (`shots.mjs`) und das Schema der Antwort;
     - `antwort-A/` und `antwort-B/`: je KI-Tester ein eigener, leerer Ordner für seine `urteile.json`;
@@ -951,14 +973,14 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Kopfzeile eines Levels ausserhalb der Geschichte auf. Seit Ticket 04 zeigt es jedes Level nach dem Neuladen über die
     Testschnittstelle (`__prismaDebug.zeige`) vor der Milchstrasse (`?sky=milky`), wie zuvor ohne Speicherstand.
 - **Vorrat und Lader** (`.scratch/noa-geschichte/`, Ticket 02; nur für die Entwicklung): Level, die nicht im Spiel
-  stehen, liegen versioniert in `tools/vorrat/` (`flach.js`, `wuerfel.js`): je Level sein Block aus `index.html`
+  stehen, liegen versioniert in `tools/vorrat/` (`flach.js`, `wuerfel.js`): je Level sein Block aus `src/logik.js`
   Zeile für Zeile (Lösung und Herkunft im Kommentar, Name, wahlweise `titel`, Grad, Elemente, Lösung), darüber
   `// Platz im Spiel: nach „<Name>“`, das Level unmittelbar davor in der ganzen Folge aus Spiel und Vorrat.
   `node tools/vorrat.mjs ablegen <name …> [--flach] [--wuerfel] [--grad <grad>] [--datei <datei>]` nimmt Level aus
-  `index.html` (das Tutorial bleibt), `zurueckholen` mit denselben Angaben oder `--alle` setzt sie an ihren Platz
-  zurück, `liste` zeigt den Vorrat je Art und Grad; hin und zurück ist `index.html` byte-gleich. Der gemeinsame Lader
+  `src/logik.js` (das Tutorial bleibt), `zurueckholen` mit denselben Angaben oder `--alle` setzt sie an ihren Platz
+  zurück, `liste` zeigt den Vorrat je Art und Grad; hin und zurück ist `src/logik.js` byte-gleich. Der gemeinsame Lader
   (`tools/lader.mjs`) liefert `ALLE` (`LEVELS`, `TUTORIAL_COUNT`, `LEVELS_3D` wie nach dem Zurückholen aller, die Level
-  im Spiel als dieselben Objekte wie in `solver.mjs`), `VORRAT`, `ort(name)` und `alleText()` (`index.html` mit allen
+  im Spiel als dieselben Objekte wie in `solver.mjs`), `VORRAT`, `ort(name)` und `alleText()` (`src/logik.js` mit allen
   Leveln). Wer alle Level braucht, liest über ihn; `ordne-level.mjs` und `ordne-wuerfel.mjs` rechnen mit ihm und
   schreiben seit Ticket 08 in Spiel und Vorrat (`inGanzerFolge` in `vorrat.mjs`: alle Level der Art zurückholen, ordnen,
   die vorher abgelegten und neue wieder ablegen; ohne Level der Art im Vorrat bleiben neue im Spiel). Seit Ticket 04
@@ -979,7 +1001,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   die noch nicht in Spiel oder Vorrat stehen, für `ordne-level.mjs --ausbau`. Die Titel stehen von Hand in
   `tools/geschichte/titel.json` (je Welt und Grad 10 in der Reihenfolge der Plätze); nach einer Änderung ordnet `node tools/geschichte.mjs titel` sie
   neu zu und prüft sie. `node tools/geschichte.mjs spiel [--trocken]` bringt `wahl.json` ins Spiel (Ticket 04):
-  In `index.html` stehen danach das Tutorial und genau die 240 Level mit ihrem Titel, in der Reihenfolge der Reihe
+  In `src/logik.js` stehen danach das Tutorial und genau die 240 Level mit ihrem Titel, in der Reihenfolge der Reihe
   (nicht umgeordnet, damit der Lader sie unverändert zusammensetzt); die übrigen flachen und alle Würfel-Level legt es
   in den Vorrat, Level der Wahl im Vorrat holt es zurück, und zwischen `GESCHICHTE:BEGIN` und `GESCHICHTE:END` schreibt
   es den Datenblock der Reise (je Grad 6 Welten mit den Schlüsseln ihrer 10 Level). Ein zweiter Lauf ändert nichts.
@@ -991,7 +1013,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `tools/geschichte/sehr-schwer-kandidaten.json`, `geschichte.mjs wahl`, `geschichte.mjs ausbau <datei>`,
   `ordne-level.mjs --ausbau <datei> --schreiben` (die neuen in den Vorrat), `tests/golden.mjs --write` (nur die neuen
   dazu), `geschichte.mjs spiel`.
-- **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`; seit PLAN 1a.3 «Tutorial neu» 4 Level
+- **Levels:** in `LEVELS` (`src/logik.js`): zuerst das Tutorial (`tutorial: true`; seit PLAN 1a.3 «Tutorial neu» 4 Level
   mit je höchstens vier geführten Schritten `schritte` mit je einem oder zwei kurzen Sätzen im Band unten, Lichtkegel
   und Hand am Element, strikt: nur das markierte Element reagiert; dazu Hinweise nebenbei `nebenbei` zu Kamera und
   Neustart in «Brechung»; geführt nur im Dorf, siehe «Führung» in `CONTEXT.md`. Erstes Licht: Ziel, Spiegel, rund
