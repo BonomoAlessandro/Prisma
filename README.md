@@ -58,8 +58,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Übersetzt (Typen entfernt) wird nur von Vite. Neue und herausgelöste Module dürfen TypeScript sein (`.ts`, import
   mit Endung `.ts`); der übrige Code ist JavaScript (`allowJs`, nicht geprüft: `checkJs` aus) und wird es Stück für
   Stück. TypeScript sind heute `src/main.ts`, die Worker `src/*-worker.ts`, `src/seite/konfiguration.ts`,
-  `src/seite/oberflaeche/dom.ts`, `src/seite/aufgabe.ts`, `src/seite/testschnittstelle.ts` und `src/speicher.ts`; was die klassischen
-  Skripte global bereitstellen (`THREE`), deklariert `src/globale.d.ts`. Tests und Werkzeuge importieren die Spiellogik, den Zufall und den Hall
+  `src/seite/oberflaeche/dom.ts`, `src/seite/aufgabe.ts`, `src/seite/testschnittstelle.ts` und `src/speicher.ts`; was
+  die klassischen Skripte global bereitstellen (`THREE`), deklariert `src/globale.d.ts`. Tests und Werkzeuge importieren die Spiellogik, den Zufall und den Hall
   (`tools/solver.mjs` liefert die Logik als `L`; `src/package.json`: `"type": "module"`). Diese drei Module haben eine
   feste Form, damit Tests und Werkzeuge sie auch als Text ausführen können (etwa die Logik mit weiteren Leveln,
   `tools/seitenmodule.mjs`): am Anfang nur `import { … } from './x.js';`, am Schluss ein `export { … };` mit allen
@@ -144,9 +144,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Logik, Zufall und Hall (der `export`-Block nennt alle Namen der obersten Ebene). Im Block „Offline“ baut er das
     Spiel einmal in einen eigenen Ordner und prüft den Build (Listen von `sw.js`, statische Dateien Byte für Byte,
     `index.html` bis auf `vite-ignore`, Stil und Spiel unter `assets/` gleich wie die Quelle, der Stil enthält genau
-    die Teile aus `src/stil/`, das Spiel ist verkleinert (auch Namen), mit Version, den drei Workern als eigene Dateien (kein Worker aus einem Blob) und Source-Map auf die Module, der
-    gebaute Worker des Halls rechnet bitgleich) und den Dev-Server (Version, Module einzeln, Worker übersetzt, kein
-    Service Worker, `vendor/` und `backgrounds/` roh); braucht `npm install`.
+    die Teile aus `src/stil/`, das Spiel ist verkleinert (auch Namen), mit Version, den drei Workern als eigene
+    Dateien (kein Worker aus einem Blob) und Source-Map auf die Module, der gebaute Worker des Halls rechnet
+    bitgleich) und den Dev-Server (Version, Module einzeln, Worker übersetzt, kein Service Worker, `vendor/` und
+    `backgrounds/` roh); braucht `npm install`.
   - `node tests/golden.mjs` vergleicht die Strahlbilder aller flachen Level (Start- und Lösungsstellung) mit
     `tests/golden.json`, dazu den Löser für eine Stichprobe aus Spiel und Vorrat: das Tutorial, je Grad der Geschichte
     jedes 10. Level (das erste jeder Welt), jedes 10. flache Level des Vorrats und jedes 10. Würfel-Level (seit Ticket
