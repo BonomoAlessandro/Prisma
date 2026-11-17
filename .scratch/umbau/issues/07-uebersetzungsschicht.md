@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** needs-triage
+**Status:** ready-for-agent (17.11.2026; startet auf dem Stand von 06, während 06 im Review ist)
 
 **Blocked by:** 06
 
