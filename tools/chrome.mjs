@@ -22,8 +22,10 @@ export const findChrome = () => [
  * fenster: ein echtes, sichtbares Fenster statt headless (Messungen mit dem Messwerkzeug, Spec .scratch/leistung/:
  * rAF im Takt des Bildschirms, Zeichnen auf der Grafikkarte, also immer mit gpu); maximiert: das Fenster füllt den
  * Bildschirm (width und height gelten dann nicht). Verdeckt oder im Hintergrund drosselt Chrome es sonst.
+ * hochleistung: mit gpu headless die schnellere Grafikkarte (--force_high_performance_gpu; Bildvergleich auf der GPU,
+ * Ticket 13 von .scratch/umbau/); ohne nimmt headless Chrome auf einem Laptop mit zweien womöglich die eingebaute.
  */
-export async function startChrome({ width, height, gpu = false, fenster = false, maximiert = false }) {
+export async function startChrome({ width, height, gpu = false, fenster = false, maximiert = false, hochleistung = false }) {
   const chrome = findChrome();
   if (!chrome) throw new Error('Kein Chrome/Edge gefunden (CHROME_PATH setzen).');
 
@@ -36,7 +38,7 @@ export async function startChrome({ width, height, gpu = false, fenster = false,
     ...(fenster ? ['--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
       '--disable-background-timer-throttling', '--force_high_performance_gpu', '--window-position=0,0',
       '--disable-features=CalculateNativeWinOcclusion']
-      : ['--headless=new']),
+      : ['--headless=new', ...(hochleistung ? ['--force_high_performance_gpu'] : [])]),
     '--remote-debugging-port=0',
     `--user-data-dir=${profile}`,
     ...(gpu || fenster ? ['--use-angle=d3d11', '--enable-gpu'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']),

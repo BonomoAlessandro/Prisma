@@ -65,14 +65,26 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 let spiel = null;
 const seite = (query) => spiel.seite(query);
 
-const REFERENZ = join(root, 'tests', 'bildvergleich', 'referenz');
-const OUT = join(root, 'tests', 'output', 'bildvergleich');
+/**
+ * GPU-Weg (--gpu oder GPU=1; Entscheid des Nutzers 17.11.2026, Ticket 13): Chrome rendert auf der Grafikkarte statt in
+ * SwiftShader, mit eigenen Referenzen (referenz-gpu/) und eigener Toleranz. Der schnelle Weg für Umsetzer; SwiftShader
+ * (ohne --gpu) bleibt die genaue Prüfung für den Reviewer.
+ */
+const GPU = process.argv.includes('--gpu') || process.env.GPU === '1';
+const REFERENZ = join(root, 'tests', 'bildvergleich', GPU ? 'referenz-gpu' : 'referenz');
+const OUT = join(root, 'tests', 'output', GPU ? 'bildvergleich-gpu' : 'bildvergleich');
 const JPEG_QUALITAET = 90;
 /**
  * Toleranz: pixel ist die Abweichung eines Farbkanals (0–255), ab der ein Pixel als abweichend zählt, anteil der
- * erlaubte Anteil solcher Pixel je Bild. Begründung und Messung: Ticket 01, Notizen der Umsetzung.
+ * erlaubte Anteil solcher Pixel je Bild. Begründung und Messung: Ticket 01, Notizen der Umsetzung. Auf der GPU:
+ * TOLERANZ_GPU (Ticket 13).
  */
-const TOLERANZ = { pixel: 3, anteil: 0.0001 };
+const TOLERANZ_SW = { pixel: 3, anteil: 0.0001 };
+// GPU (NVIDIA Quadro T2000, Ticket 13): Drei Läufe, 75 von 77 Bildern bitgleich; quer-welt-5-nach 47 Pixel (0,014 %) um
+// bis 6 an Sternpunkten neben dem Saturn, desktop-welt-5-nach höchstens 3. Darum 0,03 % (Faktor 2 über dem Rauschen);
+// das Vulkan-Brett 2 % heller bleibt weit darüber rot (Comments im Ticket).
+const TOLERANZ_GPU = { pixel: 3, anteil: 0.0003 };
+const TOLERANZ = GPU ? TOLERANZ_GPU : TOLERANZ_SW;
 /**
  * Ausnahmen: Rechtecke [x, y, Breite, Höhe] je Bild, die nicht verglichen werden. Nur für Stellen, die das Spiel selbst
  * nicht in jedem Lauf gleich zeichnet (gemessen in sieben Läufen, Ticket 01). Handy quer, Meer 1: Im Wasser links des
@@ -127,8 +139,8 @@ const STATIONEN = ['wald', 'meer', 'wueste', 'vulkan', 'planeten', 'sterne']; //
 
 let s = null; // { view, send, ev, logs, bilder: [{ name, data }] }
 
-async function sitzung(view) {
-  const chrome = await startChrome({ ...view, gpu: false });
+async function sitzung(view, gpu = GPU) {
+  const chrome = await startChrome({ ...view, gpu, hochleistung: gpu });
   const send = (m, p) => Promise.race([chrome.send(m, p),
     sleep(120000).then(() => { throw new Error(`keine Antwort auf ${m}`); })]);
   await emulate(send, view);
@@ -436,7 +448,7 @@ const RECHNER = `window.vergleiche = async (ref, bild, schwelle, diff, aus) => {
 let rechner = null;
 async function vergleiche(name, refB64, bildB64, diff = false) {
   if (!rechner) {
-    rechner = await sitzung({ width: 200, height: 200, dpr: 1, phone: false });
+    rechner = await sitzung({ width: 200, height: 200, dpr: 1, phone: false }, false); // rechnet, zeichnet nicht
     await rechner.ev(RECHNER);
   }
   return rechner.ev(`vergleiche(${JSON.stringify(refB64)}, ${JSON.stringify(bildB64)}, ${TOLERANZ.pixel}, ${diff}, `
@@ -473,6 +485,13 @@ async function groesseAufnehmen(view) {
     await s.send('Page.navigate', { url: seite(`${BASIS}&nointro`) });
     await until('window.__prisma?.ticks > 2', 'Spiel startet');
     s.reise = await s.ev(`${D}.STORY_LEVELS[${JSON.stringify(GRAD)}]`);
+    // womit gezeichnet wird (WEBGL_debug_renderer_info): auf der GPU muss es die NVIDIA sein, nicht die Intel UHD
+    const grafik = await s.ev(`(() => { const g = ${D}.renderer.getContext(), x = g.getExtension('WEBGL_debug_renderer_info');
+      return x ? g.getParameter(x.UNMASKED_RENDERER_WEBGL) : '?'; })()`);
+    console.log(`  Grafik: ${grafik}`);
+    if (GPU && !new RegExp(process.env.PRISMA_GPU ?? 'NVIDIA').test(grafik)) {
+      throw new Error(`${view.name}: nicht auf der erwarteten Grafikkarte (${grafik}; PRISMA_GPU=${process.env.PRISMA_GPU ?? 'NVIDIA'})`);
+    }
     if (view.android) { // der Weg der echten Handys: Massstab der Seite (SEITE) und Pixelverhältnis 2
       const weg = await s.ev(`[document.documentElement.classList.contains('seite'), ${D}.renderer.getPixelRatio()]`);
       if (!weg[0] || weg[1] !== 2) throw new Error(`${view.name}: nicht der Weg der Handys (SEITE ${weg[0]}, Pixelverhältnis ${weg[1]})`);
@@ -538,7 +557,7 @@ async function parallel() {
   const eine = async ({ g, a }) => {
     const datei = join(tmp, `${g}-${a}.json`);
     const p = spawn(process.execPath, [fileURLToPath(import.meta.url), '--groesse', g, '--nur', a, '--teil', datei,
-      ...(schreiben ? ['--write'] : []), ...(diag ? ['--diag'] : [])],
+      ...(schreiben ? ['--write'] : []), ...(diag ? ['--diag'] : []), ...(GPU ? ['--gpu'] : [])],
     { env: { ...process.env, PRISMA_SPIEL: spiel.base }, stdio: ['ignore', 'pipe', 'pipe'] });
     let text = '';
     p.stdout.on('data', (d) => { text += d; });
@@ -558,8 +577,40 @@ async function parallel() {
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 }
 
+/**
+ * Höchstens GPU_PLAETZE Prozesse zeichnen gleichzeitig auf der Grafikkarte (leise.sh lässt bis zu 4 leichte Läufe zu;
+ * mehr Chrome auf derselben GPU bremsen einander nur). Ein Platz ist ein Ordner im Temp-Verzeichnis mit der pid; ist
+ * sein Prozess tot, wird er frei.
+ */
+const GPU_PLAETZE = 2;
+async function gpuPlatz() {
+  for (let k = 0; ; k++) {
+    for (let i = 1; i <= GPU_PLAETZE; i++) {
+      const d = join(tmpdir(), `prisma-bildvergleich-gpu-${i}`);
+      try {
+        mkdirSync(d);
+        writeFileSync(join(d, 'pid'), String(process.pid));
+        process.once('exit', () => rmSync(d, { recursive: true, force: true }));
+        return;
+      } catch {
+        let pid = 0, lebt = false;
+        try { pid = +readFileSync(join(d, 'pid'), 'utf8'); } catch { /* gerade angelegt oder weg */ }
+        if (pid) { try { process.kill(pid, 0); lebt = true; } catch { /* tot */ } } else {
+          try { lebt = Date.now() - statSync(d).mtimeMs < 60000; } catch { /* weg */ }
+        }
+        if (!lebt) rmSync(d, { recursive: true, force: true });
+      }
+    }
+    if (k === 0) console.log(`warte auf einen Platz auf der Grafikkarte (höchstens ${GPU_PLAETZE} gleichzeitig)`);
+    await sleep(2000);
+  }
+}
+
 if (jobs > 1 && !teil) await parallel();
-else for (const view of groessen) await groesseAufnehmen(view);
+else {
+  if (GPU) await gpuPlatz();
+  for (const view of groessen) await groesseAufnehmen(view);
+}
 if (rechner) await rechner.chrome.close();
 await spiel.close();
 
