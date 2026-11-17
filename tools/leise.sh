@@ -117,23 +117,38 @@ if [ "$ART" = allein ]; then
 else
   # pid ersetzen, ohne dass sie je leer oder halb geschrieben ist (ein Wartender hielte die Sperre sonst für verwaist)
   setze_halter() { echo "$1 $2" > "$SPERRE/pid.$$" && mv -f "$SPERRE/pid.$$" "$SPERRE/pid"; }
-  # Wartet ein alleiniger Lauf, dem dieser Vortritt lässt? (gleicher oder kleinerer Vorrang, oder länger als FRIST)
-  # Marken anderer Läufe nur lesen, nie löschen.
+  # Wartet ein alleiniger Lauf, dem dieser Vortritt lässt? Einer mit gleichem oder kleinerem Vorrang, oder einer, der
+  # schon vor diesem wartete und das seit über FRIST Minuten. Marken anderer Läufe nur lesen, nie löschen; Marken
+  # wartender leichter Läufe übergehen (zwei leichte liessen einander sonst ewig den Vortritt).
+  T0=$(date +%s)
   vortritt() {
+    jetzt=$(date +%s)
     for m in "$WARTE"/*.*; do
       [ -f "$m" ] || continue
+      case ${m##*/} in *.leicht.*) continue ;; esac
       n=${m##*/}; n=${n%%.*}
       read -r h_pid h_wp 2>/dev/null < "$m" || continue
       lebt || continue
-      if [ "$n" -le "$VORRANG" ] 2>/dev/null || [ -n "$(find "$m" -maxdepth 0 -mmin +"$FRIST" 2>/dev/null)" ]; then
-        v_pid=$h_pid; return 0
-      fi
+      [ "$n" -le "$VORRANG" ] 2>/dev/null && { v_pid=$h_pid; return 0; }
+      t=$(stat -c %Y "$m" 2>/dev/null) || continue
+      [ "$t" -le "$T0" ] && [ $((jetzt - t)) -ge $((FRIST * 60)) ] && { v_pid=$h_pid; return 0; }
     done
     return 1
   }
+  # Wartend trägt sich ein leichter Lauf als „<vorrang>.leicht.<pid>“ in die Warteschlange ein (Review 13), so lässt ihm
+  # jeder alleinige mit grösserer Zahl den Vortritt, auch eine Kette alleiniger Läufe und ältere Kopien dieses Skripts
+  # (sie lesen die Zahl vor dem ersten Punkt). Solange er selbst einem alleinigen Vortritt lässt, nimmt er die Marke
+  # zurück; sonst liessen beide einander den Vortritt (der alleinige wegen der Zahl, er wegen der Frist).
+  MARKE="$WARTE/$VORRANG.leicht.$$"
+  trap 'rm -f "$MARKE"' EXIT
   melde() { [ "$gemeldet" = "$1" ] || { echo "leise: $2" >&2; gemeldet=$1; }; }
+  versucht=
   while :; do
-    if vortritt; then melde vortritt "lasse alleinigen Lauf vor (PID $v_pid)"; sleep 2; continue; fi
+    if vortritt; then
+      rm -f "$MARKE"; melde vortritt "lasse alleinigen Lauf vor (PID $v_pid)"; sleep 2; continue
+    fi
+    [ -n "$versucht" ] && [ ! -f "$MARKE" ] && echo "$$ $WP" > "$MARKE"
+    versucht=1
     sperren
     if mkdir "$SPERRE" 2>/dev/null; then
       echo leicht > "$SPERRE/art"
@@ -154,6 +169,7 @@ else
     if verwaist; then uebernehmen; continue; fi
     melde allein "warte auf laufenden alleinigen Lauf (PID ${h_pid:-?})"; sleep 2
   done
+  rm -f "$MARKE"
   # Austreten: der letzte räumt die Sperre weg; sonst bekommt ein anderer lebender leichter Lauf die pid, wenn sie auf
   # diesen oder einen toten zeigt
   austreten() {
