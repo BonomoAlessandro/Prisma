@@ -275,6 +275,14 @@ Bestzeit», «Weniger Drehungen»). Sie liegen je Grad getrennt vom Stand (`pris
 «Von vorn» (Entscheid des Nutzers).
 _Vermeiden_: Rekord, Highscore, Statistik
 
+**Speicherschicht**:
+Der einzige Weg des Spiels zum Spielstand (Stand je Grad, Bestwerte, zuletzt gespielter Grad, Ton aus): lesen,
+schreiben und löschen je Schlüssel, Werte als Text. Welche Umsetzung dahinter steckt, wählt die Plattform beim Start;
+heute überall `localStorage`, später etwa eine Datei für Steam Cloud. Scheitert sie, läuft das Spiel ohne Stand weiter.
+Schlüssel und Format des Spielstands bleiben dabei gleich (Umbau für die Stores, Ticket 05). Im Code `src/speicher.ts`,
+Schlüssel und Format in `src/spielstand.js`.
+_Vermeiden_: Datenbank, Cloud-Speicher (für die Schicht selbst), Savegame
+
 **Testschnittstelle**:
 `window.__prismaDebug`, nur über die Konsole: Werkzeuge, Proben und die Bilder der KI-Tester steuern das Spiel damit.
 Sie bietet keinen Weg, ein Level zu überspringen; auch Taste N und `?signal` gibt es nicht mehr (ADR 0005).

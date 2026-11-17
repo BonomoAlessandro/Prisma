@@ -19,7 +19,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   bindet die Teile in ihrer Reihenfolge ein: `grund`, `oberflaeche`, `start`, `geschichte`, `menue`, `uebersicht`,
   `leistung`, `seite`). Das Spiel in `src/`:
   - `logik.js` (Strahlregel, Löser-Grundlagen, Level, Geschichte; auch für Node), `zufall.js`, `hall.js`,
-    `hall-worker.ts` (Worker des Halls);
+    `hall-worker.ts` (Worker des Halls); `himmelbild.js` (Farbbilder der Skyboxen dekodieren, `decode`) mit
+    `himmelbild-worker.ts`, `brettdaten.js` (Texturen der Bretter rechnen, `BRETT_DATEN`) mit `brettdaten-worker.ts`
+    (seit Ticket 05 eigene Module; bis dahin bekamen diese Worker den Text der Funktionen als Blob, und der Build
+    durfte keine Namen kürzen). Ohne Worker rechnet die Seite mit denselben Funktionen im Hauptthread;
   - `speicher.ts`, die Speicherschicht (Ticket 05 des Umbaus): Aller Zugriff auf den Spielstand läuft über ihre kleine
     Schnittstelle `Speicher` (`lesen`, `schreiben`, `loeschen` je Schlüssel, Werte als Text; wirft nie). Die Umsetzung
     wählt die Plattform beim Start (`speicherFuerPlattform`), heute überall `localStorage`; später etwa eine Datei für
@@ -54,7 +57,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `tsconfig.json` und, mit WebWorker statt DOM, `tsconfig.worker.json`) prüft die Typen; es gehört zu `npm test`.
   Übersetzt (Typen entfernt) wird nur von Vite. Neue und herausgelöste Module dürfen TypeScript sein (`.ts`, import
   mit Endung `.ts`); der übrige Code ist JavaScript (`allowJs`, nicht geprüft: `checkJs` aus) und wird es Stück für
-  Stück. TypeScript sind heute `src/main.ts`, `src/hall-worker.ts`, `src/seite/konfiguration.ts`,
+  Stück. TypeScript sind heute `src/main.ts`, die Worker `src/*-worker.ts`, `src/seite/konfiguration.ts`,
   `src/seite/oberflaeche/dom.ts`, `src/seite/aufgabe.ts`, `src/seite/testschnittstelle.ts` und `src/speicher.ts`; was die klassischen
   Skripte global bereitstellen (`THREE`), deklariert `src/globale.d.ts`. Tests und Werkzeuge importieren die Spiellogik, den Zufall und den Hall
   (`tools/solver.mjs` liefert die Logik als `L`; `src/package.json`: `"type": "module"`). Diese drei Module haben eine
@@ -114,7 +117,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Logik, Zufall und Hall (der `export`-Block nennt alle Namen der obersten Ebene). Im Block „Offline“ baut er das
     Spiel einmal in einen eigenen Ordner und prüft den Build (Listen von `sw.js`, statische Dateien Byte für Byte,
     `index.html` bis auf `vite-ignore`, Stil und Spiel unter `assets/` gleich wie die Quelle, der Stil enthält genau
-    die Teile aus `src/stil/`, das Spiel ist verkleinert, mit Version, Worker und Source-Map auf die Module, der
+    die Teile aus `src/stil/`, das Spiel ist verkleinert (auch Namen), mit Version, den drei Workern als eigene Dateien (kein Worker aus einem Blob) und Source-Map auf die Module, der
     gebaute Worker des Halls rechnet bitgleich) und den Dev-Server (Version, Module einzeln, Worker übersetzt, kein
     Service Worker, `vendor/` und `backgrounds/` roh); braucht `npm install`.
   - `node tests/golden.mjs` vergleicht die Strahlbilder aller flachen Level (Start- und Lösungsstellung) mit
