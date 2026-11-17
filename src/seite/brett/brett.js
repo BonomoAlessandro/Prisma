@@ -4,7 +4,7 @@ import { BOARD, CELL, GRID, PLATE, PLATE_THICK, QUALITY, SPIEGEL_ALLE } from '..
 import {
   arbeit, compileParallel, NEXT_FRAME, renderer, ruhe, RUHIG, scene, sceneLoop, sceneReady, sliced,
 } from '../szene.js';
-import { boardTextures, createStoneTextures, tidePoolData } from '../texturen.js';
+import { boardTextures, createStoneTextures } from '../texturen.js';
 import { CELEBRATE } from '../levelfluss.js';
 import { mulberry32 } from '../../zufall.js';
 import { alsGlobal } from '../testschnittstelle.ts';
@@ -548,7 +548,7 @@ function tidePoolBoard(values) {
   for (const k of ['stone', 'water', 'rock', 'channel']) if (!values[k]) throw new Error(`Gezeitenbecken ohne ${k}`);
   const N = QUALITY.textureSize, SIDE_H = 64, [IN, OUT] = values.channel;
   const tex = boardTextures(
-    { map: [N, N, true], roughnessMap: [N, N, false], normalMap: [N, N, false], side: [N, SIDE_H, true] }, tidePoolData,
+    { map: [N, N, true], roughnessMap: [N, N, false], normalMap: [N, N, false], side: [N, SIDE_H, true] }, 'tidePoolData',
     { size: N, sideH: SIDE_H, plate: PLATE, stone: values.stone, water: values.water, rock: values.rock, channel: [IN, OUT] });
   const channel = { value: new THREE.Vector2(IN, OUT) };
 
@@ -639,80 +639,6 @@ const CLAY = {
 const CLAY_VALUES = ['plaster', 'straw', 'brick', 'joint', 'gully', 'inlay', 'wood', 'sand'];
 
 /**
- * Farbe und Normalen der Lehmterrasse (createClayTextures), ohne Bezug auf das übrige Spiel (Worker). Formeln und Farben
- * aus dem Katalog (katalog-wueste, 2-lehm.js), die Höhen ungerundet. Feld size² über das ganze Brett (Zeile j bei
- * uv.y = (j + ½) / size, also z von +plate/2 nach −plate/2): glatter Lehmputz in zwei Tönen (plaster) mit Kellenstrichen
- * und Strohhalmen (straw), im Rand (ab half + 0,26 m) stellenweise abgeplatzt, dort Ziegel (brick, zwei Töne) mit Fugen
- * (joint). Wand wallW × wallH: Putz mit Regenrinnen (gully). Farben sRGB 0 … 1 (v: Werte der Brett-Angabe).
- */
-function clayData({ size, plate, half, wallW, wallH, v }) {
-  const hash = (x, y, s) => {
-    let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 982451653)) | 0;
-    h = Math.imul(h ^ (h >>> 13), 1274126177);
-    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-  };
-  const noise = (x, y, s) => {
-    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
-    const u = xf * xf * (3 - 2 * xf), w = yf * yf * (3 - 2 * yf);
-    const a = hash(xi, yi, s), b = hash(xi + 1, yi, s), c = hash(xi, yi + 1, s), d = hash(xi + 1, yi + 1, s);
-    return a + (b - a) * u + (c - a) * w + (a - b - c + d) * u * w;
-  };
-  const fbm = (x, y, oct, s) => {
-    let sum = 0, amp = 0.5, f = 1, n = 0;
-    for (let i = 0; i < oct; i++) { sum += amp * noise(x * f, y * f, s + i * 17); n += amp; amp *= 0.5; f *= 2.03; }
-    return sum / n;
-  };
-  const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-  const put = (out, k, c) => { out[k] = c[0] * 255; out[k + 1] = c[1] * 255; out[k + 2] = c[2] * 255; out[k + 3] = 255; };
-
-  const n = size * size, texel = plate / size;
-  const color = new Uint8ClampedArray(n * 4), height = new Float32Array(n);
-  for (let j = 0; j < size; j++) {
-    const z = plate / 2 - (j + 0.5) * texel;
-    for (let i = 0; i < size; i++) {
-      const x = -plate / 2 + (i + 0.5) * texel, k = j * size + i, box = Math.max(Math.abs(x), Math.abs(z));
-      const g = fbm(x * 0.4, z * 0.4, 4, 82), straw = noise(x * 160, z * 160, 83);
-      // Kellenstriche: flache Bögen
-      const sw = Math.sin(Math.hypot(x - Math.round(x / 0.9) * 0.9, z - Math.round(z / 0.9) * 0.9 + 0.4) * 22 + g * 4);
-      let c = mix(v.plaster[0], v.plaster[1], smooth(0.3, 0.75, g));
-      if (straw > 0.9) c = mix(c, v.straw, 0.5);
-      let h = sw * 0.0004 + (straw - 0.5) * 0.0004;
-      if (box > half + 0.26) { // Rand: Putz stellenweise abgeplatzt, Ziegel sichtbar
-        const off = smooth(0.52, 0.56, fbm(x * 1.6, z * 1.6, 3, 84));
-        const bx = (Math.abs(x) > Math.abs(z) ? z : x) / 0.32, by = box / 0.12, row = Math.floor(by);
-        const joint = Math.abs(by - row - 0.5) > 0.42 || Math.abs((((bx + row * 0.5) % 1) + 1) % 1 - 0.5) > 0.45;
-        const brick = mix(v.brick[0], v.brick[1], noise(Math.floor(bx + row * 0.5), row, 85));
-        c = mix(c, joint ? v.joint : brick, off);
-        h -= off * 0.004 + (joint ? off * 0.002 : 0);
-      }
-      put(color, k * 4, c);
-      height[k] = h;
-    }
-  }
-  // Normalen im Raum der Textur (+u = +x, +v = −z): (−∂h/∂u, −∂h/∂v, 1)
-  const normal = new Uint8ClampedArray(n * 4);
-  const H = (i, j) => height[Math.min(size - 1, Math.max(0, j)) * size + Math.min(size - 1, Math.max(0, i))];
-  for (let j = 0; j < size; j++) {
-    for (let i = 0; i < size; i++) {
-      const nx = -(H(i + 1, j) - H(i - 1, j)) / (2 * texel), ny = -(H(i, j + 1) - H(i, j - 1)) / (2 * texel);
-      const l = Math.hypot(nx, ny, 1);
-      put(normal, (j * size + i) * 4, [(nx / l) * 0.5 + 0.5, (ny / l) * 0.5 + 0.5, (1 / l) * 0.5 + 0.5]);
-    }
-  }
-  const wall = new Uint8ClampedArray(wallW * wallH * 4);
-  for (let j = 0; j < wallH; j++) {
-    const y = 1 - (j + 0.5) / wallH; // 0 oben … 1 unten (Zeile 0 liegt unten)
-    for (let i = 0; i < wallW; i++) {
-      const u = ((i + 0.5) / wallW) * plate;
-      const g = fbm(u * 1.5, y * 2, 3, 86), gully = smooth(0.62, 0.8, fbm(u * 9, y * 0.5, 2, 87));
-      put(wall, (j * wallW + i) * 4, mix(mix(v.plaster[0], v.plaster[1], g), v.gully, gully * 0.6));
-    }
-  }
-  return { map: color, normalMap: normal, wallMap: wall };
-}
-
-/**
  * Texturen der Lehmterrasse, im Hintergrund-Thread berechnet wie die jedes Bretts (boardTextures): { map (Feld, sRGB),
  * normalMap (Feld), wallMap (Wand, sRGB, wiederholt), computed (Promise) }. Rauheit braucht es keine: Der Putz ist
  * überall gleich matt.
@@ -720,7 +646,7 @@ function clayData({ size, plate, half, wallW, wallH, v }) {
 function createClayTextures(v) {
   const size = QUALITY.textureSize, [wallW, wallH] = CLAY.wallTex;
   return boardTextures({ map: [size, size, true], normalMap: [size, size, false], wallMap: [wallW, wallH, true, true] },
-    clayData, { size, plate: PLATE, half: BOARD / 2, wallW, wallH, v });
+    'clayData', { size, plate: PLATE, half: BOARD / 2, wallW, wallH, v });
 }
 
 // Rauschen der Sandverwehung (GLSL): Hash, Wertrauschen, drei Oktaven
@@ -1032,138 +958,6 @@ const BED = {
 const BED_VALUES = ['soil', 'mulch', 'grass', 'grassTip', 'daisy', 'daisyHeart', 'clover', 'cord', 'pebble', 'larch', 'peg',
   'chive', 'thyme', 'lettuce', 'marigold', 'blossom', 'sprout', 'firefly', 'moon', 'moonRim'];
 
-/**
- * Farbe und Normalen des Hochbeets (raisedBedBoard), ohne Bezug auf das übrige Spiel (Worker). Formeln aus dem Katalog
- * (katalog-dorf, 4-hochbeet.js), die Wiese aus der Vorschau vom 10.11.2026 (PLAN). Feld size² über das ganze Brett
- * (Zeile j bei uv.y = (j + ½) / size, also z von +plate/2 nach −plate/2): im Feld eine Wiese aus Grasbüscheln (grass
- * [dunkel, hell], Spitzen grassTip) mit dunklen Lücken, Gänseblümchen und Klee in Grüppchen; im Rand dunkle Erde in
- * zwei Tönen (soil) mit Krumen und Mulch (mulch), da und dort ein Steinchen. Seiten sideW × sideH: Lärchenbohlen
- * (larch, zwei Töne) mit Fugen und Schrauben, das Abdeckbrett capW × capH ebenso. Farben sRGB 0 … 1 (v: Werte der
- * Brett-Angabe).
- */
-function raisedBedData({ size, plate, half, rim, sideW, sideH, capW, capH, depth, v }) {
-  const hash = (x, y, s) => {
-    let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 982451653)) | 0;
-    h = Math.imul(h ^ (h >>> 13), 1274126177);
-    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-  };
-  const noise = (x, y, s) => {
-    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
-    const u = xf * xf * (3 - 2 * xf), w = yf * yf * (3 - 2 * yf);
-    const a = hash(xi, yi, s), b = hash(xi + 1, yi, s), c = hash(xi, yi + 1, s), d = hash(xi + 1, yi + 1, s);
-    return a + (b - a) * u + (c - a) * w + (a - b - c + d) * u * w;
-  };
-  const fbm = (x, y, oct, s) => {
-    let sum = 0, amp = 0.5, f = 1, n = 0;
-    for (let i = 0; i < oct; i++) { sum += amp * noise(x * f, y * f, s + i * 17); n += amp; amp *= 0.5; f *= 2.03; }
-    return sum / n;
-  };
-  const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-  const put = (out, k, c) => { out[k] = c[0] * 255; out[k + 1] = c[1] * 255; out[k + 2] = c[2] * 255; out[k + 3] = 255; };
-
-  const n = size * size, texel = plate / size, grit = mix(v.soil[0], v.pebble, 0.25), field = half + 0.02;
-  const ground = [v.grass[0].map((x) => x * 0.35), v.grass[0].map((x) => x * 0.7)]; // Grund der Wiese
-  const color = new Uint8ClampedArray(n * 4), height = new Float32Array(n);
-  for (let j = 0; j < size; j++) {
-    const z = plate / 2 - (j + 0.5) * texel;
-    for (let i = 0; i < size; i++) {
-      const x = -plate / 2 + (i + 0.5) * texel, k = j * size + i, box = Math.max(Math.abs(x), Math.abs(z));
-      const clod = fbm(x * 9, z * 9, 3, 413);
-      if (box < field) { // Wiese: Grund zwischen den Grasbüscheln (dunkles Gras), die Büschel folgen unten
-        put(color, k * 4, mix(ground[0], ground[1], clod));
-        height[k] = (clod - 0.5) * 0.002;
-        continue;
-      }
-      const crumb = noise(x * 70, z * 70, 412);
-      let c = mix(v.soil[1], v.soil[0], clod * 0.7 + crumb * 0.5);
-      let h = (crumb - 0.5) * 0.002 + (clod - 0.5) * 0.004;
-      if (box < rim) { // Mulch, Stroh zwischen den Kräutern
-        c = mix(c, v.mulch, smooth(0.55, 0.8, noise(x * 30, z * 30, 415)) * 0.6);
-      }
-      if (crumb > 0.93) c = grit; // Steinchen
-      put(color, k * 4, c);
-      height[k] = h;
-    }
-  }
-  // Grasbüschel etwa alle 4,5 cm: Halme strahlen von einer Mitte aus und werden zur Spitze heller (grassTip); grosse
-  // Flecken heller und dunkler, jedes Büschel etwas anders. Die Mitten liegen im Feld, an seinem Rand reichen Halme bis
-  // 6 cm auf die Erde
-  let seed = 977;
-  const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-  const at = (x, z) => [Math.round((x + plate / 2) / texel - 0.5), Math.round((plate / 2 - z) / texel - 0.5)];
-  const gap = 0.045;
-  for (let gz = -field; gz < field; gz += gap) {
-    for (let gx = -field; gx < field; gx += gap) {
-      const x0 = gx + r() * gap, z0 = gz + r() * gap;
-      if (Math.max(Math.abs(x0), Math.abs(z0)) > field) continue;
-      const patch = fbm(x0 * 0.9, z0 * 0.9, 3, 416), q = (0.7 + patch * 0.6) * (0.85 + r() * 0.3) * 255;
-      const base = mix(v.grass[0], v.grass[1], smooth(0.3, 0.75, patch) * 0.8 + r() * 0.2);
-      const blades = 9 + Math.floor(r() * 8), reach = 0.02 + r() * 0.035, [i0, j0] = at(x0, z0);
-      for (let b = 0; b < blades; b++) {
-        const lay = r() * 6.283, len = (reach * (0.5 + r() * 0.7)) / texel, dx = Math.cos(lay), dz = Math.sin(lay);
-        for (let t = 0; t <= len; t++) { // ohne Arrays je Pixel (mit ihnen dauerte es doppelt so lange)
-          const i = Math.round(i0 + dx * t), j = Math.round(j0 - dz * t);
-          if (i < 0 || j < 0 || i >= size || j >= size) break;
-          const f = t / len, k = j * size + i, dark = 0.75 + f * 0.25, w = f * f * 0.7;
-          for (let ch = 0; ch < 3; ch++) color[k * 4 + ch] = (base[ch] * dark * (1 - w) + v.grassTip[ch] * w) * q;
-          height[k] = Math.max(height[k], 0.004 * (1 - f * 0.5));
-        }
-      }
-    }
-  }
-  // Blumen, 14 je m²: Gänseblümchen (daisy, Mitte daisyHeart) und Klee (clover), je ein kleiner Tupfer, in Grüppchen um
-  // wenige Mitten verstreut, dazwischen einzelne
-  const flowers = Math.round((2 * field) ** 2 * 14);
-  const groups = Array.from({ length: Math.round(flowers / 25) }, () => [(r() * 2 - 1) * field, (r() * 2 - 1) * field]);
-  for (let b = 0; b < flowers; b++) {
-    const g = groups[Math.floor(r() * groups.length)], lone = r() < 0.2, sp = 0.05 + r() * 0.2, a = r() * 6.283;
-    const x0 = lone ? (r() * 2 - 1) * field : g[0] + Math.cos(a) * sp, z0 = lone ? (r() * 2 - 1) * field : g[1] + Math.sin(a) * sp;
-    if (Math.max(Math.abs(x0), Math.abs(z0)) > field) continue;
-    const [i0, j0] = at(x0, z0), clover = r() < 0.35, rad = (clover ? 0.006 : 0.008) / texel + 0.5;
-    for (let dj = -Math.ceil(rad); dj <= Math.ceil(rad); dj++) {
-      for (let di = -Math.ceil(rad); di <= Math.ceil(rad); di++) {
-        const d = Math.hypot(di, dj), i = i0 + di, j = j0 + dj;
-        if (d > rad || i < 0 || j < 0 || i >= size || j >= size) continue;
-        put(color, (j * size + i) * 4, clover ? v.clover : d < rad * 0.4 ? v.daisyHeart : v.daisy);
-        height[j * size + i] = 0.002;
-      }
-    }
-  }
-  // Normalen im Raum der Textur (+u = +x, +v = −z): (−∂h/∂u, −∂h/∂v, 1)
-  const normal = new Uint8ClampedArray(n * 4);
-  const H = (i, j) => height[Math.min(size - 1, Math.max(0, j)) * size + Math.min(size - 1, Math.max(0, i))];
-  for (let j = 0; j < size; j++) {
-    for (let i = 0; i < size; i++) {
-      const nx = -(H(i + 1, j) - H(i - 1, j)) / (2 * texel), ny = -(H(i, j + 1) - H(i, j - 1)) / (2 * texel);
-      const l = Math.hypot(nx, ny, 1);
-      put(normal, (j * size + i) * 4, [(nx / l) * 0.5 + 0.5, (ny / l) * 0.5 + 0.5, (1 / l) * 0.5 + 0.5]);
-    }
-  }
-  // Lärchenbohlen: Maserung längs, jede Bohle (id) etwas anders
-  const plank = (u, w, id) => mix(v.larch[1], v.larch[0], fbm(u * 0.7 + id * 3.3, w * 30, 3, 416) * 0.8
-    + noise(id, 0.5, 417) * 0.3);
-  const side = new Uint8ClampedArray(sideW * sideH * 4);
-  for (let j = 0; j < sideH; j++) {
-    const y = (1 - (j + 0.5) / sideH) * depth / 0.2, b = Math.floor(y), fb = y - b; // Zeile 0 liegt unten
-    for (let i = 0; i < sideW; i++) {
-      const u = ((i + 0.5) / sideW) * plate, sx = (u % 1.4) / 1.4;
-      let c = plank(u, fb, b + Math.floor(u / 3.3) * 7);
-      if (fb < 0.03 || fb > 0.97) c = c.map((x) => x * 0.35); // Fugen
-      if (Math.abs(sx - 0.5) < 0.004 && Math.abs(fb - 0.5) < 0.05) c = [0.1, 0.1, 0.1]; // Schrauben
-      put(side, (j * sideW + i) * 4, c);
-    }
-  }
-  const cap = new Uint8ClampedArray(capW * capH * 4);
-  for (let j = 0; j < capH; j++) {
-    const w = (j + 0.5) / capH, edge = w < 0.08 || w > 0.92 ? 0.7 : 1;
-    for (let i = 0; i < capW; i++) {
-      put(cap, (j * capW + i) * 4, plank(((i + 0.5) / capW) * plate, w, 31).map((x) => x * edge));
-    }
-  }
-  return { map: color, normalMap: normal, side, cap };
-}
-
 // Pflanzschnüre (GLSL, nach der Farbe; wp: Ort aus vUv, x und −z in m): helle Schnüre über dem Feld von Pflock zu Pflock,
 // je mit einem schmalen Schatten daneben, kantengeglättet über fwidth wie die Rasterlinien des Steinbretts. Sie bleiben
 // auch aus der Ferne sichtbar (das Raster muss gut lesbar bleiben). cord: Anteil der Schnur, cordShade: ihr Schatten
@@ -1223,7 +1017,7 @@ function raisedBedBoard(v) {
   const N = QUALITY.textureSize, [sideW, sideH] = BED.sideTex, [capW, capH] = BED.capTex, [hIn, rim] = BED.herbs;
   const tex = boardTextures(
     { map: [N, N, true], normalMap: [N, N, false], side: [sideW, sideH, true], cap: [capW, capH, true] },
-    raisedBedData, { size: N, plate: PLATE, half: BOARD / 2, rim, sideW, sideH, capW, capH, depth: BED.depth, v });
+    'raisedBedData', { size: N, plate: PLATE, half: BOARD / 2, rim, sideW, sideH, capW, capH, depth: BED.depth, v });
 
   // x: Anteil beim Überblenden, y: Anfang der Lichtwelle (beim Fall des Polarsterns glüht das Brett erst auf, bevor
   // der Ring läuft: dann so stark wie er), z: Pixeldichte (Glühwürmchen); je Bild in setFade gestellt
@@ -1502,94 +1296,6 @@ const MOSS = {
 const MOSS_VALUES = ['moss', 'tip', 'gold', 'silver', 'litter', 'soil', 'pebble', 'thread', 'root', 'fern', 'cap', 'glow',
   'flower', 'moon', 'moonRim'];
 
-/**
- * Farbe und Normalen des Moospolsters, die Erdscholle und das Moos der Polster (mossBoard), ohne Bezug auf das übrige
- * Spiel (Worker). Formeln und Farben aus dem Katalog (katalog-wald, 2-moos.js), die Höhen ungerundet. Feld size² über das
- * ganze Brett (Zeile j bei z = plate/2 − (j + ½) · plate/size): kurzes Samtmoos in zwei Tönen (moss) mit hellen Spitzen
- * (tip) und Flecken (gold, im Katalog golden), im Feld ruhiger; im Rand unter den Polstern Nadelstreu (litter). Seiten
- * sideW × sideH: Humus (soil) mit Steinen (pebble) und Wurzelfäden (thread), oben hängt Moos über die Kante. Polster
- * cushion²: Moos, nahtlos wiederholbar. v: Werte der Brett-Angabe.
- */
-function mossData({ size, plate, half, sideW, sideH, cushion, v }) {
-  const hash = (x, y, s) => {
-    let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 982451653)) | 0;
-    h = Math.imul(h ^ (h >>> 13), 1274126177);
-    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-  };
-  // Wertrauschen; mit p periodisch (Gitter modulo p), für das wiederholte Moos der Polster
-  const noise = (x, y, s, p = 0) => {
-    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
-    const u = xf * xf * (3 - 2 * xf), w = yf * yf * (3 - 2 * yf);
-    const X = (i) => (p ? ((i % p) + p) % p : i);
-    const a = hash(X(xi), X(yi), s), b = hash(X(xi + 1), X(yi), s), c = hash(X(xi), X(yi + 1), s);
-    const d = hash(X(xi + 1), X(yi + 1), s);
-    return a + (b - a) * u + (c - a) * w + (a - b - c + d) * u * w;
-  };
-  const fbm = (x, y, oct, s) => {
-    let sum = 0, amp = 0.5, f = 1, n = 0;
-    for (let i = 0; i < oct; i++) { sum += amp * noise(x * f, y * f, s + i * 17); n += amp; amp *= 0.5; f *= 2.03; }
-    return sum / n;
-  };
-  const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-  const put = (out, k, c) => { out[k] = c[0] * 255; out[k + 1] = c[1] * 255; out[k + 2] = c[2] * 255; out[k + 3] = 255; };
-
-  const n = size * size, texel = plate / size;
-  const color = new Uint8ClampedArray(n * 4), height = new Float32Array(n);
-  for (let j = 0; j < size; j++) {
-    const z = plate / 2 - (j + 0.5) * texel;
-    for (let i = 0; i < size; i++) {
-      const x = -plate / 2 + (i + 0.5) * texel, k = j * size + i, box = Math.max(Math.abs(x), Math.abs(z));
-      const clump = fbm(x * 14, z * 14, 3, 302), tip = noise(x * 150, z * 150, 303), patch = fbm(x * 0.55, z * 0.55, 3, 304);
-      const inF = 1 - smooth(half, half + 0.12, box), a = smooth(0.28, 0.72, clump);
-      let c = mix(v.moss[0], v.moss[1], a + (0.55 + (clump - 0.5) * 0.5 - a) * inF); // im Feld ruhiger
-      c = mix(c, v.tip, tip * 0.35 * smooth(0.3, 0.8, clump));
-      c = mix(c, v.gold, smooth(0.5, 0.8, patch) * 0.3);
-      if (box > half + 0.12) { // Rand: unter den Polstern Nadelstreu
-        const nd = Math.abs(Math.sin(x * 60 + noise(x * 3, z * 3, 305) * 9) * Math.sin(z * 55 + noise(z * 3, x * 3, 306) * 9)) ** 8;
-        c = mix(c, v.litter, smooth(half + 0.12, half + 0.3, box) * (0.4 + nd * 0.5));
-      }
-      put(color, k * 4, c);
-      height[k] = (clump - 0.5) * 0.008 + (tip - 0.5) * 0.0015;
-    }
-  }
-  // Normalen im Raum der Textur (+u = +x, +v = −z): (−∂h/∂u, −∂h/∂v, 1)
-  const normal = new Uint8ClampedArray(n * 4);
-  const H = (i, j) => height[Math.min(size - 1, Math.max(0, j)) * size + Math.min(size - 1, Math.max(0, i))];
-  for (let j = 0; j < size; j++) {
-    for (let i = 0; i < size; i++) {
-      const nx = -(H(i + 1, j) - H(i - 1, j)) / (2 * texel), ny = -(H(i, j + 1) - H(i, j - 1)) / (2 * texel);
-      const l = Math.hypot(nx, ny, 1);
-      put(normal, (j * size + i) * 4, [(nx / l) * 0.5 + 0.5, (ny / l) * 0.5 + 0.5, (1 / l) * 0.5 + 0.5]);
-    }
-  }
-  // Erdscholle: oben Moos, das über die Kante hängt, darunter Humus mit Steinen und Wurzelfäden
-  const side = new Uint8ClampedArray(sideW * sideH * 4);
-  for (let j = 0; j < sideH; j++) {
-    const y = 1 - (j + 0.5) / sideH; // 0 oben … 1 unten (Zeile 0 liegt unten)
-    for (let i = 0; i < sideW; i++) {
-      const u = ((i + 0.5) / sideW) * plate;
-      const drip = 0.18 + fbm(u * 3, 0.5, 3, 307) * 0.22 + noise(u * 9, 1, 308) ** 4 * 0.25;
-      const stone = smooth(0.66, 0.72, fbm(u * 6, y * 2.2, 3, 309)), soil = fbm(u * 20, y * 6, 4, 310);
-      let c = mix(v.soil[0], v.soil[1], soil);
-      c = mix(c, v.pebble, stone * (0.7 + noise(u * 40, y * 10, 311) * 0.3));
-      const thread = 1 - smooth(0, 0.04, Math.abs(Math.sin(u * 7 + y * 3 + fbm(u * 2, y, 2, 312) * 6)));
-      c = mix(c, v.thread, thread * smooth(0.3, 0.5, y) * 0.5);
-      put(side, (j * sideW + i) * 4, mix(c, mix(v.moss[0], v.moss[1], noise(u * 30, y * 8, 313)),
-        1 - smooth(drip - 0.03, drip + 0.03, y)));
-    }
-  }
-  // Moos der Polster: grob und fein, im Gitter periodisch (nahtlos über die Kugel wiederholt)
-  const cush = new Uint8ClampedArray(cushion * cushion * 4), f1 = 180, f2 = 41; // Zellen über die Breite
-  for (let j = 0; j < cushion; j++) {
-    for (let i = 0; i < cushion; i++) {
-      const t = noise(i * f1 / cushion, j * f1 / cushion, 314, f1) * 0.6 + noise(i * f2 / cushion, j * f2 / cushion, 315, f2) * 0.4;
-      put(cush, (j * cushion + i) * 4, mix(v.moss[0], v.tip, t));
-    }
-  }
-  return { map: color, normalMap: normal, side, cushion: cush };
-}
-
 // Wurzeln unter der Scholle: verjüngte Röhren längs einer Catmull-Rom-Kurve, alle in einem Netz (Farbe je Wurzel)
 function mossRoots(r, half, y0, colors) {
   const SEG = 12, RAD = 5, pos = [], nor = [], col = [], idx = [], P = new THREE.Vector3(), T = new THREE.Vector3();
@@ -1732,7 +1438,7 @@ function mossBoard(v) {
   const lin = (c, f = 1) => new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace).multiplyScalar(f);
   const HP = PLATE / 2, HB = BOARD / 2, N = QUALITY.textureSize, [SW, SH] = MOSS.sideTex, CT = MOSS.cushionTex;
   const tex = boardTextures(
-    { map: [N, N, true], normalMap: [N, N, false], side: [SW, SH, true], cushion: [CT, CT, true] }, mossData,
+    { map: [N, N, true], normalMap: [N, N, false], side: [SW, SH, true], cushion: [CT, CT, true] }, 'mossData',
     { size: N, plate: PLATE, half: HB, sideW: SW, sideH: SH, cushion: CT, v });
   tex.cushion.wrapS = tex.cushion.wrapT = THREE.RepeatWrapping;
   tex.cushion.repeat.set(3, 2);
@@ -1958,78 +1664,6 @@ const BASALT = {
 const BASALT_VALUES = ['basalt', 'tint', 'lip', 'joint', 'line', 'inlay', 'column', 'rise', 'glow'];
 
 /**
- * Farbe, Rauheit und Normalen der Oberfläche der Basaltsäulen (basaltBoard), ohne Bezug auf das übrige Spiel (Worker).
- * Formeln und Farben aus dem Katalog (katalog-vulkan, 2-basalt.js), die Höhen ungerundet. size² über das ganze Brett
- * (Zeile j bei uv.y = (j + ½) / size, also z von +plate/2 nach −plate/2): je Säule ein Ton zwischen basalt[1] und
- * basalt[0], wolkig getönt (tint), ihr Rand etwas heller geschliffen (lip), die Fugen dunkel (joint) und vertieft.
- * Ausserhalb der Säulen des Felds (field, Kastenabstand ihrer Mitte) ist sie durchsichtig (Alpha 0): Dort stehen die
- * Säulen des Rands als Körper. Rauheit im G-Kanal wie bei three, im R-Kanal die Fugen für die Glut der Lichtwelle.
- * a: { size, plate, field, r (Umkreis einer Säule), v (Werte der Brett-Angabe) }.
- */
-function basaltData({ size, plate, field, r: R, v }) {
-  const hash = (x, y, s) => {
-    let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 982451653)) | 0;
-    h = Math.imul(h ^ (h >>> 13), 1274126177);
-    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-  };
-  const noise = (x, y, s) => {
-    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
-    const u = xf * xf * (3 - 2 * xf), w = yf * yf * (3 - 2 * yf);
-    const a = hash(xi, yi, s), b = hash(xi + 1, yi, s), c = hash(xi, yi + 1, s), d = hash(xi + 1, yi + 1, s);
-    return a + (b - a) * u + (c - a) * w + (a - b - c + d) * u * w;
-  };
-  const fbm = (x, y, oct, s) => {
-    let sum = 0, amp = 0.5, f = 1, n = 0;
-    for (let i = 0; i < oct; i++) { sum += amp * noise(x * f, y * f, s + i * 17); n += amp; amp *= 0.5; f *= 2.03; }
-    return sum / n;
-  };
-  const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-  // Wabe unter (x, z): Mitte (cx, cz), Nummer, Abstand zur Kante (kubische Koordinaten, gerundet)
-  const S3 = Math.sqrt(3), AP = R * S3 / 2, CS = Math.cos(Math.PI / 3), SN = Math.sin(Math.PI / 3);
-  const hexAt = (x, z) => {
-    const qf = (S3 / 3 * x - z / 3) / R, rf = (2 / 3 * z) / R, sf = -qf - rf;
-    let q = Math.round(qf), rr = Math.round(rf);
-    const s = Math.round(sf), dq = Math.abs(q - qf), dr = Math.abs(rr - rf), ds = Math.abs(s - sf);
-    if (dq > dr && dq > ds) q = -rr - s; else if (dr > ds) rr = -q - s;
-    const cx = R * S3 * (q + rr / 2), cz = R * 1.5 * rr, px = x - cx, pz = z - cz;
-    const m = Math.max(Math.abs(px), Math.abs(px * CS + pz * SN), Math.abs(px * CS - pz * SN));
-    return { cx, cz, id: q * 1000 + rr, edge: AP - m };
-  };
-
-  const n = size * size, texel = plate / size;
-  const color = new Uint8ClampedArray(n * 4), rough = new Uint8ClampedArray(n * 4), height = new Float32Array(n);
-  for (let j = 0; j < size; j++) {
-    const z = plate / 2 - (j + 0.5) * texel;
-    for (let i = 0; i < size; i++) {
-      const x = -plate / 2 + (i + 0.5) * texel, k = (j * size + i) * 4, h = hexAt(x, z);
-      if (Math.max(Math.abs(h.cx), Math.abs(h.cz)) >= field) { height[j * size + i] = -0.004; continue; } // Alpha 0
-      const t = noise(h.id * 0.137, h.id * 0.071, 302);
-      let c = mix(v.basalt[1], v.basalt[0], t);
-      c = mix(c, v.tint, fbm(x * 2, z * 2, 3, 303) * 0.4);
-      const joint = smooth(0.012, 0.004, h.edge), lip = smooth(0.045, 0.012, h.edge) * (1 - joint);
-      c = mix(c, v.lip, lip * 0.5);
-      c = mix(c, v.joint, joint);
-      color[k] = c[0] * 255; color[k + 1] = c[1] * 255; color[k + 2] = c[2] * 255; color[k + 3] = 255;
-      rough[k] = smooth(0.02, 0.004, h.edge) * 255; rough[k + 1] = (0.5 + 0.35 * joint) * 255; rough[k + 3] = 255;
-      height[j * size + i] = -joint * 0.004 - lip * 0.0012 + (fbm(x * 9, z * 9, 2, 304) - 0.5) * 0.0004;
-    }
-  }
-  // Normalen im Raum der Textur (+u = +x, +v = −z): (−∂h/∂u, −∂h/∂v, 1)
-  const normal = new Uint8ClampedArray(n * 4);
-  const H = (i, j) => height[Math.min(size - 1, Math.max(0, j)) * size + Math.min(size - 1, Math.max(0, i))];
-  for (let j = 0; j < size; j++) {
-    for (let i = 0; i < size; i++) {
-      const nx = -(H(i + 1, j) - H(i - 1, j)) / (2 * texel), ny = -(H(i, j + 1) - H(i, j - 1)) / (2 * texel);
-      const l = Math.hypot(nx, ny, 1), k = (j * size + i) * 4;
-      normal[k] = ((nx / l) * 0.5 + 0.5) * 255; normal[k + 1] = ((ny / l) * 0.5 + 0.5) * 255;
-      normal[k + 2] = ((1 / l) * 0.5 + 0.5) * 255; normal[k + 3] = 255;
-    }
-  }
-  return { map: color, roughnessMap: rough, normalMap: normal };
-}
-
-/**
  * Säulen der Basaltsäulen (basaltBoard): alle, die ganz in den Umriss passen, wie im Katalog (gleicher Zufall). Die des
  * Felds oben bündig (BASALT.top), die des Rands in Stufen, nach aussen tiefer, einzelne höher; unten hängen sie
  * verschieden lang herab, in der Mitte am längsten. Liefert [{ x, z, top, bot, tone (0 … 1), field }].
@@ -2071,7 +1705,7 @@ function basaltBoard(v) {
   for (const k of BASALT_VALUES) if (!v[k]) throw new Error(`Wert ${k} fehlt`);
   const srgb = (c) => new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
   const N = QUALITY.textureSize, R = BASALT.r;
-  const tex = boardTextures({ map: [N, N, true], roughnessMap: [N, N, false], normalMap: [N, N, false] }, basaltData,
+  const tex = boardTextures({ map: [N, N, true], roughnessMap: [N, N, false], normalMap: [N, N, false] }, 'basaltData',
     { size: N, plate: PLATE, field: BASALT.field, r: R, v });
   const uLine = { value: srgb(v.line) }, uInlay = { value: srgb(v.inlay) }, uGlow = { value: srgb(v.glow) };
   const speed = SHOCK_SPEED.toFixed(2), end = BASALT.waveEnd.toFixed(1);

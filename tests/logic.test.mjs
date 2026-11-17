@@ -1399,12 +1399,12 @@ console.log('Offline');
     assert.ok(!js.includes('__APP_VERSION__'), 'Platzhalter der Version übrig');
     const groesse = module().reduce((s, p) => s + readFileSync(join(root, p)).length, 0);
     assert.ok(js.length < 0.75 * groesse, `nicht verkleinert (${js.length} Bytes, Module ${groesse})`);
-    // Namen bleiben (vite.config.mjs: mangle aus): ein Worker bekommt seinen Code als Text von Funktionen des Spiels
-    assert.ok(/function boardTextures\(specs,compute,arg,helpers=\[\]\)/.test(js) && js.includes('${compute.name}(data)'),
-      'Worker der Bretter: boardTextures umbenannt');
-    // die Worker als eigene Module (Hall seit Ticket 03, Skyboxen seit Ticket 05): je eine Datei unter assets/, im
-    // Speicher des Service Workers, das Spiel nennt sie
-    for (const name of ['hall-worker', 'himmelbild-worker']) {
+    // Namen verkürzt (mangle, seit Ticket 05 wieder an): Kein Worker kommt mehr aus einem Blob mit dem Text von
+    // Funktionen des Spiels, alle sind eigene Module (Hall seit Ticket 03, Skyboxen und Bretter seit Ticket 05): je eine
+    // Datei unter assets/, im Speicher des Service Workers, das Spiel nennt sie
+    assert.ok(!/text\/javascript/.test(js) && !/\.name\}\(data\)/.test(js), 'Worker aus einem Blob');
+    assert.ok(!/function boardTextures\(specs,/.test(js), 'nicht umbenannt (mangle aus?)');
+    for (const name of ['hall-worker', 'himmelbild-worker', 'brettdaten-worker']) {
       const worker = imBau().filter((f) => new RegExp(`^assets/${name}-[\\w-]+\\.js$`).test(f));
       assert.equal(worker.length, 1, `${name} nicht genau einmal unter assets/`);
       assert.ok(js.includes(posix.basename(worker[0])), `Pfad von ${name} fehlt im Spiel`);
