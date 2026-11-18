@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent (umgesetzt, wartet auf Review)
+**Status:** ready-for-agent (umgesetzt, Review bestanden)
 
 **Blocked by:** 08, 09
 
@@ -142,7 +142,8 @@ Alle als leichte Läufe über `tools/leise.sh` (ausser wo vermerkt):
   im App-Build zusätzlich auf `pause`/`resume` von `@capacitor/app` hören.
 - `INTERNET` bleibt in der Berechtigungsliste (Vorgabe von Capacitor). Das Spiel lädt nichts aus dem Netz; ohne die
   Berechtigung wäre die Datensicherheit noch klarer, aber ungeprüft auf dem Gerät nicht entfernt.
-- Zielgruppe in der Play Console (unter 13 Jahren ja oder nein) entscheidet der Nutzer (Vorschlag in `store/index.html`).
+- Zielgruppe: entschieden (Nutzer, 18.11.2026): auch Kinder unter 13; Altersgruppen und Prüfliste der Richtlinie für
+  Familien in `store/index.html` (Review).
 - `npm audit` meldet 4 hohe Funde in `picomatch` (über Vite), schon vor diesem Ticket; nur Entwicklung, nicht im Spiel.
 
 ### Für den Nutzer
@@ -173,5 +174,66 @@ Alle als leichte Läufe über `tools/leise.sh` (ausser wo vermerkt):
   Deutsch, Spiel, kostenlos), Play App Signing annehmen, `.aab` hochladen (zuerst in einen internen oder geschlossenen
   Test, PLAN 4.8), Store-Eintrag Deutsch und Englisch (Texte und Bilder), App-Symbol, Feature-Grafik, Kategorie Puzzle,
   Kontakt `bonomo.alessandro@yahoo.de`, Datenschutz-URL, Fragebogen Inhaltseinstufung, Datensicherheit («keine Daten
-  erhoben oder geteilt»), Werbung «nein», Zielgruppe, App-Zugriff. Für ein neues privates Konto verlangt Google vor der
+  erhoben oder geteilt»), Werbung «nein», Zielgruppe (Altersgruppen 6–8 bis 18+, Entscheid des Nutzers; Richtlinie für Familien, Prüfliste in `store/index.html`), App-Zugriff. Für ein neues privates Konto verlangt Google vor der
   Veröffentlichung einen geschlossenen Test mit 12 Testern über 14 Tage.
+
+### Review (unabhängiger Reviewer, 18.11.2026)
+
+**Ergebnis: bestanden**, nach kleinen Korrekturen am Store-Material (Commits `3df0ff2`, `0008141`).
+
+**Geprüft und in Ordnung:**
+
+- **Schlüssel:** Das Passwort (aus `PASSWORT.txt`, nicht ausgegeben) kommt weder im Diff noch in der Historie aller
+  Refs noch im Worktree oder in `android/app/build` vor; kein Keystore, keine `keystore.properties`, keine `.aab`/`.apk`
+  in Git; `.gitignore` deckt alles ab. Ohne Schlüssel (`PRISMA_SCHLUESSEL` auf einen fehlenden Pfad) baut Gradle mit
+  der Warnung «… fehlt, die Release-Fassung bleibt unsigniert» weiter (`app-release-unsigned.apk`; das Bundle heisst
+  dann trotzdem `app-release.aab`, Play lehnt ein unsigniertes aber klar ab); der Debug-Build geht.
+- **Browser-Fassung:** Build der Basis und des Tickets verglichen: dieselben Dateien (ein Modul, drei Worker,
+  Source-Maps, `sw.js`, Manifeste), statische Dateien ausser `index.html` byte-gleich, kein Capacitor im Spiel.
+  Referenzen: nur die 6 Menübilder je Ordner geändert.
+- **App-Build und Android-Projekt:** kein SW, keine Maps, keine Manifeste, `window.PRISMA_APP`; Paket
+  `ch.bonomo.prisma`, minSdk 24 (Vorlage), targetSdk/compileSdk 36, nur `en`/`de`, Name je Sprache, adaptives Icon.
+  `MainActivity`: nur `WindowInsetsControllerCompat` (keine veralteten Flags). Kamera-Loch: Ab Android 15 (Edge-to-Edge
+  Pflicht, Ausschnitt-Modus «immer») reicht SystemBars (`insetsHandling: native`) die Abstände samt `displayCutout` an
+  die Seite (`viewport-fit=cover`, `env(safe-area-inset-*)` in allen Stilen) bzw. polstert die WebView (WebView < 140);
+  bis Android 14 legt das System das Fenster im Modus «default» nicht unter den Ausschnitt (schlimmstenfalls ein
+  schwarzer Streifen). Sinnvoll so; auf dem Gerät bleibt es Punkt 2 der Prüfliste.
+- **Zurück-Taste:** `zurueckTaste` folgt der Esc-Logik in allen Zuständen (Start, Menü mit/ohne Level, Rückfrage,
+  Übersicht, Level, Dorf, Reise, Prolog/Epilog); `@capacitor/app` nur im App-Build.
+- **Datenschutz-Link:** eigene Probe in Chrome, Deutsch und Englisch, Desktop 1280 × 800, Handy 390 × 844, quer
+  844 × 390, 360 × 640, 640 × 360, Poco 393 × 873 (2,75): im Bild, trifft beim Tippen, kein Text darüber; Browser →
+  `datenschutz.html` (`#en`), App → Pages (app-probe).
+- **AAB/APK** neu gebaut (nach der Ergänzung der Datenschutzseite): APK v2-signiert, Zertifikat SHA-256
+  `56:05:07:FD:…:79:A2` = Upload-Schlüssel, AAB «JAR-Datei verifiziert» mit demselben Zertifikat;
+  `ch.bonomo.prisma` 1.0 (1), minSdk 24, targetSdk 36; je knapp 24 MB; keine Source-Maps, kein `sw.js`, keine
+  Manifeste. Der Build ist reproduzierbar (vor der Änderung bitgleiche AAB). `C:\Users\admin\prisma-app\` hat die neuen
+  Dateien.
+- **INTERNET:** bleibt. Nötig ist sie wohl nicht (das Spiel kommt über den lokalen Server von Capacitor, der Link öffnet
+  den Browser per Intent), aber ob jede WebView ohne sie lädt, lässt sich ohne Gerät nicht sicher sagen. Sie ist eine
+  normale Berechtigung, ändert an Datensicherheit und Familienrichtlinie nichts.
+
+**Behoben (klein, vom Reviewer):**
+
+- Feature-Grafik war PNG **mit Alphakanal**: Google Play nimmt sie nur als JPEG oder 24-Bit-PNG. Jetzt
+  `store/*/feature-grafik.jpg` (gleiches Bild), `tools/store-grafik.mjs` schreibt JPEG.
+- App-Symbol `store/icon-512.png` war 24 Bit, verlangt ist PNG mit 32 Bit: `tools/app-icons.mjs` zeichnet es übers Canvas
+  (die mipmaps bleiben bitgleich).
+- Bildschirmfotos «Meer» und «Vulkan» (gelöst) zeigten **«0:00» als Zeit** (Spur der Probe, `loese` dreht sofort):
+  `bildvergleich.mjs --store` setzt den Beginn zurück (0:53 bzw. 1:19), beide Sprachen neu aufgenommen (übrige Bilder
+  bitgleich zur neuen Aufnahme).
+- Englische Beschreibung: «four grades» → «four difficulty settings» (so heisst es im Spiel), «No timer» → «No time
+  pressure» (das Spiel zeigt die Zeit).
+- **Zielgruppe mit Kindern** (Entscheid des Nutzers während des Reviews): `store/index.html` mit Altersgruppen 6–8,
+  9–12, 13–15, 16–17, 18+ (ohne «5 und jünger»: das Spiel braucht Lesen und wird schnell zum Denksport) und Prüfliste
+  der Richtlinie für Familien mit Befund (keine Werbung, keine SDKs mit Datenerhebung, keine Kennungen, Datenschutz
+  mit Kindern, keine Käufe, kein Chat, Inhalt IARC 3+, der Link zur eigenen Datenschutzerklärung im Browser ist
+  zulässig, keine Elternschranke nötig). `datenschutz.html`: Abschnitt «Kinder»/«Children» ergänzt.
+
+**Läufe** (leicht über `leise.sh`, keine Messläufe): `npm test` ganz grün (16 Teile); nach den Änderungen `logic`,
+`texte`, `app` erneut grün; `golden --voll` grün (842 Level); Bildvergleich SwiftShader beide Sprachen GRÜN (154 Bilder,
+98 min); `offline.mjs` und `--unterpfad` bestanden; `app-probe.mjs` 10 Schritte grün; Gradle `clean bundleRelease
+assembleRelease assembleDebug` und ohne Schlüssel grün.
+
+**Für den Nutzer vor dem Upload:** Schlüsselordner sichern; die geänderte `datenschutz.html` muss auf Pages sein
+(Merge nach `main`), bevor die Adresse in der Play Console eingetragen wird; Gerätetest nach der Prüfliste; Store-Texte
+gegenlesen; in der Play Console die Altersgruppen wie in `store/index.html`.
