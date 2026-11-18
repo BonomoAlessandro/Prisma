@@ -2,6 +2,7 @@
 // eigenen Ordner) über http in Headless-Chrome als Handy. Was ohne Android geht: kein Manifest und kein Service Worker,
 // der Link zur Datenschutzerklärung auf GitHub Pages, und die Logik der Zurück-Taste (zurueckTaste in
 // src/seite/geschichte/geschichte.js, in der App vom Hörer auf backButton gerufen): Startbildschirm → App schliesst,
+// offene Liste der Sprachen → nur sie zu, ein Wechsel der Sprache ohne Neuladen führt den Link nach (Text, #en),
 // Menü nach dem Start → App schliesst, Prolog → überspringen, Level → Menü, Menü aus dem Level → zurück ins Level,
 // Übersicht → zu. Die Taste selbst, Vollbild, Drehen und den Spielstand nach Neustart und Update prüft der Nutzer auf
 // dem Handy (Prüfliste im Ticket). Leichter Lauf (keine Zeitmessung, etwa 2 min in SwiftShader):
@@ -50,6 +51,23 @@ try {
   const link = await ev(`document.querySelector('#menue .menue-datenschutz')?.href`);
   assert.equal(link, 'https://bonomoalessandro.github.io/Prisma/datenschutz.html');
   schritt('Menü: Datenschutz verweist auf GitHub Pages');
+  // Liste der Sprachen (Sprachwahl, Merge mit Ticket 10): Zurück schliesst wie Esc zuerst nur sie, das Menü bleibt
+  await ev(`document.querySelector('#menue .menue-sprache').click()`);
+  await bis(`document.querySelector('#menue .menue-sprache').getAttribute('aria-expanded') === 'true'`, 'Liste offen', 5);
+  assert.equal(await ev('zurueckTaste()'), true);
+  await bis(`document.querySelector('#menue .menue-sprache').getAttribute('aria-expanded') === 'false'`, 'Liste zu', 5);
+  assert.equal(await ev('menu.offen && story.choosing'), true, 'Menü offen');
+  schritt('Liste der Sprachen offen: Zurück schliesst nur sie');
+  // Wechsel ohne Neuladen: Text und Ziel des Links folgen (Englisch: #en), hin und zurück
+  for (const [k, text, ziel] of [['en', 'Privacy', '#en'], ['de', 'Datenschutz', '']]) {
+    await ev(`document.querySelector('#menue .menue-sprache').click()`);
+    await bis(`!!document.querySelector('#menue [role="menuitemradio"][lang="${k}"]')?.offsetParent`, 'Liste offen', 5);
+    await ev(`document.querySelector('#menue [role="menuitemradio"][lang="${k}"]').click()`);
+    await bis(`document.documentElement.lang === '${k}'`, `Sprache ${k}`, 10);
+    assert.deepEqual(await ev(`['textContent', 'href'].map((p) => document.querySelector('#menue .menue-datenschutz')[p])`),
+      [text, `https://bonomoalessandro.github.io/Prisma/datenschutz.html${ziel}`]);
+  }
+  schritt('Wechsel der Sprache: Datenschutz folgt (Text, Pages mit #en)');
   assert.equal(await ev('zurueckTaste()'), false);
   schritt('Menü nach dem Start: Zurück schliesst die App');
 

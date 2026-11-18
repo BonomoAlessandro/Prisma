@@ -237,3 +237,40 @@ assembleRelease assembleDebug` und ohne Schlüssel grün.
 **Für den Nutzer vor dem Upload:** Schlüsselordner sichern; die geänderte `datenschutz.html` muss auf Pages sein
 (Merge nach `main`), bevor die Adresse in der Play Console eingetragen wird; Gerätetest nach der Prüfliste; Store-Texte
 gegenlesen; in der Play Console die Altersgruppen wie in `store/index.html`.
+
+### Merge mit Sprachwahl (18.11.2026)
+
+`origin/main` mit PLAN 3a.3 «Sprachwahl» (Wechsel ohne Neuladen, Liste beim Antippen, Kürzel DE/EN auf dem Handy)
+in den Stand mit diesem Ticket geholt (`ticket/umbau-10-merge`).
+
+- **Konflikte:** `menue.js`: Schalter der Sprache aus `main` (Liste, `createSprachliste`), Link «Datenschutz» aus
+  diesem Ticket daneben. Die Adresse des Links rechnet jetzt `datenschutz()` in der aktuellen Sprache (statt einmal
+  beim Laden), und der Wechsel ohne Neuladen (`beiSprachwechsel`) setzt Text und Ziel des Links neu (`#en`; in der App
+  weiter die Seite auf Pages). `de.json`/`en.json`: Texte beider Seiten (`sprache` mit Kürzel, `sprachliste`,
+  `spracheGewechselt`, `datenschutz`). `package.json`: `appVersion` «2026-11-18 umbau-10 sprachwahl»,
+  `android.versionCode` bleibt 1 (noch nie hochgeladen); Abhängigkeiten unverändert (`main` hatte keine neuen),
+  `npm ci` geht mit dem Lock des Tickets.
+- **Lage des Links: bleibt.** Probe in Chrome (GPU) mit beiden Sprachen auf Desktop 1280 × 800, hoch 390 × 844,
+  Poco 393 × 873 (2,75), 360 × 640, quer 844 × 390 und 640 × 360, je zu, mit offener Liste und nach einem Wechsel:
+  Der Schalter steht oben rechts, die Liste klappt darunter an seinem rechten Rand auf und erreicht den Link (unten
+  links, hoch oben links) nirgends; der Link überdeckt weder Schalter noch Liste noch einen Text (nur den leeren Rand
+  der Titelzeile), alles im Bild, Konsole ohne Fehler.
+- **Zurück-Taste:** `zurueckTaste()` gibt Esc an das Menü, und das Menü gibt Tasten zuerst der offenen Liste: Zurück
+  schliesst also wie Esc zuerst nur die Liste, das Menü bleibt offen. `tests/app-probe.mjs` prüft das jetzt mit, dazu
+  den Wechsel der Sprache im App-Build (Link «Privacy» auf Pages mit `#en` und zurück).
+- **Referenzen:** die 6 Menübilder je Ordner neu (`--nur welt-3-4 --write`, in SwiftShader und mit `--gpu`; zwei durch
+  GPU-Rauschen geänderte Bilder `desktop-welt-3-*` zurückgesetzt), alle übrigen byte-gleich zu `origin/main` und zum
+  Ticket. Store: `store/de/8-menue.jpg` und `store/en/8-menue.jpg` neu (Schalter mit Kürzel und ▾), die übrigen Bilder
+  zeigen das Menü nicht.
+- **AAB/APK** neu gebaut (`npm run build:app`, `clean bundleRelease assembleRelease`), geprüft wie oben (Upload-Zertifikat
+  `56:05:07:FD:…:79:A2`, `ch.bonomo.prisma` 1.0 (1), minSdk 24, targetSdk 36, ohne Source-Maps, `sw.js` und Manifeste,
+  die neue Version im Spiel) und nach `C:\Users\admin\prisma-app\` kopiert.
+- **Läufe** (leicht über `leise.sh`, keine Messläufe): `npm test` ganz grün (16 Teile); `golden --voll` grün (842
+  Level); `app-probe.mjs` 12 Schritte grün; `offline.mjs` und `--unterpfad` bestanden (je 38 Prüfungen);
+  Bildvergleich `--gpu` beide Sprachen, alle Grössen: alles grün ausser 5 Bildern `welt-4-*` (Vulkan, Desktop und quer,
+  Abweichung nur im Lavahimmel), parallel zu drei anderen Läufen; allein wiederholt (`--nur welt-3-4 --jobs 1`) alle
+  grün mit Abweichung 0. Bildvergleich SwiftShader `--nur welt-3-4` (Menü, Übersicht, Wüste, Vulkan; Desktop, hoch,
+  quer, beide Sprachen): GRÜN. `sprachwechsel-probe.mjs --gpu` und `--gpu --handy`: GRÜN (je 152 s). In SwiftShader
+  (so lief sie im Vorhaben nie) zweimal rot an einer Zeitgrenze: parallel «Liste offen» (allein dann grün), allein
+  «erstes Level am Meer» (Grenze 180 s; in Software wohl zu knapp, gegen `origin/main` nicht verglichen), beides
+  abseits von Menü und Link.
