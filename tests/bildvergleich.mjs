@@ -98,6 +98,8 @@ const AUSNAHMEN = {
   'quer-welt-2-vor': [[0, 128, 144, 48]],
   'quer-welt-2-nach': [[0, 128, 144, 48]],
 };
+/** Ausnahmen eines Bilds, gleich in jeder Sprache (en-quer-welt-2-vor wie quer-welt-2-vor; Review Ticket 08). */
+const ausnahmenVon = (name) => AUSNAHMEN[String(name).replace(/^[a-z]{2}-(?=(desktop|handy|quer|poco)-)/, '')] ?? [];
 
 const GROESSEN = [
   { name: 'desktop', width: 1280, height: 800, dpr: 1, phone: false },
@@ -472,7 +474,7 @@ async function vergleiche(name, refB64, bildB64, diff = false) {
     await rechner.ev(RECHNER);
   }
   return rechner.ev(`vergleiche(${JSON.stringify(refB64)}, ${JSON.stringify(bildB64)}, ${TOLERANZ.pixel}, ${diff}, `
-    + `${JSON.stringify(AUSNAHMEN[name] ?? [])})`);
+    + `${JSON.stringify(ausnahmenVon(name))})`);
 }
 const istRot = (r) => !!r.groesse || r.ab > TOLERANZ.anteil * r.pixel;
 
