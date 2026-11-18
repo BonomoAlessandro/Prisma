@@ -30,8 +30,8 @@ Abschnitt Tests.
 ## Laufendes Vorhaben
 
 PLAN 3a.3 «Sprachwahl» (`feature/sprachwahl`, seit 18.11.2026): Spec und Tickets in `.scratch/sprachwahl/`, vor dem
-Weitermachen lesen. Reihenfolge: Wechsel der Sprache ohne Neuladen (01), Lage des Schalters mit Skizzenkatalog (03),
-Liste beim Antippen (02). Zuletzt abgeschlossen: PLAN 3a.1
+Weitermachen lesen. Wechsel der Sprache ohne Neuladen (01), dann Liste beim Antippen (02); die Lage des Schalters
+(03) bleibt nach Wahl des Nutzers wie heute. Zuletzt abgeschlossen: PLAN 3a.1
 «Umbau für die Stores» (Tickets 01–09 am 18.11.2026 nach `main`, 08d3d80; `.scratch/umbau/`, Ticket 10 mit eigenem
 Grilling offen); davor «Energie auf dem Handy» (16.11.2026 nach `main`: Ruhe-Bildrate 30, Spiegelung nur im All, −50 % Strom auf dem Poco;
 `.scratch/energie/`); davor PLAN 1a.3 «Tutorial neu» (15.11.2026 nach `main`, Übergabe in

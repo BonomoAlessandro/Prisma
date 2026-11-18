@@ -2,25 +2,27 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent (nach Ticket 01 und 03)
+**Status:** ready-for-agent (nach Ticket 01; der Baustein wird schon parallel gebaut)
 
-**Blocked by:** 01, 03 (die Liste geht von der Lage aus Ticket 03 aus auf, je nach Lage nach unten oder nach oben)
+**Blocked by:** 01 (Ticket 03 ist erledigt: Der Schalter bleibt oben rechts, die Liste geht nach unten auf)
 
 **What to build:** Heute zeigt der Schalter oben rechts im Menü den Globus und die aktuelle Sprache («DEUTSCH»). Ein
 Klick wechselt direkt zur nächsten Sprache, ohne dass man sieht, welche das ist. Neu öffnet der Schalter eine kleine
 Liste aller Sprachen, in der man wählt (vom Nutzer gewählt, siehe Spec):
 
 ```
-   🌐 DEUTSCH ▾
+        🌐 DE ▾
    ┌─────────────┐
    │ ✓ Deutsch   │
    │   English   │
    └─────────────┘
 ```
 
-- [ ] **Schalter:** Globus, aktuelle Sprache und ein kleines ▾ (als Zeichen im Strich der übrigen Zeichen des Menüs,
-      kein Schriftzeichen), so zurückhaltend wie heute. Antippen oder Klicken öffnet die Liste. Ist die Liste offen,
-      schliesst ein erneutes Antippen sie wieder.
+- [ ] **Schalter:** Globus, das Kürzel der aktuellen Sprache und ein kleines ▾ (als Zeichen im Strich der übrigen
+      Zeichen des Menüs, kein Schriftzeichen), so zurückhaltend wie heute. Statt «DEUTSCH» steht nur noch «DE», statt
+      «ENGLISH» nur «EN» (Wunsch des Nutzers 18.11.2026, damit der Schalter auf dem Handy weniger Platz braucht). Das
+      Kürzel ist das der Sprachdatei in Grossbuchstaben. Das `aria-label` nennt weiter den vollen Namen. Antippen oder
+      Klicken öffnet die Liste. Ist die Liste offen, schliesst ein erneutes Antippen sie wieder.
 - [ ] **Liste:** alle Sprachen mit Datei (`VORHANDEN`, Deutsch zuerst), jede mit ihrem Namen in ihr selbst
       («Deutsch», «English»). Die aktuelle Sprache hat ein Häkchen. Antippen einer anderen Sprache wechselt sie (Ticket
       01, ohne Neuladen) und schliesst die Liste. Danach steht der Schalter in der neuen Sprache. Antippen der
@@ -49,7 +51,7 @@ Liste aller Sprachen, in der man wählt (vom Nutzer gewählt, siehe Spec):
         ausserhalb, erneutes Antippen, Tastatur (Pfeile, Pos1, Ende, Enter, Tab), Fokus danach, Menü ausblenden mit
         offener Liste. Auf Desktop und Handy hochkant.
       - Node-Tests grün.
-      - Referenzbilder des Menüs einmal nachführen, für Lage (Ticket 03) und Liste zusammen: nur der Ablauf mit dem
+      - Referenzbilder des Menüs einmal nachführen (das ▾ am Schalter): nur der Ablauf mit dem
         Menü (`--nur welt-3-4 --write`, SwiftShader und `--gpu`). Nur die Bilder `menue` übernehmen, andere Bilder
         dieses Ablaufs, die sich durch Rauschen ändern, mit `git restore` zurücksetzen. Kein ganzer Bildvergleich,
         keine neue Ansicht.

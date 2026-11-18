@@ -2,9 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent (Katalog zuerst; die Umsetzung erst nach der Wahl des Nutzers)
-
-**Blocked by:** 01 (nur die Umsetzung; den Katalog nicht)
+**Status:** done (18.11.2026: Der Nutzer wählt Variante 0, die heutige Lage. Teil 2 entfällt, nichts ändert sich.)
 
 **What to build:** Auf dem Handy hochkant steht der Schalter der Sprache klein in der Ecke oben rechts, dicht neben
 «PRISMA» und über dem Untertitel (`tests/bildvergleich/referenz/handy-menue.jpg`). Dort geht er schnell unter (Nutzer,
@@ -47,7 +45,21 @@ Handy quer prüfen und anpassen, wo es nötig ist.
 
 ## Wahl des Nutzers
 
-(offen)
+18.11.2026, nach Ansicht des Katalogs (`../katalog/index.html`): «option 0 ist noch immer die beste, also nichts soll
+sich hier ändern». Der Schalter bleibt oben rechts, so wie er ist. Die Liste aus Ticket 02 geht von dort nach unten
+auf. Dazu der Vorschlag des Nutzers: Auf dem Schalter steht künftig nur das Kürzel («DE», «EN») statt «DEUTSCH» und
+«ENGLISH». Das braucht weniger Platz neben dem Titel. Umgesetzt in Ticket 02.
+
+Die Varianten im Katalog waren:
+
+- **0 Heute:** zum Vergleich. Auf dem Handy liegt er 1 px am Untertitel, die Schrift ist 8,5 px.
+- **1 Eigene Zeile oben rechts:** Auf dem Handy rücken Titel, Reiter und Karte 38 px nach unten. Das war die
+  Empfehlung des Katalogs.
+- **2 Links:** auf dem Handy oben links, sonst unten links.
+- **3 Neben «Von vorn»:** unten, die Liste geht nach oben auf.
+- **4 Fusszeile unter «Weiter».**
+- **5 Nur der Globus** als runder Knopf.
+- **6 Legende der Sternkarte:** fein gerahmt in der freien Ecke oben rechts der Karte.
 
 ## Hinweise
 
