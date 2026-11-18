@@ -5,7 +5,7 @@
 // einstellungen.sprache), sonst die des Geräts (navigator.language: de* Deutsch, sonst Englisch, solange es en.json
 // gibt). Ein Wechsel im Menü speichert die neue und lädt die Seite neu (setzeSprache): So steht jeder Text, auch der
 // schon gebaute, in der neuen Sprache. Das Dokument bekommt lang, die festen Texte in index.html (data-t …) und den
-// Seitentitel gleich beim Laden dieses Moduls, vor dem Startbildschirm.
+// Seitentitel gleich beim Laden dieses Moduls, vor dem Startbildschirm, seit Ticket 08 auch das Manifest der Sprache.
 // Kein Import aus src/seite/: Es lädt vor jedem Teil, der es braucht, und ändert so die Reihenfolge der Teile nicht.
 import { einstellungen } from '../spielstand.js';
 import { GRUNDSPRACHE, spracheWaehlen, titelVon, uebersetzer } from './uebersetzung.js';
@@ -44,5 +44,10 @@ function uebersetzeSeite(wurzel = document) {
 }
 document.documentElement.lang = sprache;
 uebersetzeSeite();
+// Manifest (Name beim Installieren und auf dem Startbildschirm, Ticket 08): index.html fügt über http(s) das deutsche
+// ein (manifest.webmanifest); eine andere Sprache nimmt ihr eigenes, manifest-<kürzel>.webmanifest (gleich bis auf Name,
+// Beschreibung und lang; tests/texte.test.mjs verlangt es für jede Sprachdatei).
+const manifest = document.querySelector('link[rel="manifest"]');
+if (manifest && sprache !== GRUNDSPRACHE) manifest.setAttribute('href', `manifest-${sprache}.webmanifest`);
 
 export { levelTitel, setzeSprache, sprache, spracheName, t, VORHANDEN };

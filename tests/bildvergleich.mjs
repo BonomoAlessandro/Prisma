@@ -15,8 +15,9 @@
 // Grössen: Desktop 1280 × 800, Handy hochkant 390 × 844 und Handy quer 844 × 390 (Pixeldichte 1, Handy mit Touch).
 //
 // Gleiche Bilder bei jedem Lauf: ?t=12 (Zeit der Animationen steht, Math.random fest), ?noadapt (feste Auflösung),
-// Rendern in Software (SwiftShader, tools/chrome.mjs ohne gpu), auf Deutsch (Ticket 07: Chrome mit --lang=de, das Spiel
-// wählt die Sprache des Geräts; der Lauf prüft navigator.language und lang des Dokuments). Was bei stehender Zeit nie
+// Rendern in Software (SwiftShader, tools/chrome.mjs ohne gpu), in fester Sprache (Ticket 07: Chrome mit --lang=de, das
+// Spiel wählt die Sprache des Geräts; der Lauf prüft navigator.language und lang des Dokuments). Seit Ticket 08 alles
+// auch auf Englisch (--lang=en-US), Bilder en-<grösse>-<ansicht>.jpg mit eigenen Referenzen. Was bei stehender Zeit nie
 // fertig oder nie still würde, hält die Prüfung nur in der Seite fest, ohne das Spiel zu ändern: Strahlen zählen ihre
 // Geburt ab Zeit 0 (wie __prismaDebug.zeige es tut; sie stehen danach ganz da), Herauswachsen, Feier und Kamera spult __prismaDebug.settle
 // vor, CSS- und Web-Animationen werden angehalten (endliche am Ende, endlose am Anfang), die Bühne von Prolog und Epilog
@@ -37,9 +38,10 @@
 //
 // Aufruf: LEISE_ART=leicht LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 3600 node
 //           tests/bildvergleich.mjs [--write] [--groesse desktop,handy,quer,poco]
-//           [--nur start,dorf,welt-1-2,welt-3-4,welt-5-6] [--jobs n]
-//   --write: die Referenzen neu schreiben, nur bei einer bewussten Änderung des Aussehens (im Umbau nie). Mit --nur
-//   oder --groesse nur diese. Ohne --write: vergleichen; Rückgabe 1 bei einem roten Bild, einer fehlenden Referenz
+//           [--nur start,dorf,welt-1-2,welt-3-4,welt-5-6] [--sprache de,en] [--jobs n]
+//   --write: die Referenzen neu schreiben, nur bei einer bewussten Änderung des Aussehens (im Umbau nie). Mit --nur,
+//   --groesse oder --sprache nur diese. --sprache: nur diese Sprachen (Vorgabe beide, Deutsch zuerst; SPRACHEN). Ohne
+//   --write: vergleichen; Rückgabe 1 bei einem roten Bild, einer fehlenden Referenz
 //   oder einem Fehler im Ablauf bzw. in der Konsole. --diag: je Bild den Zustand ausgeben (Kamera, Uhren, Ziele,
 //   Lichtkegel), um zu finden, was zwischen zwei Läufen abweicht. --jobs n: so viele Abläufe gleichzeitig, je in einem
 //   eigenen Prozess mit eigenem Chrome (Vorgabe JOBS; --jobs 1 alles nacheinander in einem Chrome je Grösse wie bis
@@ -112,6 +114,12 @@ const ANDROID = 'Mozilla/5.0 (Linux; Android 14; 22021211RG) AppleWebKit/537.36 
  * Maschine, oft 100 %); mehr Prozesse teilen nur dieselben Kerne. Darum nacheinander.
  */
 const JOBS = 1;
+/**
+ * Sprachen (Ticket 08): je Sprache dieselben Abläufe, Chrome meldet die Sprache des Geräts (startChrome, --lang). Bilder
+ * auf Deutsch heissen <grösse>-<ansicht>.jpg, in einer anderen Sprache <kürzel>-<grösse>-<ansicht>.jpg (eigene
+ * Referenzen, die deutschen bleiben, wie sie sind). geraet: was Chrome als Sprache meldet.
+ */
+const SPRACHEN = { de: { geraet: 'de', vorsilbe: '' }, en: { geraet: 'en-US', vorsilbe: 'en-' } };
 
 const args = process.argv.slice(2);
 const wert = (k) => (args.includes(k) ? args[args.indexOf(k) + 1] : null);
@@ -122,6 +130,11 @@ const nurGroessen = liste('--groesse');
 const nurAnsichten = liste('--nur');
 const jobs = +(wert('--jobs') ?? JOBS);
 const teil = wert('--teil'); // Teilprozess von --jobs: hierhin das Ergebnis als JSON
+const sprachen = liste('--sprache') ?? Object.keys(SPRACHEN);
+if (sprachen.some((k) => !Object.hasOwn(SPRACHEN, k))) {
+  console.error(`Unbekannte Sprache: ${sprachen.join(',')} (${Object.keys(SPRACHEN).join(', ')})`);
+  process.exit(2);
+}
 if (nurGroessen?.some((g) => !GROESSEN.some((x) => x.name === g))) {
   console.error(`Unbekannte Grösse: ${nurGroessen.join(',')} (${GROESSEN.map((g) => g.name).join(', ')})`);
   process.exit(2);
@@ -138,16 +151,18 @@ const STATIONEN = ['wald', 'meer', 'wueste', 'vulkan', 'planeten', 'sterne']; //
 
 /* ---------- Sitzung je Grösse ---------- */
 
-let s = null; // { view, send, ev, logs, bilder: [{ name, data }] }
+let s = null; // { view, sprache, send, ev, logs, bilder: [{ name, data }] }
 
-async function sitzung(view, gpu = GPU) {
-  const chrome = await startChrome({ ...view, gpu, hochleistung: gpu });
+async function sitzung(view, gpu = GPU, sprache = 'de') {
+  const chrome = await startChrome({ ...view, gpu, hochleistung: gpu, sprache: SPRACHEN[sprache].geraet });
   const send = (m, p) => Promise.race([chrome.send(m, p),
     sleep(120000).then(() => { throw new Error(`keine Antwort auf ${m}`); })]);
   await emulate(send, view);
   if (view.android) await send('Emulation.setUserAgentOverride', { userAgent: ANDROID });
-  return { view, chrome, send, ev: (e) => evaluate(send, e), logs: chrome.logs };
+  return { view, sprache, chrome, send, ev: (e) => evaluate(send, e), logs: chrome.logs };
 }
+/** Name des Bilds einer Ansicht in der laufenden Sitzung (Sprache und Grösse, siehe SPRACHEN). */
+const bildName = (name) => `${SPRACHEN[s.sprache].vorsilbe}${s.view.name}-${name}`;
 /**
  * Warten, bis expr wahr ist. spulen: dabei je Abfrage die Logik um SPULEN s vorspulen (settle, ohne zu zeichnen): In
  * SwiftShader dauert ein Bild bis 0,6 s, ein Schritt der Logik aber höchstens MAX_DT (0,05 s), Flüge und Feier liefen
@@ -237,7 +252,7 @@ async function bild(name, { vorspulen = 20, buehne = false } = {}) {
     // die Liste ihrer Texturen 4 s lang gleich bleibt.
     let liste = null;
     for (let gleich = 0, k = 0; gleich < 4; k++) {
-      if (k > 180 * GEDULD) throw new Error(`${s.view.name}-${name}: Texturen der Bühne werden nicht fertig`);
+      if (k > 180 * GEDULD) throw new Error(`${bildName(name)}: Texturen der Bühne werden nicht fertig`);
       await sleep(1000);
       const jetzt = await s.ev(`JSON.stringify(${D}.story.scene.gl.liste())`);
       gleich = jetzt === liste ? gleich + 1 : 0;
@@ -273,16 +288,16 @@ async function aufnehmen(name, vorspulen) {
     // letzten zwei höchstens innerhalb der Toleranz des Vergleichs voneinander ab, gilt die Ansicht als ruhig. Nur bei
     // den Grössen in FAST_RUHIG (Ticket 14: in allen bekannten Läufen kam es nur bei «poco» vor); die Fälle zählt die
     // Übersicht am Schluss.
-    if (!FAST_RUHIG.includes(s.view.name)) throw new Error(`${s.view.name}-${name}: Ansicht wird nicht ruhig`);
+    if (!FAST_RUHIG.includes(s.view.name)) throw new Error(`${bildName(name)}: Ansicht wird nicht ruhig`);
     const r = await vergleiche('', vorher, jpeg);
-    if (istRot(r)) throw new Error(`${s.view.name}-${name}: Ansicht wird nicht ruhig`);
-    console.log(`    ${s.view.name}-${name}: fast ruhig (zwei Aufnahmen: ${r.ab} Pixel über ${TOLERANZ.pixel}, `
+    if (istRot(r)) throw new Error(`${bildName(name)}: Ansicht wird nicht ruhig`);
+    console.log(`    ${bildName(name)}: fast ruhig (zwei Aufnahmen: ${r.ab} Pixel über ${TOLERANZ.pixel}, `
       + `grösste Abweichung ${r.max})`);
-    fastRuhig.push(`${s.view.name}-${name} (${r.ab} Pixel, bis ${r.max})`);
+    fastRuhig.push(`${bildName(name)} (${r.ab} Pixel, bis ${r.max})`);
   }
   if (diag) console.log(`    Zustand ${name}: ${await s.ev(ZUSTAND)}`);
-  s.bilder.push({ name: `${s.view.name}-${name}`, jpeg });
-  zeit(`${s.view.name}-${name}`);
+  s.bilder.push({ name: bildName(name), jpeg });
+  zeit(bildName(name));
 }
 
 /* ---------- Ansichten ---------- */
@@ -481,11 +496,13 @@ const ablaeufeVon = (view) => ABLAEUFE.filter((x) => (!nurAnsichten || nurAnsich
   && (!view.nur || view.nur.includes(x.name)));
 
 /** Eine Grösse in einer Sitzung: ihre Abläufe aufnehmen, dann vergleichen bzw. schreiben. */
-async function groesseAufnehmen(view) {
+async function groesseAufnehmen(view, sprache = 'de') {
   const ablaeufe = ablaeufeVon(view);
   if (!ablaeufe.length) return;
-  console.log(`${view.name} (${view.width} × ${view.height}${view.dpr !== 1 ? `, Pixeldichte ${view.dpr}` : ''})`);
-  s = await sitzung(view);
+  console.log(`${SPRACHEN[sprache].vorsilbe}${view.name} (${view.width} × ${view.height}`
+    + `${view.dpr !== 1 ? `, Pixeldichte ${view.dpr}` : ''})`);
+  s = await sitzung(view, GPU, sprache);
+  const wer = `${SPRACHEN[sprache].vorsilbe}${view.name}`; // für Meldungen
   s.bilder = [];
   try {
     // die Reise des Grads (Level je Welt) aus dem Spiel, für die Stände
@@ -503,23 +520,25 @@ async function groesseAufnehmen(view) {
       const weg = await s.ev(`[document.documentElement.classList.contains('seite'), ${D}.renderer.getPixelRatio()]`);
       if (!weg[0] || weg[1] !== 2) throw new Error(`${view.name}: nicht der Weg der Handys (SEITE ${weg[0]}, Pixelverhältnis ${weg[1]})`);
     }
-    // die deutsche Fassung (Ticket 07): Chrome meldet Deutsch als Sprache des Geräts (startChrome, --lang), das Spiel
-    // wählt sie, kein gespeicherter Wechsel
-    const sprache = await s.ev('[navigator.language, document.documentElement.lang]');
-    if (!/^de\b/.test(sprache[0]) || sprache[1] !== 'de') throw new Error(`${view.name}: nicht Deutsch (${sprache.join(', ')})`);
+    // die Sprache (Ticket 07, 08): Chrome meldet sie als Sprache des Geräts (startChrome, --lang), das Spiel wählt sie,
+    // kein gespeicherter Wechsel
+    const gemeldet = await s.ev('[navigator.language, document.documentElement.lang]');
+    if (!new RegExp(`^${sprache}\\b`).test(gemeldet[0]) || gemeldet[1] !== sprache) {
+      throw new Error(`${wer}: nicht ${sprache} (${gemeldet.join(', ')})`);
+    }
     for (const a of ablaeufe) {
       const vorher = s.logs.length;
       try {
         await a.ablauf();
       } catch (e) {
-        fehler.push(`${view.name}, ${a.name}: ${e.message}`);
-        console.log(`  FEHLER ${view.name}, ${a.name}: ${e.message}`);
+        fehler.push(`${wer}, ${a.name}: ${e.message}`);
+        console.log(`  FEHLER ${wer}, ${a.name}: ${e.message}`);
         const jpeg = await aufnahme().catch(() => null);
-        if (jpeg) writeFileSync(join(OUT, `${view.name}-${a.name}-fehler.jpg`), Buffer.from(jpeg, 'base64'));
+        if (jpeg) writeFileSync(join(OUT, `${wer}-${a.name}-fehler.jpg`), Buffer.from(jpeg, 'base64'));
       }
       const schlimm = s.logs.slice(vorher).filter((l) => !/GPU stall|swiftshader|WebGL-|Automatic fallback/i.test(l))
         .filter((l) => /\[exception\]|\[error\]|\[log:error\]|THREE\.WebGLProgram/.test(l));
-      if (schlimm.length) fehler.push(`${view.name}, ${a.name}: Konsole\n      ${schlimm.join('\n      ')}`);
+      if (schlimm.length) fehler.push(`${wer}, ${a.name}: Konsole\n      ${schlimm.join('\n      ')}`);
     }
   } finally { await s.chrome.close(); }
 
@@ -560,23 +579,23 @@ async function groesseAufnehmen(view) {
  */
 async function parallel() {
   const gewicht = (g, a) => ({ desktop: 3, poco: 2, quer: 1.2 }[g] ?? 1) * (a.startsWith('welt') ? 3 : a === 'dorf' ? 2 : 0.5);
-  const aufgaben = groessen.flatMap((v) => ablaeufeVon(v).map((a) => ({ g: v.name, a: a.name })))
-    .sort((x, y) => gewicht(y.g, y.a) - gewicht(x.g, x.a));
+  const aufgaben = sprachen.flatMap((k) => groessen.flatMap((v) => ablaeufeVon(v)
+    .map((a) => ({ k, g: v.name, a: a.name })))).sort((x, y) => gewicht(y.g, y.a) - gewicht(x.g, x.a));
   const tmp = mkdtempSync(join(tmpdir(), 'prisma-bildvergleich-'));
   console.log(`${aufgaben.length} Abläufe in bis zu ${jobs} Prozessen`);
   let naechste = 0;
-  const eine = async ({ g, a }) => {
-    const datei = join(tmp, `${g}-${a}.json`);
-    const p = spawn(process.execPath, [fileURLToPath(import.meta.url), '--groesse', g, '--nur', a, '--teil', datei,
-      ...(schreiben ? ['--write'] : []), ...(diag ? ['--diag'] : []), ...(GPU ? ['--gpu'] : [])],
+  const eine = async ({ k, g, a }) => {
+    const datei = join(tmp, `${k}-${g}-${a}.json`);
+    const p = spawn(process.execPath, [fileURLToPath(import.meta.url), '--sprache', k, '--groesse', g, '--nur', a,
+      '--teil', datei, ...(schreiben ? ['--write'] : []), ...(diag ? ['--diag'] : []), ...(GPU ? ['--gpu'] : [])],
     { env: { ...process.env, PRISMA_SPIEL: spiel.base }, stdio: ['ignore', 'pipe', 'pipe'] });
     let text = '';
     p.stdout.on('data', (d) => { text += d; });
     p.stderr.on('data', (d) => { text += d; });
     const code = await new Promise((r) => p.on('exit', (c, sig) => r(c ?? sig)));
-    zeit(`${g}, ${a} fertig (Rückgabe ${code})`);
+    zeit(`${SPRACHEN[k].vorsilbe}${g}, ${a} fertig (Rückgabe ${code})`);
     for (const z of text.split(/\r?\n/).filter(Boolean)) console.log(`        ${z}`);
-    if (!existsSync(datei)) { fehler.push(`${g}, ${a}: Prozess ohne Ergebnis (Rückgabe ${code})`); return; }
+    if (!existsSync(datei)) { fehler.push(`${SPRACHEN[k].vorsilbe}${g}, ${a}: Prozess ohne Ergebnis (Rückgabe ${code})`); return; }
     const r = JSON.parse(readFileSync(datei, 'utf8'));
     fehler.push(...r.fehler);
     ergebnisse.push(...r.ergebnisse);
@@ -621,7 +640,7 @@ async function gpuPlatz() {
 if (jobs > 1 && !teil) await parallel();
 else {
   if (GPU) await gpuPlatz();
-  for (const view of groessen) await groesseAufnehmen(view);
+  for (const k of sprachen) for (const view of groessen) await groesseAufnehmen(view, k);
 }
 if (rechner) await rechner.chrome.close();
 await spiel.close();
@@ -638,7 +657,8 @@ if (!nurAnsichten) {
   if (fehlt.length) fehler.push(`Elemente nie im Bild: ${fehlt.join(', ')}`);
   // keine Referenz ohne Ansicht (eine gestrichene Ansicht liesse sonst ein altes Bild liegen)
   const namen = new Set(ergebnisse.map((e) => `${e.name}.jpg`));
-  const groessen = GROESSEN.filter((g) => !nurGroessen || nurGroessen.includes(g.name)).map((g) => `${g.name}-`);
+  const groessen = sprachen.flatMap((k) => GROESSEN.filter((g) => !nurGroessen || nurGroessen.includes(g.name))
+    .map((g) => `${SPRACHEN[k].vorsilbe}${g.name}-`));
   const uebrig = readdirSync(REFERENZ).filter((f) => groessen.some((g) => f.startsWith(g)) && !namen.has(f));
   if (uebrig.length && !fehler.length) fehler.push(`Referenzen ohne Ansicht: ${uebrig.join(', ')}`);
 }
