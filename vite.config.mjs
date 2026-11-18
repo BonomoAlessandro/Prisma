@@ -11,8 +11,8 @@
 // src/seite/ton.js, himmel/skybox.js und texturen.js, Vite macht daraus im Build assets/<name>-worker-<hash>.js.
 //
 // Beim Build kommen dazu (Plugin prisma):
-// - die statischen Dateien unverändert nach dist/: vendor/, icons/, favicon.svg, manifest.webmanifest und aus
-//   backgrounds/ das Register skies.js mit den Teilen, die es nennt (alte Stände bleiben weg). Was Vite schon selbst
+// - die statischen Dateien unverändert nach dist/: vendor/, icons/, favicon.svg, manifest.webmanifest, die
+//   Datenschutzerklärung datenschutz.html (eine einfache Seite ohne Skript, Ticket 09) und aus backgrounds/ das Register skies.js mit den Teilen, die es nennt (alte Stände bleiben weg). Was Vite schon selbst
 //   aus der Quelle übernommen hat (die Schrift), wird nicht noch einmal kopiert;
 // - der <link> des Stils an seine Stelle in der Quelle (stilZurueck);
 // - sw.js mit den Listen FILES und LAZY aus dem, was in dist/ liegt (Regeln im Kopf von sw.js);
@@ -32,7 +32,7 @@ const VERSION = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).app
 if (typeof VERSION !== 'string' || !VERSION) throw new Error('package.json: appVersion fehlt');
 const PLATZHALTER = '__APP_VERSION__';
 const MIT_VERSION = 'src/seite/konfiguration.ts'; // das Modul mit APP_VERSION
-const STATISCH = ['vendor', 'icons', 'favicon.svg', 'manifest.webmanifest'];
+const STATISCH = ['vendor', 'icons', 'favicon.svg', 'manifest.webmanifest', 'datenschutz.html'];
 /**
  * Nicht in den Speicher des Service Workers: er selbst, die Lizenztexte (liegen bei, braucht das Spiel nicht) und die
  * Source-Maps (lädt nur ein offenes DevTools).
@@ -167,7 +167,9 @@ export default {
   base: './',
   publicDir: false,
   plugins: [prisma()],
-  // verkleinert, mit Source-Maps (nicht im Speicher des Service Workers); ohne den Nachlader für modulepreload (das
+  // verkleinert, mit Source-Maps (nicht im Speicher des Service Workers; auch auf GitHub Pages, Entscheid in Ticket 09:
+  // das Repo ist öffentlich, die Maps lädt nur ein offenes DevTools, und Fehlerorte gemeldeter Fehler zeigen so auf die
+  // Module; für die App in Ticket 10 neu entscheiden); ohne den Nachlader für modulepreload (das
   // Spiel ist ein einziges Modul). Die Bitgleichheit des Halls prüft tests/logic.test.mjs an der Prüfsumme des
   // gebauten Workers (verkleinert wird etwa Math.pow zu **, nach ECMAScript dieselbe Operation).
   // Namen werden verkürzt (mangle, seit Ticket 05 wieder an): Kein Worker bekommt mehr seinen Code als Text von
