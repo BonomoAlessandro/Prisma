@@ -43,15 +43,16 @@ Liste aller Sprachen, in der man wählt (vom Nutzer gewählt, siehe Spec):
       auf dem Handy Trefferflächen von mindestens etwa 44 px Höhe. Der Fokusrahmen erscheint wie im übrigen Menü erst
       nach einer Taste.
 - [ ] **Nur eine Sprache:** kein ▾, keine Liste, ein Klick tut nichts.
-- [ ] **Tests:**
-      - Probe im Browser: öffnen, wählen (Wechsel ohne Neuladen), aktuelle wählen, Esc, Klick ausserhalb, erneutes
-        Antippen, Tastatur (Pfeile, Pos1, Ende, Enter, Tab), Fokus danach, Menü ausblenden mit offener Liste. Auf
-        Desktop und Handy, je Deutsch und Englisch.
-      - Bildvergleich: neue Referenzen nur für die Menübilder (`menue` je Grösse und Sprache, nur der Schalter oben
-        rechts ändert sich), dazu eine neue Ansicht mit offener Liste (etwa `menue-sprachen`) je Grösse und Sprache.
-        Neue Referenzen in SwiftShader und auf der Grafikkarte (`referenz/` und `referenz-gpu/`) schreiben, vorher
-        prüfen, dass sich in den übrigen Bildern nichts ändert. Der Bildvergleich mit Wechsel aus Ticket 01 bleibt grün.
-      - Golden und Node-Tests grün.
+- [ ] **Tests, gezielt und ohne grosse Läufe** (Entscheid des Nutzers 18.11.2026; die Änderung betrifft nur das
+      Menü):
+      - Eine Probe im Browser, ein Lauf: öffnen, wählen (Wechsel ohne Neuladen), aktuelle wählen, Esc, Klick
+        ausserhalb, erneutes Antippen, Tastatur (Pfeile, Pos1, Ende, Enter, Tab), Fokus danach, Menü ausblenden mit
+        offener Liste. Auf Desktop und Handy hochkant.
+      - Node-Tests grün.
+      - Referenzbilder des Menüs einmal nachführen, für Lage (Ticket 03) und Liste zusammen: nur der Ablauf mit dem
+        Menü (`--nur welt-3-4 --write`, SwiftShader und `--gpu`). Nur die Bilder `menue` übernehmen, andere Bilder
+        dieses Ablaufs, die sich durch Rauschen ändern, mit `git restore` zurücksetzen. Kein ganzer Bildvergleich,
+        keine neue Ansicht.
 - [ ] `appVersion` in `package.json` auf `2026-11-18 sprachwahl-2`.
 - [ ] README und Kopfkommentar von `menue.js` (Beschreibung des Schalters), `CONTEXT.md`, falls dort der Schalter
       steht.

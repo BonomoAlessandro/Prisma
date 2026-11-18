@@ -39,9 +39,9 @@ Handy quer prüfen und anpassen, wo es nötig ist.
       die von «Von vorn».
 - [ ] Die Liste aus Ticket 02 geht in die passende Richtung auf und bleibt ganz im Bild.
 - [ ] Die Reihenfolge für die Tastatur (Tab) passt zur neuen Lage.
-- [ ] Bildvergleich: neue Referenzen nur für die Menübilder (`menue`, je Grösse und Sprache, SwiftShader und
-      Grafikkarte). Vorher prüfen, dass sich die übrigen Bilder nicht ändern. Der Bildvergleich mit Wechsel aus Ticket
-      01 bleibt grün.
+- [ ] **Gezielt prüfen, keine grossen Läufe** (Entscheid des Nutzers 18.11.2026; die Änderung betrifft nur das
+      Menü): Aufnahmen des Menüs in den Grössen oben, Abstände und Trefferfläche im Browser gemessen, Node-Tests.
+      Kein Bildvergleich. Die Referenzbilder des Menüs schreibt Ticket 02 einmal für Lage und Liste zusammen.
 - [ ] `appVersion` in `package.json` hochzählen (`2026-11-18 sprachwahl-…`).
 - [ ] README und Kopfkommentar von `menue.js` (Lage des Schalters) nachgeführt.
 
