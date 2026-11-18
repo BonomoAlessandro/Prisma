@@ -230,7 +230,7 @@ async function halt(was, { station = null, warten = 0, name = null } = {}) {
     const tap = await ev(`(() => { const t = document.querySelector('#story .caption .tap');
       return { text: t.textContent,
         sichtbar: getComputedStyle(t).visibility === 'visible' && t.getClientRects().length > 0 }; })()`);
-    pruefe(tap.text === (view.phone ? 'Tippen' : 'Klicken') && tap.sichtbar, `${was}: beim Halt keine Aufforderung `
+    pruefe(tap.text === T('geschichte.tippen', { touch: view.phone }) && tap.sichtbar, `${was}: beim Halt keine Aufforderung `
       + JSON.stringify(tap));
     if (station !== null) await pruefeLeiste(station, `${was} (Halt)`);
     if (name) await bild(name);
@@ -1188,7 +1188,8 @@ async function menueAblauf() {
   await pruefeImBild('#menue', 'Menü');
   // der Wagen je Grad auf der Sternkarte (Ticket 08 von .scratch/kleiner-wagen/): mitten im Durchgang (Leicht im Meer,
   // Mittel in der Wüste, Schwer im Bergwald) und geschafft; nicht begonnen nach «Von vorn» (unten)
-  const wagenSoll = { leicht: [1, 0, 'Meer'], schwer: [0, 0, 'Bergwald'], 'sehr schwer': [7, 7, null], mittel: [2, 1, 'Wüste'] };
+  const wagenSoll = { leicht: [1, 0, WELT_MENUE[1]], schwer: [0, 0, WELT_MENUE[0]], 'sehr schwer': [7, 7, null],
+    mittel: [2, 1, WELT_MENUE[2]] };
   for (const [g, [wach, linien, jetzt]] of Object.entries(wagenSoll)) {
     await tippe(karte(g), `Reiter ${g}`);
     await sleep(300);
@@ -1697,7 +1698,7 @@ async function uebersichtAblauf() {
     return { stand: localStorage.getItem('prisma.noa.leicht'), karte: document.querySelector('${karte('leicht')}'
       + ' .menue-stand').textContent, werte: lv.filter((x) => x.bestzeit !== null || x.drehungen !== null).length,
       geloest: lv.filter((x) => x.geloest).length }; })()`);
-  pruefe(vv.stand === null && vv.karte === 'noch nicht begonnen' && vv.werte === 0 && vv.geloest === 0
+  pruefe(vv.stand === null && vv.karte === T('menue.neu') && vv.werte === 0 && vv.geloest === 0
     && JSON.stringify(await besteWerte('leicht')) === JSON.stringify(bestVorher),
   `«Von vorn» Leicht ${JSON.stringify(vv)}`);
 
