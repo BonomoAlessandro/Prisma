@@ -171,7 +171,8 @@ Together with the fireflies you carry the light from place to place: from the fo
   <tr><td>App-Zugriff</td><td>Alle Funktionen ohne Anmeldung und ohne besondere Zugangsdaten verfügbar</td></tr>
   <tr><td>Werbung</td><td>Nein, die App enthält keine Werbung</td></tr>
   <tr><td>Käufe in der App</td><td>Keine</td></tr>
-  <tr><td>Zielgruppe</td><td>Entscheidet der Nutzer. Vorschlag: 13 Jahre und älter. Wer auch Kinder unter 13 wählt, fällt unter die Richtlinie für Familien (strengere Prüfung; die App erhebt nichts, das wäre also möglich, braucht aber mehr Angaben).</td></tr>
+  <tr><td>Zielgruppe und Inhalt (Altersgruppen)</td><td><b>6–8, 9–12, 13–15, 16–17, 18 und älter</b> (Entscheid des Nutzers 18.11.2026: auch für Kinder unter 13; damit gilt die Richtlinie für Familien, Prüfliste unten). Nicht «5 und jünger»: Das Spiel braucht Lesen (Geschichte, Sätze der Übungen im Dorf) und wird ab dem zweiten Grad zum Denksport; für Kleinkinder ist es nicht gemacht, und Google prüft Apps für diese Gruppe besonders streng.</td></tr>
+  <tr><td>Könnte die App unbeabsichtigt Kinder ansprechen?</td><td>Entfällt: Kinder gehören zur Zielgruppe.</td></tr>
   <tr><td>Behörden-, Finanz-, Gesundheits-, Nachrichten-App</td><td>Nein</td></tr>
 </table></div>
 
@@ -196,7 +197,25 @@ Together with the fireflies you carry the light from place to place: from the fo
   <tr><td>Teilt den Standort</td><td>Nein</td></tr>
   <tr><td>Digitale Käufe</td><td>Nein</td></tr>
   <tr><td>Zugang zum offenen Internet in der App</td><td>Nein (nur der Link zur Datenschutzerklärung, im Browser des Geräts)</td></tr>
-  <tr><td>Erwartete Einstufung</td><td>PEGI 3, USK ab 0, ESRB Everyone, IARC 3+</td></tr>
+  <tr><td>Erwartete Einstufung</td><td>PEGI 3, USK ab 0, ESRB Everyone, IARC 3+ (passt zu Altersgruppen ab 6)</td></tr>
+</table></div>
+
+<h3>Richtlinie für Familien (Kinder unter 13 in der Zielgruppe)</h3>
+<p>Mit Altersgruppen unter 13 prüft Google die App nach der Richtlinie für Familien. Befund für diese Fassung
+  (Stand 18.11.2026):</p>
+<div class="tabelle"><table>
+  <tr><th>Anforderung</th><th>Befund</th></tr>
+  <tr><td>Werbung (nur zertifizierte Werbe-SDKs, kindgerecht)</td><td>Erfüllt: keine Werbung, kein Werbe-SDK.</td></tr>
+  <tr><td>SDKs und Bibliotheken ohne Datenerhebung bei Kindern</td><td>Erfüllt: nur Capacitor und AndroidX (Anzeige, Zurück-Taste); keine Analyse, keine Absturzberichte, kein Firebase, kein Google-Konto.</td></tr>
+  <tr><td>Keine Kennungen, kein Standort, keine heiklen Berechtigungen</td><td>Erfüllt: keine Werbe-ID, kein Standort, keine Kamera, kein Mikrofon; einzige Berechtigung <code>INTERNET</code> (normale Berechtigung, nichts wird gesendet).</td></tr>
+  <tr><td>Datenschutzerklärung, die Kinder behandelt</td><td>Erfüllt: Abschnitt «Kinder»/«Children» auf Deutsch und Englisch; keine Daten, keine Werbung, keine Käufe, kein Chat.</td></tr>
+  <tr><td>Datensicherheit stimmt mit der App überein</td><td>Erfüllt: «keine Daten erhoben oder geteilt», wie oben.</td></tr>
+  <tr><td>Käufe in der App</td><td>Erfüllt: keine.</td></tr>
+  <tr><td>Austausch mit anderen (Chat, Teilen, Profile)</td><td>Erfüllt: keiner.</td></tr>
+  <tr><td>Inhalt kindgerecht</td><td>Erfüllt: ruhiges Licht-Puzzle, keine Gewalt, keine Angstszenen, keine Sprache, die nicht für Kinder passt; IARC 3+.</td></tr>
+  <tr><td>Links aus der App heraus</td><td>Zulässig: Der einzige Link ist «Datenschutz» im Menü; er öffnet die eigene Datenschutzerklärung im Browser des Geräts (ohne Werbung, ohne Formular, nichts zu kaufen). Google verlangt, dass die Datenschutzerklärung erreichbar ist. Eine Elternschranke ist für Links zu Käufen oder sozialen Medien üblich, für diesen Link nicht nötig. Kein Hinweis in der App nötig.</td></tr>
+  <tr><td>WebView lädt nur eigene Inhalte</td><td>Erfüllt: Das Spiel liegt in der App, nichts wird aus dem Netz geladen.</td></tr>
+  <tr><td>Store-Eintrag spricht Kinder nicht irreführend an</td><td>Erfüllt: Texte und Bilder zeigen das Spiel, wie es ist.</td></tr>
 </table></div>
 </main>
 <script>
