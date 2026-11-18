@@ -1,6 +1,14 @@
 # Spec: Sprachwahl
 
-Status: in Arbeit (Branch `feature/sprachwahl` von `main` 08d3d80)
+Status: umgesetzt (18.11.2026: Tickets 01–03 fertig und reviewt, `db4d746` auf `feature/sprachwahl` von `main`
+08d3d80; offen sind der Test des Nutzers und der Merge nach `main`)
+
+Offen aus den Reviews:
+- `sprachliste.js` importiert `./ui.js` nur für die Ladereihenfolge, die der Kettentest in `tests/logic.test.mjs`
+  verlangt. Sauberer wäre, es dort als Hilfe (`hilfen`) aufzunehmen wie `aufgabe.ts`. Dann lädt auch die Probeseite
+  das Modul direkt.
+- Die GPU-Referenzen `*-welt-4-*` (Vulkan) passen auf dieser Grafikkarte nicht mehr (Lavarisse unten links). Das
+  stammt nicht aus diesem Vorhaben. Neu schreiben, wenn SwiftShader grün ist (CLAUDE.md, Prüfläufe).
 
 Wunsch des Nutzers (18.11.2026) zum Schalter der Sprache oben rechts im Menü (Ticket 07 und 08 von `.scratch/umbau/`):
 
