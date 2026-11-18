@@ -11,7 +11,7 @@ Klick wechselt direkt zur nächsten Sprache, ohne dass man sieht, welche das ist
 Liste aller Sprachen, in der man wählt (vom Nutzer gewählt, siehe Spec):
 
 ```
-        🌐 DE ▾
+   Desktop:  🌐 DEUTSCH ▾        Smartphone:  🌐 DE ▾
    ┌─────────────┐
    │ ✓ Deutsch   │
    │   English   │
@@ -19,10 +19,13 @@ Liste aller Sprachen, in der man wählt (vom Nutzer gewählt, siehe Spec):
 ```
 
 - [ ] **Schalter:** Globus, das Kürzel der aktuellen Sprache und ein kleines ▾ (als Zeichen im Strich der übrigen
-      Zeichen des Menüs, kein Schriftzeichen), so zurückhaltend wie heute. Statt «DEUTSCH» steht nur noch «DE», statt
-      «ENGLISH» nur «EN» (Wunsch des Nutzers 18.11.2026, damit der Schalter auf dem Handy weniger Platz braucht). Das
-      Kürzel ist das der Sprachdatei in Grossbuchstaben. Das `aria-label` nennt weiter den vollen Namen. Antippen oder
-      Klicken öffnet die Liste. Ist die Liste offen, schliesst ein erneutes Antippen sie wieder.
+      Zeichen des Menüs, kein Schriftzeichen), so zurückhaltend wie heute. **Auf dem Smartphone** steht statt
+      «DEUTSCH» nur «DE», statt «ENGLISH» nur «EN», damit der Schalter neben dem Titel weniger Platz braucht. **Sonst**
+      (Desktop, Tablet) bleibt der volle Name wie heute (Wunsch des Nutzers 18.11.2026). Smartphone heisst: die
+      Handy-Layouts des Menüs, hochkant und quer (dieselben Medienabfragen wie in `menue.css`, mit `SEITE`). Am
+      einfachsten stehen beide Texte im Schalter, und das CSS zeigt je Layout einen. Das Kürzel ist das der Sprachdatei
+      in Grossbuchstaben. Das `aria-label` nennt immer den vollen Namen. Antippen oder Klicken öffnet die Liste. Ist
+      die Liste offen, schliesst ein erneutes Antippen sie wieder.
 - [ ] **Liste:** alle Sprachen mit Datei (`VORHANDEN`, Deutsch zuerst), jede mit ihrem Namen in ihr selbst
       («Deutsch», «English»). Die aktuelle Sprache hat ein Häkchen. Antippen einer anderen Sprache wechselt sie (Ticket
       01, ohne Neuladen) und schliesst die Liste. Danach steht der Schalter in der neuen Sprache. Antippen der

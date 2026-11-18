@@ -47,8 +47,9 @@ Handy quer prüfen und anpassen, wo es nötig ist.
 
 18.11.2026, nach Ansicht des Katalogs (`../katalog/index.html`): «option 0 ist noch immer die beste, also nichts soll
 sich hier ändern». Der Schalter bleibt oben rechts, so wie er ist. Die Liste aus Ticket 02 geht von dort nach unten
-auf. Dazu der Vorschlag des Nutzers: Auf dem Schalter steht künftig nur das Kürzel («DE», «EN») statt «DEUTSCH» und
-«ENGLISH». Das braucht weniger Platz neben dem Titel. Umgesetzt in Ticket 02.
+auf. Dazu der Vorschlag des Nutzers: Auf dem Smartphone steht auf dem Schalter künftig nur das Kürzel («DE», «EN»)
+statt «DEUTSCH» und «ENGLISH». Das braucht weniger Platz neben dem Titel. Auf anderen Geräten bleibt der volle Name.
+Umgesetzt in Ticket 02.
 
 Die Varianten im Katalog waren:
 
