@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent (umgesetzt, Review bestanden)
+**Status:** done (Review 18.11.2026 bestanden; Meilenstein 2 vom Nutzer ausgelassen)
 
 **Blocked by:** 07
 
