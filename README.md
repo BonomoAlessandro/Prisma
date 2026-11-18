@@ -205,7 +205,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Stichprobe.
   - `LEISE_ART=leicht LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 5400 node
     tests/bildvergleich.mjs [--gpu] [--write] [--groesse desktop,handy,quer,poco]
-    [--nur start,dorf,welt-1-2,welt-3-4,welt-5-6] [--jobs n]` ist der Bildvergleich des Umbaus (`.scratch/umbau/`, Ticket 01; etwa 35 min allein: gemessen 27–33 min
+    [--nur start,dorf,welt-1-2,welt-3-4,welt-5-6] [--sprache de,en] [--jobs n]` ist der Bildvergleich des Umbaus (`.scratch/umbau/`, Ticket 01; etwa 35 min allein: gemessen 27–33 min
     für die drei ersten Grössen unter `leise.sh` mit 100 %, davon Desktop 16–20 min, Handy hochkant und quer je 5–7 min,
     dazu «poco» gut 6 min; neben anderen leichten Läufen entsprechend länger; mit `--groesse` und `--nur` kürzer). Er
     nimmt eine feste Liste von Ansichten in Headless-Chrome auf und vergleicht sie mit den Referenzbildern in
@@ -222,7 +222,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     ein dritter wartet. Der GPU-Weg ist der schnelle für Umsetzer; die genaue Prüfung bleibt SwiftShader (Regeln oben).
     Ansichten: Startbildschirm, Menü mit den vier Graden, Übersicht, jede Welt der Geschichte mit ihrem
     Himmel je in einem Level vor und nach dem Lösen, die vier Übungen im Dorf mit Band, Lichtkegel und Hand, Prolog,
-    Reise (Bergwald → Meer) und Epilog; jedes Element steht mindestens einmal im Bild. Je in drei Grössen: Desktop
+    Reise (Bergwald → Meer) und Epilog; jedes Element steht mindestens einmal im Bild. Seit Ticket 08 alles auch auf
+    Englisch (Chrome mit `--lang=en-US`): Bilder `en-<grösse>-<ansicht>.jpg` mit eigenen Referenzen in beiden
+    Ordnern, die deutschen bleiben, wie sie sind; ohne `--sprache` beide Sprachen (doppelte Laufzeit),
+    `--sprache de` bzw. `--sprache en` nur eine. Je in drei Grössen: Desktop
     1280 × 800, Handy hochkant 390 × 844 und Handy quer 844 × 390 (Pixeldichte 1); dazu «poco» wie das Poco F4 GT
     (393 × 873, Pixeldichte 2,75, Android-Kennung, nur `start`, `dorf` und `welt-1-2`): Nur so laufen der Massstab der
     Seite (`SEITE`) und das Pixelverhältnis 2 des Renderers wie auf den echten Handys (der Lauf prüft beides; Fund
@@ -272,6 +275,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `src/seite/`, `src/texte/sprache.js`) ausser über `t()`: ein String mit Umlaut, einem grossgeschriebenen Wort der
     deutschen Texte oder zwei Wörtern daraus hintereinander, in HTML Text und gelesene Attribute; ohne Kommentare,
     Shader, Konsole, Fehler und Protokoll der Arbeit, mit einer Liste bewusster Ausnahmen (`AUSNAHMEN`, je mit Grund).
+    Seit Ticket 08 zählen dafür die Wörter aller Sprachen (auch englischer Text fällt auf), `en.json` hat keine
+    deutschen Reste, Geschichte und Führung sind je Sprache ohne Gedankenstrich und Doppelpunkt (PLAN 1a.2), und jede
+    Sprache ausser Deutsch hat ihr Manifest `manifest-<kürzel>.webmanifest` (gleich bis auf Name, Beschreibung,
+    `lang`).
     Dazu der Kern (Rückfall auf Deutsch, Platzhalter, Wahl der Sprache).
   - `node tests/beurteilung.test.mjs` prüft die Beurteilung (unter `leise.sh` etwa 40 s, auf einem Thread 90–130 s je
     nach Last): den Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue
@@ -386,7 +393,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     und ein anderes hin (ohne Titel), byte-gleich.
   - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
     [--grad leicht,mittel,…] [--welten 2 | --ganz] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf] [--dorf-raender]
-    [--groesse 360x640]` spielt Noas
+    [--groesse 360x640] [--sprache en]` spielt Noas
     Geschichte in Headless-Chrome über das Menü (Tickets 04 bis 07; etwa 3 min je Grad; der Zeitrahmen läuft erst, wenn `leise.sh`
     die Sperre hat): je Grad ein Durchgang durch die ersten Welten (Karte im Menü, Prolog, Einstieg, je 10 Level,
     Reise), danach Neuladen und «Weiter» am selben Platz ohne Einstieg; `--finale` das Finale ab der letzten Welt bis
@@ -417,7 +424,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Sitzung vom Menü bis zum Epilog und zurück ins Menü, mit Neuladen mitten in der Wüste und den Bildzeiten jeder
     Zwischenszene (Prolog, Einstieg, fünf Reisen, Finale, Epilog). `--handy` 390 × 844 (mit `--groesse` ein anderes
     Handy, etwa 360x640), `--quer` 844 × 390, beide mit Touch (`Input.dispatchTouchEvent`),
-    sonst 1440 × 900 mit der Maus. Gelöst wird über die Testschnittstelle (`__prismaDebug.loese`), einen Stand setzt
+    sonst 1440 × 900 mit der Maus. `--sprache en` (Ticket 08): Chrome meldet Englisch, die erwarteten Texte kommen aus
+    `en.json` (ohne: Deutsch). Gelöst wird über die Testschnittstelle (`__prismaDebug.loese`), einen Stand setzt
     die Probe in `localStorage`. Sie prüft Kopfzeile, Speicherstand, Menü und Konsole, dass das Menü nach der Wahl
     sofort ausblendet und die Kamera im Himmel bleibt, bis die Welt bereit ist (kein leeres Brett), misst die
     Bildzeiten der Übergänge (Lücken über 100 ms sind Fehler) und legt Bilder nach `tests/output/geschichte/`
@@ -452,8 +460,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `tests/output/energie/ruhetakt-*.json`.
   - `node tests/offline.mjs` prüft den Offline-Betrieb am frisch gebauten `dist/` mit dessen `sw.js` (`--redirect`:
     Server leitet index.html weiter; `--unterpfad`: das Spiel unter `/Prisma/` wie auf GitHub Pages; startet
-    Headless-Chrome, also wie die Screenshots nur über `leise.sh`). Er prüft auch den Bereich von Service Worker und
-    Manifest (der Ordner der Seite) und die Datenschutzerklärung offline.
+    Headless-Chrome, also wie die Screenshots nur über `leise.sh`; Chrome mit `--lang=de`, damit das Ergebnis nicht
+    von der Sprache des Rechners abhängt). Er prüft auch den Bereich von Service Worker und Manifest (der Ordner der
+    Seite) und die Datenschutzerklärung offline.
   - `GPU=1 LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/spiegel-probe.mjs
     [pruefe|messen|bilder] [--handy] [--welten forest,beach,…] [--runden 4] [--level 212] [--fassungen …]
     [--vorher datei] [--ordner pfad]` (Tickets 03 und 04 der Energie, je etwa 3 min): `pruefe` (Vorgabe) wechselt in

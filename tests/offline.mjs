@@ -62,7 +62,9 @@ const profile = mkdtempSync(join(tmpdir(), 'prisma-offline-'));
 const proc = spawn(chrome, [
   '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
   '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist',
-  '--no-first-run', '--no-default-browser-check', '--mute-audio', '--window-size=1000,700', 'about:blank',
+  '--no-first-run', '--no-default-browser-check', '--mute-audio', '--window-size=1000,700',
+  // die Sprache fest (Ticket 08): sonst sähe ein Rechner mit englischer Sprache das englische Spiel (tools/chrome.mjs)
+  '--lang=de', 'about:blank',
 ], { stdio: 'ignore' });
 const chromeExited = new Promise(r => proc.on('exit', r));
 

@@ -289,7 +289,8 @@ holt den Text aus der Datei der Sprache (`src/texte/de.json`, je Sprache eine Da
 der deutsche Text. Werte stehen als Platzhalter im Text («Übung {n} / {N}»), die Befehlsform je Gerät ebenso («{Tippe}»
 ist am Handy «Tippe», mit der Maus «Klicke»). Auch die Titel der Level (unter ihrem Namen) und die Sätze der Führung
 stehen dort; die Leveldaten nennen nur Schlüssel. Die Sprache ist beim ersten Start die des Geräts, danach die im Menü
-gewählte (Speicherschicht, `prisma.sprache`). Umbau für die Stores, Ticket 07; im Code `src/texte/`.
+gewählte (Speicherschicht, `prisma.sprache`): Deutsch bei einem deutschen Gerät, sonst Englisch
+(`src/texte/en.json`, seit Ticket 08). Umbau für die Stores, Tickets 07 und 08; im Code `src/texte/`.
 _Vermeiden_: i18n, Lokalisierung (für die Schicht selbst), Sprachpaket
 
 **Testschnittstelle**:

@@ -9,10 +9,14 @@
 // - Die Regeln der Führung je Sprache und Gerät: ein Schritt 3–18 Wörter und höchstens 105 Zeichen, ein oder zwei
 //   Sätze, nur bekannte Platzhalter; ein Hinweis nebenbei höchstens 16 Wörter (bis Ticket 07 in tests/logic.test.mjs).
 // - Kein Text, den der Spieler sieht, steht mehr fest im Code der Oberfläche (index.html, src/main.ts, src/seite/,
-//   src/texte/sprache.js): Ein String (ohne Kommentare, ohne den Schlüssel in t(…)) gilt als deutscher Text, wenn er ein
-//   Wort mit Umlaut oder ß enthält, ein grossgeschriebenes Wort der deutschen Texte oder zwei Wörter der deutschen Texte
-//   hintereinander; in HTML zählen Text und die Attribute aria-label, title, alt, placeholder. Ausgenommen sind Meldungen
-//   an die Konsole und Fehler (console.…, new Error) und die bewussten Ausnahmen in AUSNAHMEN, je mit Grund.
+//   src/texte/sprache.js): Ein String (ohne Kommentare, ohne den Schlüssel in t(…)) gilt als Text für den Spieler, wenn
+//   er ein Wort mit Umlaut oder ß enthält, ein grossgeschriebenes Wort der Texte einer Sprache oder zwei Wörter der
+//   Texte einer Sprache hintereinander (seit Ticket 08 auch die englischen, etwa «Level solved»); in HTML zählen Text
+//   und die Attribute aria-label, title, alt, placeholder. Ausgenommen sind Meldungen an die Konsole und Fehler
+//   (console.…, new Error) und die bewussten Ausnahmen in AUSNAHMEN, je mit Grund.
+// - Seit Ticket 08: en.json ohne deutsche Reste (kein Umlaut, kein Text gleich dem deutschen ausser Namen), die Texte der
+//   Geschichte und der Führung ohne die Muster, die in PLAN 1a.2 «zu stark nach KI» wirkten (Gedankenstrich,
+//   Doppelpunkt), je Sprache.
 // - Der Kern: Nachschlagen, Rückfall auf Deutsch, Platzhalter, Texte je Gerät, die Wahl der Sprache.
 // Läuft in Node ohne Browser (etwa 2 s): node tests/texte.test.mjs
 import assert from 'node:assert/strict';
@@ -181,11 +185,12 @@ const erlaubt = (pfad, text) => {
   const a = AUSNAHMEN[pfad] ?? {};
   return Object.hasOwn(a, '*') || Object.hasOwn(a, text) || Object.hasOwn(AUSNAHMEN['*'], text);
 };
-/** Wörter der deutschen Texte (ohne Platzhalter), für die Suche. */
-const WOERTER = new Set([...DE_BLAETTER].filter(([s]) => !s.startsWith('titel.')).flatMap(([, w]) => varianten(w))
+/** Wörter der Texte aller Sprachen (ohne Titel und Platzhalter), für die Suche. */
+const WOERTER = new Set(Object.values(SPRACHEN).flatMap((texte) => [...blaetter(texte)])
+  .filter(([s]) => !s.startsWith('titel.')).flatMap(([, w]) => varianten(w))
   .flatMap((x) => x.replace(/\{[^{}]*\}/g, ' ').match(/[\p{L}]{3,}/gu) ?? []));
 const KLEIN = new Set([...WOERTER].map((x) => x.toLowerCase()));
-/** Sieht der Text aus wie deutscher Text für den Spieler? (siehe Kopf) */
+/** Sieht der Text aus wie Text für den Spieler, auf Deutsch oder in einer anderen Sprache? (siehe Kopf) */
 function deutsch(text) {
   const w = text.match(/[\p{L}\p{N}_-]+/gu) ?? [];
   if (w.some((x) => /[äöüÄÖÜß]/.test(x))) return true;
@@ -242,6 +247,17 @@ test('Die Suche findet deutsche Texte und lässt Kennungen, Klassen und Schlüss
   assert.deepEqual(festeTexte(p, code).map((f) => f.text),
     ['Level gelöst', 'Weiter', 'Ziele   /', 'noch nicht begonnen', 'Menü']);
 });
+test('Die Suche findet auch englische Texte (Gegenprobe, Ticket 08)', () => {
+  assert.ok(SPRACHEN.en, 'en.json fehlt');
+  const p = 'src/seite/probe.js';
+  const code = [
+    "a.textContent = 'Level solved';", "b.title = 'Restart level (R)';", "c.innerHTML = `<span>Tap to start</span>`;",
+    "d.setAttribute('aria-label', 'Next world');", "if (k === 'next' || k === 'menu') e.classList.add('band-next');",
+    "f(t('menue.aktion.weiter'));", "console.warn('Sky is missing');",
+  ].join('\n');
+  assert.deepEqual(festeTexte(p, code).map((f) => f.text),
+    ['Level solved', 'Restart level (R)', 'Tap to start', 'Next world']);
+});
 test('Kein deutscher Text im Code der Oberfläche ausser über t() (index.html, src/main.ts, src/seite/, '
   + 'src/texte/sprache.js; mit Liste bewusster Ausnahmen)', () => {
   const funde = OBERFLAECHE.flatMap((p) => festeTexte(p, lies(p)));
@@ -261,6 +277,49 @@ test('index.html: Seitentitel und Beschreibung wie in de.json; sonst kein Elemen
   const mitText = [...html.matchAll(/<(\w+)[^>]*\sdata-t="([^"]+)"[^>]*>([^<]*)</g)]
     .filter((m) => m[1] !== 'title' && m[3].trim()).map((m) => m[2]);
   assert.deepEqual(mitText, []);
+});
+
+console.log('Englisch und Ton (Ticket 08)');
+/** Texte, die sich vorlesen: die Geschichte (ohne Knöpfe und Titel) und die Führung. */
+const ERZAEHLT = new RegExp('^(geschichte\\.(prolog|finale|epilog)\\.|geschichte\\.dorf\\.(angebot|einstieg|ende)$'
+  + '|geschichte\\.kapitel\\.\\w+\\.reise$|fuehrung\\.(schritt|nebenbei)\\.)');
+test('Geschichte und Führung ohne Gedankenstrich, Doppelpunkt und Strichpunkt (PLAN 1a.2), je Sprache', () => {
+  for (const [k, texte] of Object.entries(SPRACHEN)) {
+    const erzaehlt = [...blaetter(texte)].filter(([s]) => ERZAEHLT.test(s));
+    assert.ok(erzaehlt.length >= 35, `${k}: nur ${erzaehlt.length} Texte`);
+    for (const [s, w] of erzaehlt) for (const x of varianten(w)) assert.ok(!/[–—:;]| - /.test(x), `${k}: ${s} «${x}»`);
+  }
+});
+test('en.json: kein deutscher Rest (Umlaut, ß, «», Text gleich dem deutschen ausser Namen und reinen Mustern)', () => {
+  const en = SPRACHEN.en;
+  assert.ok(en, 'en.json fehlt');
+  // gleich wie im Deutschen dürfen sein: Muster ohne Wort und Wörter, die in beiden Sprachen gleich lauten; dazu die
+  // Titel (Namen von Monden, Sternbildern, Gesteinen wie Io, Pegasus, Basalt)
+  const GLEICH = new Set(['Level {n}', 'Tutorial {n} / {N} – {titel}', '{grad}: {stand}. {aktion}',
+    '{aktion}: {grad}, {stand}', '{kapitel} – {titel}', '{grad} · {welt} {n} / {N}']);
+  for (const [s, w] of blaetter(en)) {
+    for (const [i, x] of varianten(w).entries()) {
+      // die Namen der Platzhalter ({Drücke lang}) sind in jeder Sprache dieselben
+      assert.ok(!/[äöüÄÖÜß«»]/.test(x.replace(/\{[^{}]*\}/g, '')), `en: ${s} «${x}»`);
+      assert.ok(x !== varianten(DE_BLAETTER.get(s))[i] || GLEICH.has(x) || s.startsWith('titel.'),
+        `en: ${s} wie im Deutschen «${x}»`);
+    }
+  }
+  assert.equal(en.seite.titel, 'Prisma – Light Puzzle');
+});
+test('Manifest je Sprache: manifest-<kürzel>.webmanifest wie manifest.webmanifest bis auf Name, Beschreibung und lang '
+  + '(aus der Sprachdatei); der Name auf dem Startbildschirm bleibt «Prisma»', () => {
+  const de = JSON.parse(lies('manifest.webmanifest'));
+  assert.equal(de.name, DE.seite.titel);
+  assert.equal(de.description, DE.seite.beschreibung);
+  assert.equal(de.lang, 'de');
+  for (const [k, texte] of Object.entries(SPRACHEN)) {
+    if (k === 'de') continue;
+    const m = JSON.parse(lies(`manifest-${k}.webmanifest`));
+    assert.deepEqual(m, { ...de, name: texte.seite.titel, description: texte.seite.beschreibung, lang: k }, k);
+    assert.equal(m.short_name, 'Prisma');
+  }
+  assert.match(lies('src/texte/sprache.js'), /manifest-\$\{sprache\}\.webmanifest/);
 });
 
 console.log('Kern (src/texte/uebersetzung.js)');

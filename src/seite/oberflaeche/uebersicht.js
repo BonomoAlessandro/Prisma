@@ -1,6 +1,6 @@
 // Übersicht des Grads (Sternhaufen) (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
 import './menue.js';
-import { t } from '../../texte/sprache.js';
+import { sprache, t } from '../../texte/sprache.js';
 
 /* =====================================================================
    ÜBERSICHT DES GRADS (Ticket 06, Spec .scratch/noa-geschichte/, Entscheide 9, 16, 19, 24) — Baustein aus
@@ -91,10 +91,20 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
    * kann (Schaum-krone, Feuer-schlund, See-pferd-chen, Luft-spiegelung), sonst vor dem letzten Konsonanten
    * (Asteroiden-gürtel); vorn zwei, hinten vier Buchstaben mindestens (sonst Asteroidengür-tel, Bärenhü-ter). Gebraucht
    * nur, wenn ein Wort auch klein nicht in die Kachel passt (.ueb-brich); sonst trennt das CSS nicht.
+   * Je Sprache eigene Regeln (TRENNREGELN, Ticket 08 des Umbaus; eine Sprache ohne eigene nimmt die deutschen). Englisch:
+   * die Anlaute englischer Wörter (ohne th, tw, sh: Earth-rise, Drift-wood statt Ear-thrise, Drif-twood); ck und x
+   * bleiben bei der Silbe davor; vor einem e, dem gleich wieder Konsonanten folgen, wird nicht getrennt (meist ein
+   * stummes e am Ende eines Wortteils: Horse-head, Fire-storm statt Hor-se-head, Fi-re-storm).
    */
   const VOKAL = /[aeiouyäöüàéèê]/i;
-  const ANLAUT = ['schr', 'schl', 'schm', 'schn', 'schw', 'spr', 'str', 'pfl', 'pfr', 'sch', 'pf', 'bl', 'br', 'ch', 'ck',
-    'dr', 'fl', 'fr', 'gl', 'gr', 'kl', 'kn', 'kr', 'ph', 'pl', 'pr', 'sp', 'st', 'th', 'tr', 'zw'];
+  const TRENNREGELN = {
+    de: { anlaut: ['schr', 'schl', 'schm', 'schn', 'schw', 'spr', 'str', 'pfl', 'pfr', 'sch', 'pf', 'bl', 'br', 'ch',
+      'ck', 'dr', 'fl', 'fr', 'gl', 'gr', 'kl', 'kn', 'kr', 'ph', 'pl', 'pr', 'sp', 'st', 'th', 'tr', 'zw'] },
+    en: { anlaut: ['chr', 'phr', 'scr', 'spl', 'spr', 'squ', 'str', 'bl', 'br', 'ch', 'cl', 'cr', 'dr', 'fl', 'fr', 'gl',
+      'gr', 'ph', 'pl', 'pr', 'qu', 'sc', 'sk', 'sl', 'sm', 'sn', 'sp', 'st', 'sw', 'tr', 'wr'], amEnde: ['ck', 'x'],
+    stummesE: true },
+  };
+  const { anlaut: ANLAUT, amEnde: AM_ENDE = [], stummesE: STUMMES_E = false } = TRENNREGELN[sprache] ?? TRENNREGELN.de;
   const SHY = String.fromCharCode(0xad);
   const trenne = (titel) => String(titel ?? '').replace(/\p{L}{9,}/gu, (w) => {
     const klein = w.toLowerCase(), stellen = [];
@@ -104,8 +114,10 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
       while (e < w.length && !VOKAL.test(klein[e])) e++;
       if (e >= w.length) break; // am Wortende: keine Trennstelle
       const gruppe = klein.slice(i, e), anlaut = ANLAUT.find((a) => gruppe.endsWith(a));
-      const t = e - (anlaut ? anlaut.length : 1);
-      if (t >= 2 && w.length - t >= 4) stellen.push(t);
+      const amEnde = AM_ENDE.includes(gruppe);
+      const t = amEnde ? e : e - (anlaut ? anlaut.length : 1);
+      const stumm = STUMMES_E && !amEnde && klein[e] === 'e' && e + 2 < w.length && !VOKAL.test(klein[e + 1]);
+      if (!stumm && t >= 2 && w.length - t >= 4) stellen.push(t);
       i = e;
     }
     return stellen.reduceRight((s, t) => s.slice(0, t) + SHY + s.slice(t), w);

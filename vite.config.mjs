@@ -11,8 +11,9 @@
 // src/seite/ton.js, himmel/skybox.js und texturen.js, Vite macht daraus im Build assets/<name>-worker-<hash>.js.
 //
 // Beim Build kommen dazu (Plugin prisma):
-// - die statischen Dateien unverändert nach dist/: vendor/, icons/, favicon.svg, manifest.webmanifest, die
-//   Datenschutzerklärung datenschutz.html (eine einfache Seite ohne Skript, Ticket 09) und aus backgrounds/ das Register skies.js mit den Teilen, die es nennt (alte Stände bleiben weg). Was Vite schon selbst
+// - die statischen Dateien unverändert nach dist/: vendor/, icons/, favicon.svg, die Manifeste, die
+//   Datenschutzerklärung datenschutz.html (eine einfache Seite ohne Skript, Ticket 09) und aus backgrounds/ das
+//   Register skies.js mit den Teilen, die es nennt (alte Stände bleiben weg). Was Vite schon selbst
 //   aus der Quelle übernommen hat (die Schrift), wird nicht noch einmal kopiert;
 // - der <link> des Stils an seine Stelle in der Quelle (stilZurueck);
 // - sw.js mit den Listen FILES und LAZY aus dem, was in dist/ liegt (Regeln im Kopf von sw.js);
@@ -32,7 +33,9 @@ const VERSION = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).app
 if (typeof VERSION !== 'string' || !VERSION) throw new Error('package.json: appVersion fehlt');
 const PLATZHALTER = '__APP_VERSION__';
 const MIT_VERSION = 'src/seite/konfiguration.ts'; // das Modul mit APP_VERSION
-const STATISCH = ['vendor', 'icons', 'favicon.svg', 'manifest.webmanifest', 'datenschutz.html'];
+// die Manifeste: manifest.webmanifest (Deutsch) und je weitere Sprache manifest-<kürzel>.webmanifest (Ticket 08)
+const STATISCH = ['vendor', 'icons', 'favicon.svg', 'datenschutz.html',
+  ...readdirSync(root).filter((d) => /^manifest(-[a-z]+)?\.webmanifest$/.test(d)).sort()];
 /**
  * Nicht in den Speicher des Service Workers: er selbst, die Lizenztexte (liegen bei, braucht das Spiel nicht) und die
  * Source-Maps (lädt nur ein offenes DevTools).
