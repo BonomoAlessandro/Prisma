@@ -29,9 +29,10 @@ Abschnitt Tests.
 
 ## Laufendes Vorhaben
 
-PLAN 3a «Umbau für die Stores» (`feature/umbau`): Spec und Tickets in `.scratch/umbau/`, vor dem Weitermachen lesen.
-`main` mit «Energie auf dem Handy» ist seit 16.11.2026 hineingeholt; als Nächstes Ticket 01. Zuletzt abgeschlossen:
-«Energie auf dem Handy» (16.11.2026 nach `main`: Ruhe-Bildrate 30, Spiegelung nur im All, −50 % Strom auf dem Poco;
+PLAN 3a.3 «Sprachwahl» (`feature/sprachwahl`, seit 18.11.2026): Spec und Tickets in `.scratch/sprachwahl/`, vor dem
+Weitermachen lesen. Wechsel der Sprache ohne Neuladen (01), Liste beim Antippen (02). Zuletzt abgeschlossen: PLAN 3a.1
+«Umbau für die Stores» (Tickets 01–09 am 18.11.2026 nach `main`, 08d3d80; `.scratch/umbau/`, Ticket 10 mit eigenem
+Grilling offen); davor «Energie auf dem Handy» (16.11.2026 nach `main`: Ruhe-Bildrate 30, Spiegelung nur im All, −50 % Strom auf dem Poco;
 `.scratch/energie/`); davor PLAN 1a.3 «Tutorial neu» (15.11.2026 nach `main`, Übergabe in
 `.scratch/tutorial-neu/STAND.md`; offen nur der Test mit einer fremden Person); davor PLAN 1a.1 «Führung im Dorf» (10.11.2026 nach `main`, Übergabe in
 `.scratch/tutorial-fuehrung/STAND.md`); davor PLAN 1.1 «Ein Brett je Himmel» (`.scratch/brett-je-himmel/STAND.md`).
