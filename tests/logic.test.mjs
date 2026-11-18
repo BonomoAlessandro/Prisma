@@ -1540,6 +1540,10 @@ console.log('Offline');
     assert.ok(alle.length > 10 && namen.length >= 5, 'keine Tests im Workflow');
     assert.deepEqual(namen.filter((n) => !alle.includes(n)), [], 'unbekannte Tests im Workflow');
     assert.ok(!namen.includes('leise'), 'leise läuft nur unter Windows');
+    // wuerfelliste sucht die Commits der Herkunft («Stand …») in der Geschichte: checkout holt sonst nur einen Commit
+    if (namen.includes('wuerfelliste')) {
+      assert.match(wf, /uses: actions\/checkout@v\d+\n {8}with:\n {10}fetch-depth: 0$/m, 'checkout ohne fetch-depth: 0');
+    }
   });
   // Dev-Server (npm run dev): Version eingesetzt, kein Service Worker, vendor/ und backgrounds/ roh
   const { createServer } = await import('vite');

@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent (umgesetzt, wartet auf Review)
+**Status:** ready-for-agent (umgesetzt, Review bestanden)
 
 **Blocked by:** 08 (technisch genügt 02; auf Wunsch des Nutzers nach Meilenstein 1 vorziehbar)
 
@@ -32,7 +32,7 @@ Umsetzer, 18.11.2026, Branch `ticket/umbau-09` ab `85d0c74` (parallel zu Ticket 
 geändert. Messungen mit `GPU=1`, frischer Chrome je Lauf; Basis = Build von `85d0c74`.
 
 **Workflow** `.github/workflows/pages.yml` (Name «Pages»): nur `push` auf `main` und `workflow_dispatch`. Job
-`bauen` (ubuntu-latest, Grenze 30 min): `actions/checkout@v7`, `actions/setup-node@v7` (Node 22, npm-Cache), `npm ci`,
+`bauen` (ubuntu-latest, Grenze 30 min): `actions/checkout@v7` (mit `fetch-depth: 0`, seit dem Review), `actions/setup-node@v7` (Node 22, npm-Cache), `npm ci`,
 `node tests/alle.mjs golden logic hall speicher testschnittstelle texte vorrat wuerfelliste ki-tester typecheck`,
 `npm run build`, `actions/configure-pages@v6`, `actions/upload-pages-artifact@v5` (`path: dist`). Job
 `veroeffentlichen`: `actions/deploy-pages@v5`, Umgebung `github-pages`. Rechte `contents: read`, `pages: write`,
@@ -68,7 +68,7 @@ Dateien, Stil inline, Systemschrift), vom Build unverändert nach `dist/` (`STAT
 Statistik, keine Cookies, keine Dritten; Fortschritt und Einstellungen (Ton, Sprache) nur im Local Storage des Geräts,
 die Dateien des Spiels im Zwischenspeicher, löschbar mit den Websitedaten; keine Abrufe bei fremden Servern; GitHub
 Pages als Hoster (Server-Protokolle mit IP, Verweis auf die Datenschutzerklärung von GitHub); Kinder; Kontakt
-Alessandro Bonomo über das Repo. Im Code geprüft: keine `http(s)`-Adresse, die geladen wird (in `index.html`, `src/`,
+Alessandro Bonomo per E-Mail (`mailto:bonomo.alessandro@yahoo.de`, Wunsch des Nutzers im Review) oder über das Repo. Im Code geprüft: keine `http(s)`-Adresse, die geladen wird (in `index.html`, `src/`,
 Stil und Build nur Kommentare in three.js und der SVG-Namensraum), keine Schriften oder CDNs von aussen (Jost liegt
 unter `assets/`), `fetch` nur auf eigene Dateien der Skyboxen, kein `sessionStorage`, `indexedDB`, `document.cookie`.
 Test `logic` «Pages: Datenschutzerklärung …» (im Build gleich wie die Quelle, in `FILES`, beide Sprachen, kein Skript,
@@ -153,8 +153,8 @@ einem Dienst für Fehlerberichte, den es nicht gibt. Für die App (Ticket 10) ne
 - **Datenschutzerklärung im Spiel verlinken:** braucht einen Text («Datenschutz» / «Privacy») in `src/texte/*.json`
   und einen Platz im Menü; gehört nach dem Merge von 08 und 09 in ein kleines Folgeticket (oder in Ticket 10, für das
   der Play Store die Adresse ohnehin verlangt). Für den Store genügt die Adresse.
-- **Kontakt in der Datenschutzerklärung:** heute «über das Repo» (GitHub). Der Play Store verlangt im Store-Eintrag
-  ohnehin eine E-Mail-Adresse; ob sie auch auf die Seite soll, entscheidet der Nutzer (PLAN 4.9).
+- ~~**Kontakt in der Datenschutzerklärung**~~ erledigt im Review: Der Nutzer will die E-Mail-Adresse
+  bonomo.alessandro@yahoo.de auf der Seite (Deutsch und Englisch, `mailto:`), daneben bleibt das Repo.
 - **Offline erst nach der Enthüllung** (Abwägung oben). Wer den Service Worker früher will: in `src/main.ts` statt
   `introCalm` das Ende des Seitenstarts nehmen.
 - Gemeinsamer Ursprung `bonomoalessandro.github.io`: `localStorage` und Cache Storage teilen sich alle Seiten des
@@ -177,3 +177,65 @@ einem Dienst für Fehlerberichte, den es nicht gibt. Für die App (Ticket 10) ne
    später in den Play Store, PLAN 4.9).
 5. Nichts weiter einzustellen: Die Umgebung «github-pages» legt GitHub beim ersten Lauf selbst an (nur `main` darf
    dorthin veröffentlichen).
+
+### Review (unabhängiger Reviewer)
+
+Reviewer, 18.11.2026, Branch `ticket/umbau-09` (`b0afc87`, `4907904`). **Ergebnis: bestanden**, mit zwei kleinen
+Korrekturen und dem Zusatz des Nutzers (Commit des Reviews). Nichts auf GitHub geändert, nicht gepusht.
+
+**Behoben (klein):**
+- **Workflow holte nur einen Commit:** `actions/checkout` holt ohne `fetch-depth` nur den letzten Commit. `wuerfelliste`
+  prüft aber mit `git cat-file`, dass jeder «Stand» in der Herkunft der Würfel-Level ein Commit ist (7 Commits, alle
+  Vorfahren des Branches). Nachgestellt in einem Klon mit `--depth 1`: `wuerfelliste` rot («Stand ist kein Commit»), der
+  erste Lauf auf GitHub wäre gescheitert. Jetzt `fetch-depth: 0` (ganze Geschichte, gut 70 MB gepackt, auf dem Runner
+  einige Sekunden); der Test «Pages: Workflow …» in `logic` verlangt das, solange `wuerfelliste` im Workflow steht.
+  (Der Nachbau des Umsetzers in einem vollen Klon konnte das nicht zeigen.)
+- Datenschutz, Englisch: «Responsible:» → «Responsible party:».
+- **Zusatz des Nutzers:** Kontakt per E-Mail `bonomo.alessandro@yahoo.de` (Deutsch und Englisch, `mailto:`-Link),
+  das Repo bleibt daneben. Der Test «Pages: Datenschutzerklärung …» bleibt grün (ein `<a href>` lädt nichts),
+  `offline.mjs --unterpfad` mit dieser Fassung: Seite offline vom Service Worker.
+
+**Geprüft ohne Fund:**
+- Workflow: Auslöser nur `push` auf `main` und `workflow_dispatch`; Rechte `contents: read`, `pages: write`,
+  `id-token: write`; `concurrency: pages` ohne Abbrechen; Umgebung `github-pages` mit `page_url`; wie die Vorlage von
+  GitHub. Tags `v7` (checkout, setup-node), `v6` (configure-pages), `v5` (upload-pages-artifact, deploy-pages) gibt es
+  (`git ls-remote` am 18.11.2026; Release-Notizen ohne Bruch für diesen Gebrauch). `upload-pages-artifact` lässt
+  Punktdateien weg: in `vendor/`, `icons/`, `backgrounds/` gibt es keine. `package-lock.json` für `cache: npm` da.
+- Linux: alle relativen Importe und `join(root, '…')`-Pfade in `src/`, `tests/`, `tools/` und `vite.config.mjs` mit
+  exakter Gross-/Kleinschreibung (Skript); die Tests der Auswahl starten Node, Vite und tsc über `process.execPath`
+  (kein `.cmd`, kein `node_modules/.bin`, keine Shell), `\` nur normalisiert. Der echte Lauf auf GitHub bleibt offen.
+- Unterpfad: relativ überall (Seite, Stil, Manifest mit Icons, `sw.js`, Worker im Bündel, Datenschutz mit `./`).
+- Service Worker: siehe Urteil unten.
+- Datenschutzerklärung gegen den Code: `localStorage` nur über `src/speicher.ts` (Stand `prisma.noa.*`, Ton, Sprache),
+  kein `sessionStorage`, `indexedDB`, Cookie, `sendBeacon`, WebSocket; `fetch` nur eigene Dateien. Deutsch und
+  Englisch gut lesbar.
+- Source-Maps behalten: plausibel (öffentliches Repo, kein Spieler lädt sie, nicht im Speicher); für Ticket 10 neu.
+- README und Ticket stimmen mit dem Code.
+
+**Urteil zur Abweichung beim Service Worker (nach `load` und `prisma-ruhig`): sinnvoll und robust.** Die Messung
+zeigt, dass die wörtliche Vorgabe nichts verschoben hätte. Der Preis (offline erst nach rund 7 s) betrifft nur den
+ersten Besuch; bei Wiederkehrern prüft der Browser `sw.js` ohnehin bei jeder Navigation, das spätere `register` ist
+dort nur eine weitere Prüfung. Die Pfade: `?nointro` ruft `markIntroCalm` direkt; der normale Start setzt es in
+`ui.init` nach `seitenstartAngestossen` (im `finally` des Seitenstarts, auch bei Fehlern) und `vorwaermenVorStart`
+(Fehler abgefangen, Bühne höchstens 1 s); reduzierte Bewegung sofort nach `.go`; Wiederkehrer gehen durch denselben
+Startbildschirm. Hintergrund-Tab: `requestAnimationFrame` steht, also registriert er erst, wenn der Tab sichtbar
+wird (das Spiel startet dann auch erst) – gewollt. Reihenfolge `load`/`prisma-ruhig` egal (`Promise.all`, beide
+Hörer im Kopf vor jedem Modul, Promise also auch bei vorher erfülltem `introCalm`); genau einmal (`once`, ein
+Promise; ein zweites `register` wäre ohnehin harmlos). Nie registriert nur, wenn das Modul nicht lädt (kein WebGL,
+Fehler beim Import) oder der Rückruf in `ui.init` vor `setTimeout(markIntroCalm)` wirft (`sceneLoop.aufwaermen`):
+Dann fehlt auch «Klicken zum Starten», das Spiel liefe ohnehin nicht. Wer mehr Sicherheit will, könnte nach `load`
+spätestens nach z. B. 20 s registrieren; nötig ist das nicht.
+
+**Läufe** (über `tools/leise.sh`, leicht, neben Ticket 08; Messläufe auf Wunsch des Nutzers nicht):
+- `npm test` ganz: alle 15 grün (`geschichte` 1191 s). `logic` nach den Korrekturen noch einmal: grün.
+- `golden --voll`: grün (842 Level).
+- Bildvergleich SwiftShader ganz (40 min): 76 von 77 grün, rot nur `quer-dorf-uebung-2` (0,014 %, Abweichung 6);
+  allein wiederholt (`--jobs 1 --nur dorf --groesse quer`): alle 5 grün, Abweichung 0. Flake des parallelen Laufs.
+- `offline.mjs` und `offline.mjs --unterpfad` (dieser schon mit der E-Mail): bestanden, Bereich von Service Worker und
+  Manifest `/` bzw. `/Prisma/`, Datenschutz offline vom Service Worker.
+
+**Für den Merge mit Ticket 08:** Berührungspunkte sind `tests/logic.test.mjs` (vier neue Tests am Ende des Blocks
+«Offline», vor dem Dev-Server), `README.md` (Abschnitt «Im Netz» und Offline, `offline.mjs`), `vite.config.mjs`
+(`STATISCH`, Kommentar zu den Source-Maps), `index.html` (Kopfskript) und `src/main.ts`. Ändert 08 die Liste in
+`tests/alle.mjs` (Namen), muss die Auswahl im Workflow mitziehen (der Test «Pages: Workflow …» fängt unbekannte Namen).
+Ein Link auf die Datenschutzerklärung im Spiel braucht Texte aus 08 (offener Punkt oben).
