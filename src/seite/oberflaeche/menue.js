@@ -1,5 +1,5 @@
 // Menü der Geschichte (Sternkarte mit Reitern) (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
-import './ui.js';
+import { createSprachliste } from './sprachliste.js';
 import { beiSprachwechsel, setzeSprache, sprache, spracheName, t, VORHANDEN } from '../../texte/sprache.js';
 
 /* =====================================================================
@@ -12,10 +12,12 @@ import { beiSprachwechsel, setzeSprache, sprache, spracheName, t, VORHANDEN } fr
    (in dieser Sitzung) ein Stern erwacht, blitzt er auf, und seine Linien ziehen sich (der Moment aus dem Katalog).
    Desktop und Handy quer: Reiter links untereinander, die Karte daneben, der Knopf darunter; Handy hoch: Reiter oben
    als Segmente, darunter Karte und Stand, der Knopf ganz unten in Reichweite des Daumens. Oben rechts der Schalter
-   der Sprache (Ticket 07 von .scratch/umbau/; das Spiel hat keine eigenen Einstellungen): Globus und der Name der
-   Sprache, ein Klick wechselt zur nächsten, ohne Neuladen (Ticket 01 von .scratch/sprachwahl/): Das Menü bleibt offen
-   und schreibt seine Texte neu (Reiter, Karte, Knopf, Stand, eine offene Rückfrage), der Fokus bleibt auf dem
-   Schalter, und der Bildschirmleser hört die neue Sprache; auch ein geschlossenes Menü folgt einem Wechsel. Texte über
+   der Sprache (Ticket 07 von .scratch/umbau/; das Spiel hat keine eigenen Einstellungen): Globus, der Name der Sprache
+   (auf dem Handy, hochkant und quer, ihr Kürzel «DE») und ein ▾. Er öffnet eine Liste aller Sprachen, nach unten
+   (createSprachliste in sprachliste.js, Ticket 02 von .scratch/sprachwahl/; Esc schliesst nur sie, nicht das Menü).
+   Eine andere wählen wechselt ohne Neuladen (Ticket 01): Das Menü bleibt offen und schreibt seine Texte neu (Reiter,
+   Karte, Knopf, Stand, eine offene Rückfrage, Schalter und Liste), der Fokus liegt auf dem Schalter, und der
+   Bildschirmleser hört die neue Sprache; auch ein geschlossenes Menü folgt einem Wechsel. Texte über
    die Übersetzungsschicht (t), die Namen von Graden, Welten und Aktionen erst beim Lesen. Gestalt im Stil (Präfix
    menue-). Der Baustein .scratch/noa-geschichte/bausteine/menue/ («Lichtwege») ist damit überholt.
 
@@ -33,8 +35,8 @@ import { beiSprachwechsel, setzeSprache, sprache, spracheName, t, VORHANDEN } fr
    wagen: Form und Linien des Kleinen Wagens { form, linien, polarstern } (im Spiel das Modul wagen).
    onAction({ aktion, grad }): 'weiter' | 'beginnen' | 'fortsetzen' | 'uebersicht' | 'vonvorn' (nach der Rückfrage).
    Bedienung: Ein Reiter wählt seinen Grad (Klick, Tippen, Fokus); der Knopf und Enter auf einem Reiter führen die
-   Aktion des Grads aus. Pfeile: der Knopf, dann die Reiter von oben nach unten (Pos1, Ende). Ohne Abhängigkeiten vom
-   übrigen Spiel.
+   Aktion des Grads aus. Pfeile: der Knopf, dann die Reiter von oben nach unten (Pos1, Ende); solange die Liste der
+   Sprachen offen ist, bedienen Pfeile, Pos1, Ende, Enter, Tab und Esc nur sie. Ohne Abhängigkeiten vom übrigen Spiel.
    ===================================================================== */
 
 const createMenu = (() => {
@@ -167,7 +169,7 @@ const createMenu = (() => {
         <div class="menue-knoepfe">
           <button type="button" class="menue-weiter" data-menue-fokus="weiter"><span class="menue-was"></span><span class="menue-wohin"></span></button>
         </div>
-        <button type="button" class="menue-sprache" data-menue-fokus="sprache" aria-label="${esc(t('menue.sprache', { sprache: spracheName(sprache) }))}">${icon('sprache')}<span>${esc(spracheName(sprache))}</span></button>
+        <button type="button" class="menue-sprache" data-menue-fokus="sprache">${icon('sprache')}</button>
       </div>
       <div class="menue-frage menue-aus" role="alertdialog" aria-modal="true" aria-labelledby="${uid}-frage-titel" aria-describedby="${uid}-frage-text" hidden>
         <div class="menue-frage-box">
@@ -189,12 +191,18 @@ const createMenu = (() => {
     const knopf = $('.menue-weiter'), knoepfe = $('.menue-knoepfe'), info = $('.menue-info');
     const frageEl = $('.menue-frage'), sr = $('.menue-sr');
     const neinBtn = $('[data-menue-frage="nein"]'), jaBtn = $('[data-menue-frage="ja"]');
-    const spracheKnopf = $('.menue-sprache');
-    // Sprache (Ticket 07 von .scratch/umbau/): die nächste der Sprachen mit Datei, ohne Neuladen (setzeSprache; Ticket
-    // 01 von .scratch/sprachwahl/, das Menü schreibt sich dann neu, sprachwechsel). Mit nur einer Sprache bleibt alles,
-    // wie es ist.
-    spracheKnopf.addEventListener('click', () => {
-      if (offen && !gesperrt) setzeSprache(VORHANDEN[(VORHANDEN.indexOf(sprache) + 1) % VORHANDEN.length]);
+    // Sprache (Ticket 07 von .scratch/umbau/): Der Schalter öffnet die Liste der Sprachen mit Datei, nach unten, am
+    // rechten Rand des Schalters (Ticket 02 von .scratch/sprachwahl/). Eine andere wählen wechselt ohne Neuladen
+    // (setzeSprache, Ticket 01; das Menü schreibt sich dann neu, auch Schalter und Liste). Den Text des Schalters (voller
+    // Name, auf dem Handy das Kürzel) und das ▾ setzt die Liste; mit nur einer Sprache tut ein Klick nichts.
+    /** Name der Liste und aria-label des Schalters (voller Name und Kürzel) in der aktuellen Sprache. */
+    const sprachTexte = () => ({ liste: t('menue.sprachliste'),
+      schalter: t('menue.sprache', { sprache: spracheName(sprache), kuerzel: sprache.toUpperCase() }) });
+    const sprachliste = createSprachliste({
+      knopf: $('.menue-sprache'),
+      sprachen: VORHANDEN.map((k) => ({ kuerzel: k, name: spracheName(k) })),
+      aktuell: sprache, richtung: 'unten', ausrichtung: 'ende', texte: sprachTexte(),
+      onWahl: (k) => { if (offen && !gesperrt) setzeSprache(k); },
     });
 
     let stand0 = {};        // der Stand des Spiels, den es zeigt (show, vorwaermen; ein Wechsel der Sprache liest ihn neu)
@@ -416,6 +424,7 @@ const createMenu = (() => {
 
     function oeffneFrage(g, von) {
       if (!offen || gesperrt) return;
+      sprachliste.schliessen(true); // nie Liste und Rückfrage zugleich
       clearTimeout(zeitFrage);
       frage = g;
       frageVon = von?.dataset.menueFokus ?? null;
@@ -476,8 +485,7 @@ const createMenu = (() => {
       root.setAttribute('aria-label', t('menue.name'));
       $('.menue-unter').textContent = t('start.untertitel');
       liste.setAttribute('aria-label', t('menue.grade'));
-      spracheKnopf.setAttribute('aria-label', t('menue.sprache', { sprache: spracheName(sprache) }));
-      spracheKnopf.lastElementChild.textContent = spracheName(sprache);
+      sprachliste.setze({ aktuell: sprache, texte: sprachTexte() }); // Schalter, Häkchen, Name der Liste
       neinBtn.textContent = t('menue.frage.abbrechen');
       jaBtn.textContent = aktionName('vonvorn');
       const key = root.contains(document.activeElement) ? document.activeElement.dataset?.menueFokus : null;
@@ -497,6 +505,7 @@ const createMenu = (() => {
 
     /** true: die Taste gehört dem Menü (Standardaktion verhindert). */
     function taste(e) {
+      if (sprachliste.offen) return sprachliste.keydown(e); // die Taste gehört der Liste (Esc schliesst nur sie)
       if (e.ctrlKey || e.metaKey || e.altKey) return false;
       if (frage) {
         if (e.key === 'Escape') { schliesseFrage(false); return true; }
@@ -583,6 +592,7 @@ const createMenu = (() => {
         offen = false;
         if (momentBis) momentBis = 1; // ein unterbrochener Moment spielt beim nächsten Öffnen nicht noch einmal
         schliesseFrage(false, true);
+        sprachliste.schliessen(true);
         if (root.contains(document.activeElement)) document.activeElement.blur();
         root.inert = true;
         root.classList.add('menue-aus');
@@ -601,6 +611,7 @@ const createMenu = (() => {
        */
       keydown(e) {
         if (!offen) return false;
+        if (sprachliste.offen) return sprachliste.keydown(e);
         if (root.contains(e.target)) return e.defaultPrevented || taste(e) && (e.preventDefault(), true);
         if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'].includes(e.key)) {
           e.preventDefault();

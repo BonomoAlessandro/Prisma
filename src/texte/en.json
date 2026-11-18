@@ -86,7 +86,8 @@
     "geschafft": "Completed",
     "imDorf": "in the village",
     "geloescht": "{grad}: progress deleted.",
-    "sprache": "Language: {sprache}",
+    "sprache": "Language: {sprache} ({kuerzel})",
+    "sprachliste": "Choose language",
     "spracheGewechselt": "The game is now in {sprache}.",
     "aktion": {
       "weiter": "Continue",

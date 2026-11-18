@@ -44,8 +44,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Sprache (`?sprache=<kürzel>` zum Prüfen, sonst die im Menü gewählte, sonst die des Geräts: `de*` Deutsch, sonst
     Englisch, solange es `en.json` gibt), setzt `lang` des Dokuments und die festen Texte in `index.html`
     (`data-t`, `data-t-title`, `data-t-aria-label`, `data-t-content`). Der Schalter der Sprache steht oben rechts im
-    Menü (das Spiel hat keine eigenen Einstellungen); ein Wechsel speichert die Sprache und lädt die Seite seit Ticket
-    01 von `.scratch/sprachwahl/` nicht mehr neu (`setzeSprache`, Kern `sprachSchicht` in `uebersetzung.js`): `t`,
+    Menü (das Spiel hat keine eigenen Einstellungen): Globus, der Name der Sprache (auf dem Handy, hochkant und quer, ihr
+    Kürzel «DE») und ein ▾; er öffnet nach unten eine Liste aller Sprachen mit Datei, je mit ihrem Namen in ihr selbst,
+    die aktuelle mit Häkchen (Ticket 02 von `.scratch/sprachwahl/`, `src/seite/oberflaeche/sprachliste.js`, «Menu
+    Button» nach WAI-ARIA APG; Esc schliesst nur die Liste). Ein Wechsel speichert die Sprache und lädt die Seite seit
+    Ticket 01 nicht mehr neu (`setzeSprache`, Kern `sprachSchicht` in `uebersetzung.js`): `t`,
     `levelTitel` und `sprache` (ein Live-Binding) folgen sofort der neuen Sprache; `sprache.js` stellt `lang`, die festen
     Texte (ausser denen mit Zustand, `data-zustand="text"` bzw. `="aria-label"`: ihr Besitzer setzt sie), Seitentitel,
     Beschreibung und Manifest um und meldet den Wechsel allen, die sich mit `beiSprachwechsel(fn)` gemeldet haben. Wer
@@ -61,8 +64,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Elemente), `brett/feld.js` (`game`: Logik und Darstellung verbunden, Laden, Drehen, Würfel), `brett/strahlen.js`,
     `eingabe.js` (Maus, Finger, Mausrad), `ton.js`, `levelfluss.js` (Lösungsmoment, Übergänge, Fortschritt),
     `oberflaeche/dom.ts`, `fuehrung.js` (Führung im Dorf), `oberflaeche/` (`ui.js` Kopfzeile, Knöpfe, «Gelöst»,
-    Startbildschirm; `menue.js`; `uebersicht.js`), `geschichte/` (`daten.js` Kapitel und Texte, `buehne.js` Bühne von Prolog und
-    Epilog, `geschichte.js` Ablauf `story`), `aufloesung.js` (Grösse, Uhr, adaptive Auflösung, Spiegelung je Bild),
+    Startbildschirm; `sprachliste.js` Liste der Sprachen am Schalter im Menü; `menue.js`; `uebersicht.js`),
+    `geschichte/` (`daten.js` Kapitel und Texte, `buehne.js` Bühne von Prolog und Epilog, `geschichte.js` Ablauf
+    `story`), `aufloesung.js` (Grösse, Uhr, adaptive Auflösung, Spiegelung je Bild),
     `leistung.js` (Messwerkzeug, Leistungsanzeige `?perf`, Bildrate), `schleife.js` (Hauptschleife, Testschnittstelle
     `window.__prisma`/`__prismaDebug`, Seitenstart). Dazu `aufgabe.ts` (eine neue Aufgabe abwarten) und
     `testschnittstelle.ts`.
@@ -440,18 +444,25 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Bildzeiten der Übergänge (Lücken über 100 ms sind Fehler) und legt Bilder nach `tests/output/geschichte/`
     (`<bildschirm>-<name>.png`, `«sehr schwer»` als `sehr-schwer`).
   - `LEISE_ART=leicht LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node
-    tests/sprachwechsel-probe.mjs [--gpu] [--handy] [--von en] [--nur start,menue,dorf,reise]` prüft den Wechsel der
-    Sprache ohne Neuladen (Ticket 01 von `.scratch/sprachwahl/`; kurz und gezielt statt eines Bildvergleichs, Entscheid
-    des Nutzers 18.11.2026; auf der GPU gut 2 min, Desktop 1280 × 800, mit `--handy` Handy hochkant 390 × 844 mit Touch,
-    ein leichter Lauf). Das Spiel lädt auf Deutsch (mit `--von en` auf Englisch) und wechselt dann hin und
-    her: auf dem Startbildschirm (Adresse ohne `?sprache=`, gespeichert, Neuladen mit und ohne Parameter), im Menü mit
-    dem Schalter wie ein Spieler hin und zurück (Fokus bleibt auf dem Schalter, Reiter und Karte bleiben, Ansage für den
-    Bildschirmleser in der neuen Sprache) und mit offener Rückfrage, dann in Prolog, Angebot, Einstieg ins Dorf, Übung 1
-    mit Band, Menü aus der Übung und zurück, «Gelöst», Übersicht, «Gelöst» am Ende des Bergwalds, Reise ans Meer und
-    Epilog. Nach jedem Wechsel steht kein Text im Dokument mehr in der alten Sprache, auch kein verborgener (Text,
-    `aria-label`, `title`, `alt`, `placeholder`, `content`, `document.title`; gesucht als ganzes Wort: jedes Stück
-    eines Blatts der alten Sprachdatei, das in der neuen anders lautet, bis zum nächsten Platzhalter; mit Gegenprobe vor
-    dem Wechsel); kein Neuladen, dasselbe Brett, derselbe Himmel, keine Ladeanzeige, `lang`, Manifest, Konsole leer.
+    tests/sprachwechsel-probe.mjs [--gpu] [--handy] [--von en] [--bilder] [--nur start,menue,liste,dorf,reise]` prüft
+    den Wechsel der Sprache ohne Neuladen und die Liste am Schalter (Tickets 01 und 02 von `.scratch/sprachwahl/`; kurz
+    und gezielt statt eines Bildvergleichs, Entscheid des Nutzers 18.11.2026; auf der GPU knapp 3 min, Desktop
+    1280 × 800, mit `--handy` Handy hochkant 390 × 844 mit Touch, ein leichter Lauf). Das Spiel lädt auf Deutsch (mit
+    `--von en` auf Englisch) und wechselt dann hin und her: auf dem Startbildschirm (Adresse ohne `?sprache=`,
+    gespeichert, Neuladen mit und ohne Parameter), im Menü wie ein Spieler mit Schalter und Liste hin und zurück (Fokus
+    bleibt auf dem Schalter, Reiter und Karte bleiben, Ansage für den Bildschirmleser in der neuen Sprache) und mit
+    offener Rückfrage, dann in Prolog, Angebot, Einstieg ins Dorf, Übung 1 mit Band, Menü aus der Übung und zurück,
+    «Gelöst», Übersicht, «Gelöst» am Ende des Bergwalds, Reise ans Meer und Epilog. Nach jedem Wechsel steht kein Text
+    im Dokument mehr in der alten Sprache, auch kein verborgener (Text, `aria-label`, `title`, `alt`, `placeholder`,
+    `content`, `document.title`; gesucht als ganzes Wort: jedes Stück eines Blatts der alten Sprachdatei, das in der
+    neuen anders lautet, bis zum nächsten Platzhalter; mit Gegenprobe vor dem Wechsel; ausgenommen Elemente mit eigenem
+    `lang`, die Namen in der Liste); kein Neuladen, dasselbe Brett, derselbe Himmel, keine Ladeanzeige, `lang`,
+    Manifest, Konsole leer. Der Ablauf `liste` prüft die Liste im Menü aus einem Level: Schalter (Desktop der volle
+    Name, Handy das Kürzel, ▾, `aria-label` mit Name und Kürzel), Öffnen (Fokus auf der aktuellen, Häkchen, Lage im
+    Bild unter dem Schalter, auf dem Handy Einträge ab 44 px), Antippen ausserhalb (darunter löst nichts aus), erneutes
+    Antippen, die aktuelle wählen, Esc (schliesst nur die Liste, mit Gegenprobe), Tastatur (Enter, Pfeile, Pos1, Ende,
+    Tab, ein Wechsel mit Enter), einen Wechsel mit dem Zeiger, «Von vorn» und das Ausblenden des Menüs bei offener
+    Liste. `--bilder`: Aufnahmen der offenen Liste nach `tests/output/sprachwechsel/`.
   - Golden-Test, Strahlregel, Beurteilung samt Eichung, Levelliste, Würfelliste und KI-Tester lesen die Level aus Spiel
     und Vorrat über den Lader (`tools/lader.mjs`), die Anzeige der Grade und die Proben im Browser nur das Spiel.
   - Proben im Browser mit Messwerten (`start-probe`, `leerlauf-probe`, Messwerkzeug mit `?perf`): Headless ist das
