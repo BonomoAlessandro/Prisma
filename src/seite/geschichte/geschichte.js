@@ -2371,12 +2371,40 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+/**
+ * Zurück-Taste von Android (Ticket 10 von .scratch/umbau/): wie Esc auf der Tastatur. Im Level, im Dorf und in der
+ * Reise ins Menü; die offene Übersicht schliesst; die Rückfrage «Von vorn» bricht ab; das Menü, das aus einem Level
+ * kam, führt dorthin zurück; im Prolog und im Epilog überspringt sie (wie Esc). false: hier gibt es kein Zurück mehr
+ * (Startbildschirm, Menü ohne Level dahinter), die App schliesst.
+ */
+function zurueckTaste() {
+  if (flow.state === 'intro') return false;
+  if (uebersicht.offen) { story.closeOverview(); return true; }
+  if (menu.offen) {
+    // offene Rückfrage: das Menü nimmt Esc (abbrechen); target: nicht im Menü (sonst prüfte es seine Knöpfe)
+    if (menu.keydown({ key: 'Escape', code: 'Escape', target: document.body, defaultPrevented: false, preventDefault() {} })) return true;
+    if (!story.choosing) return true; // das Menü geht gerade zu (ein Grad ist gewählt)
+    if (story.paused) { story.back(); return true; }
+    return false;
+  }
+  if (story.keydown({ code: 'Escape', preventDefault() {} })) return true;
+  story.toMenu();
+  return true;
+}
+// Nur in der App (npm run build:app, import.meta.env.MODE 'app'): Im Build der Browser-Fassung fällt dieser Teil samt
+// @capacitor/app weg. Mit einem Hörer auf backButton geht Android nicht mehr selbst zurück; ohne Zurück schliesst die App.
+if (import.meta.env.MODE === 'app') {
+  import('@capacitor/app').then(({ App }) => {
+    App.addListener('backButton', () => { if (!zurueckTaste()) App.exitApp(); });
+  });
+}
+
 // ?nointro: direkt ins Spiel (Screenshot-Tests)
 if (new URLSearchParams(location.search).has('nointro')) { ui.canStart = true; ui.start(false); markIntroCalm(); }
 
 // Testschnittstelle: Diese Namen lesen Proben als globale Namen (src/seite/testschnittstelle.ts)
 alsGlobal({
-  menu: () => menu, story: () => story, uebersicht: () => uebersicht,
+  menu: () => menu, story: () => story, uebersicht: () => uebersicht, zurueckTaste: () => zurueckTaste,
 });
 
 export { menu, story, storyEase, storyLinear, storySleep, uebersicht, vorwaermenVorStart };

@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prisma im Play Store</title>
+<!--
+  Store-Material für Google Play (Ticket 10 von .scratch/umbau/). Alles, was die Play Console beim ersten Eintrag
+  verlangt, an einer Stelle: Texte (die Abschnitte mit id …-titel, …-kurz, …-lang prüft tests/app.test.mjs auf die
+  Längen des Stores), Bilder neben dieser Seite, Antworten für Inhaltseinstufung und Datensicherheit. Öffnen: diese
+  Datei im Browser (auch über file://). Die Bilder macht tests/bildvergleich.mjs --gpu --store <ordner>, das Icon
+  tools/app-icons.mjs.
+-->
+<style>
+  /* Layout: eine Spalte wie ein Formular der Play Console, je Feld Name, Grenze und Text zum Kopieren; Bilder als Reihe */
+  @font-face { font-family: "Jost"; src: url("../vendor/jost/jost-latin.woff2") format("woff2"); font-weight: 100 900; }
+  :root {
+    --grund: #f6f6fa; --karte: #ffffff; --tinte: #1b1a2b; --leise: #5d5b74; --linie: #dcdbe8; --licht: #4b4fc4;
+    --ok: #2f7d4f;
+    --schrift: "Jost", "Segoe UI", system-ui, sans-serif; --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --grund: #08081a; --karte: #12122a; --tinte: #e8e6f0; --leise: #a6a4bd; --linie: #2a2a48; --licht: #9aa3ff;
+      --ok: #7fd4a0; color-scheme: dark; }
+  }
+  body { margin: 0; background: var(--grund); color: var(--tinte); font: 16px/1.6 var(--schrift); font-weight: 350; }
+  main { max-width: 860px; margin: 0 auto; padding-block: 40px 80px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  h1 { font-weight: 250; letter-spacing: 0.32em; text-transform: uppercase; font-size: 30px; margin: 0; }
+  h1 + p { color: var(--leise); margin: 6px 0 0; }
+  h2 { font-weight: 400; font-size: 20px; margin: 48px 0 14px; padding-bottom: 6px; border-bottom: 1px solid var(--linie); text-wrap: balance; }
+  h3 { font-weight: 500; font-size: 15px; margin: 22px 0 6px; }
+  p, li { max-width: 68ch; }
+  .feld { display: grid; gap: 6px; margin: 14px 0; }
+  .feld-kopf { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; font-size: 14px; color: var(--leise); }
+  .feld-kopf b { color: var(--tinte); font-weight: 500; }
+  .zahl { font-variant-numeric: tabular-nums; color: var(--ok); }
+  pre { margin: 0; padding: 12px 14px; background: var(--karte); border: 1px solid var(--linie); border-radius: 8px;
+    font: 15px/1.6 var(--schrift); white-space: pre-wrap; overflow-wrap: anywhere; }
+  button { font: 13px var(--schrift); color: var(--licht); background: none; border: 1px solid var(--linie); border-radius: 999px;
+    padding: 2px 12px; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--licht); outline-offset: 2px; }
+  .reihe { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .reihe figure { margin: 0; display: grid; gap: 4px; }
+  .reihe img { width: 100%; border-radius: 8px; border: 1px solid var(--linie); display: block; }
+  figcaption { font-size: 13px; color: var(--leise); }
+  .breit img { max-width: 100%; border-radius: 8px; border: 1px solid var(--linie); display: block; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  .tabelle { overflow-x: auto; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 10px; border-bottom: 1px solid var(--linie); }
+  th { font-weight: 500; }
+  code { font-family: var(--mono); font-size: 0.9em; }
+</style>
+</head>
+<body>
+<main>
+<h1>Prisma</h1>
+<p>Alles für den ersten Eintrag in Google Play (Paket <code>ch.bonomo.prisma</code>). Stand 18.11.2026, Ticket 10 des Umbaus.</p>
+
+<h2>Hochladen</h2>
+<ul>
+  <li>App-Bundle: <code>android/app/build/outputs/bundle/release/app-release.aab</code> (signiert mit dem Upload-Schlüssel; in
+    der Play Console «Play App Signing» annehmen).</li>
+  <li>Zum Ausprobieren auf dem Handy: <code>android/app/build/outputs/apk/release/app-release.apk</code>.</li>
+  <li>Version 1.0 (Versionscode 1). Für jedes weitere Bundle <code>android.versionCode</code> in <code>package.json</code> um 1 erhöhen.</li>
+  <li>Android 7 und neuer (API 24), Ziel-API 36.</li>
+</ul>
+
+<h2>Eintrag auf Deutsch</h2>
+<div class="feld">
+  <div class="feld-kopf"><b>App-Name</b> höchstens 30 Zeichen <span class="zahl" data-zaehle="de-titel"></span><button type="button" data-kopiere="de-titel">Kopieren</button></div>
+  <pre id="de-titel">Prisma – Licht-Puzzle</pre>
+</div>
+<div class="feld">
+  <div class="feld-kopf"><b>Kurzbeschreibung</b> höchstens 80 Zeichen <span class="zahl" data-zaehle="de-kurz"></span><button type="button" data-kopiere="de-kurz">Kopieren</button></div>
+  <pre id="de-kurz">Lenke Licht mit Spiegeln und Prismen und wecke die Sterne des Kleinen Wagens.</pre>
+</div>
+<div class="feld">
+  <div class="feld-kopf"><b>Vollständige Beschreibung</b> höchstens 4000 Zeichen <span class="zahl" data-zaehle="de-lang"></span><button type="button" data-kopiere="de-lang">Kopieren</button></div>
+  <pre id="de-lang">Hoch in den Bergen liegt ein kleines Dorf. Jeden Abend sucht Noa dort den Polarstern und will ihm mit der Taschenlampe ein Zeichen geben. Aber die Sterne des Kleinen Wagens schlafen, und ohne sie verliert sich das Licht im Dunkeln.
+
+Prisma ist ein ruhiges 3D-Licht-Puzzle. Du drehst Spiegel, Prismen und Kombinatoren, bis jeder Kristall Licht in seiner Farbe bekommt. Ein Prisma teilt weisses Licht in Rot, Grün und Blau, ein Filter lässt nur seine eigene Farbe durch, und wo Rot und Blau zusammen ankommen, wird Magenta daraus.
+
+Mit den Glühwürmchen bringst du das Licht von Ort zu Ort: vom Bergwald ans Meer, durch die Wüste und über den Vulkan bis zu den Planeten und Sternen. Jede Welt weckt einen Stern, und am Ende antwortet der Polarstern.
+
+• 240 Level in vier Graden, von leicht bis sehr schwer
+• Sechs Welten, jede mit eigenem Himmel
+• Vier Übungen im Dorf zeigen Schritt für Schritt, wie das Licht läuft
+• Jedes gelöste Level klingt in den Farben seines Lichts
+• Kein Zeitdruck, keine Leben, keine Werbung
+• Läuft ohne Internet
+• Deutsch und Englisch</pre>
+</div>
+<div class="feld">
+  <div class="feld-kopf"><b>Versionshinweis</b> (erste Fassung) höchstens 500 Zeichen <span class="zahl" data-zaehle="de-neu"></span><button type="button" data-kopiere="de-neu">Kopieren</button></div>
+  <pre id="de-neu">Die erste Fassung von Prisma für Android.</pre>
+</div>
+
+<h2>Store listing in English</h2>
+<div class="feld">
+  <div class="feld-kopf"><b>App name</b> höchstens 30 Zeichen <span class="zahl" data-zaehle="en-titel"></span><button type="button" data-kopiere="en-titel">Kopieren</button></div>
+  <pre id="en-titel" lang="en">Prisma – Light Puzzle</pre>
+</div>
+<div class="feld">
+  <div class="feld-kopf"><b>Short description</b> höchstens 80 Zeichen <span class="zahl" data-zaehle="en-kurz"></span><button type="button" data-kopiere="en-kurz">Kopieren</button></div>
+  <pre id="en-kurz" lang="en">Guide light with mirrors and prisms and wake the stars of the Little Dipper.</pre>
+</div>
+<div class="feld">
+  <div class="feld-kopf"><b>Full description</b> höchstens 4000 Zeichen <span class="zahl" data-zaehle="en-lang"></span><button type="button" data-kopiere="en-lang">Kopieren</button></div>
+  <pre id="en-lang" lang="en">High up in the mountains there is a little village. Every evening Noa looks for the North Star there and wants to send it a signal with a flashlight. But the stars of the Little Dipper are asleep, and without them the light gets lost in the dark.
+
+Prisma is a calm 3D light puzzle. You turn mirrors, prisms and combiners until every crystal receives light in its own color. A prism splits white light into red, green and blue, a filter lets only its own color through, and where red and blue arrive together, they make magenta.
+
+Together with the fireflies you carry the light from place to place: from the forest to the sea, across the desert and the volcano, all the way to the planets and the stars. Each world wakes one star, and at the end the North Star answers.
+
+• 240 levels in four grades, from easy to very hard
+• Six worlds, each with its own sky
+• Four practice rounds in the village show step by step how light travels
+• Every solved level rings out in the colors of its light
+• No timer, no lives, no ads
+• Plays offline
+• English and German</pre>
+</div>
+<div class="feld">
+  <div class="feld-kopf"><b>Release notes</b> (first version) höchstens 500 Zeichen <span class="zahl" data-zaehle="en-neu"></span><button type="button" data-kopiere="en-neu">Kopieren</button></div>
+  <pre id="en-neu" lang="en">The first version of Prisma for Android.</pre>
+</div>
+
+<h2>Bilder</h2>
+<p>Je Sprache acht Bildschirmfotos für Handys (1080 × 1920, JPEG), dieselben Szenen auf Deutsch und Englisch, in dieser
+  Reihenfolge hochladen. Dazu die Feature-Grafik (1024 × 500) je Sprache und das App-Symbol (512 × 512, für beide gleich).
+  Für Tablets verlangt Google keine eigenen Bilder.</p>
+<h3>Deutsch</h3>
+<div class="reihe">
+  <figure><img src="de/1-bergwald.jpg" alt="Bergwald, ein Level vor dem Lösen" loading="lazy"><figcaption>1 Bergwald</figcaption></figure>
+  <figure><img src="de/2-meer.jpg" alt="Meer, gelöst" loading="lazy"><figcaption>2 Meer, gelöst</figcaption></figure>
+  <figure><img src="de/3-vulkan.jpg" alt="Vulkan, gelöst" loading="lazy"><figcaption>3 Vulkan, gelöst</figcaption></figure>
+  <figure><img src="de/4-prolog.jpg" alt="Prolog: das Dorf in den Bergen" loading="lazy"><figcaption>4 Prolog</figcaption></figure>
+  <figure><img src="de/5-wueste.jpg" alt="Wüste" loading="lazy"><figcaption>5 Wüste</figcaption></figure>
+  <figure><img src="de/6-planeten.jpg" alt="Planeten" loading="lazy"><figcaption>6 Planeten</figcaption></figure>
+  <figure><img src="de/7-dorf.jpg" alt="Übung im Dorf mit Zeigehand" loading="lazy"><figcaption>7 Übung im Dorf</figcaption></figure>
+  <figure><img src="de/8-menue.jpg" alt="Menü mit der Sternkarte" loading="lazy"><figcaption>8 Menü</figcaption></figure>
+</div>
+<div class="breit"><h3>Feature-Grafik Deutsch</h3><img src="de/feature-grafik.png" alt="Feature-Grafik: PRISMA, Ein Lichtsignal an die Sterne, über einem gelösten Level im Vulkan"></div>
+<h3>English</h3>
+<div class="reihe">
+  <figure><img src="en/1-bergwald.jpg" alt="Forest, a level before it is solved" loading="lazy"><figcaption>1 Forest</figcaption></figure>
+  <figure><img src="en/2-meer.jpg" alt="Sea, solved" loading="lazy"><figcaption>2 Sea, solved</figcaption></figure>
+  <figure><img src="en/3-vulkan.jpg" alt="Volcano, solved" loading="lazy"><figcaption>3 Volcano, solved</figcaption></figure>
+  <figure><img src="en/4-prolog.jpg" alt="Prologue: the village in the mountains" loading="lazy"><figcaption>4 Prologue</figcaption></figure>
+  <figure><img src="en/5-wueste.jpg" alt="Desert" loading="lazy"><figcaption>5 Desert</figcaption></figure>
+  <figure><img src="en/6-planeten.jpg" alt="Planets" loading="lazy"><figcaption>6 Planets</figcaption></figure>
+  <figure><img src="en/7-dorf.jpg" alt="Practice in the village with the pointing hand" loading="lazy"><figcaption>7 Village practice</figcaption></figure>
+  <figure><img src="en/8-menue.jpg" alt="Menu with the star chart" loading="lazy"><figcaption>8 Menu</figcaption></figure>
+</div>
+<div class="breit"><h3>Feature graphic English</h3><img src="en/feature-grafik.png" alt="Feature graphic: PRISMA, A light signal to the stars, over a solved level on the volcano"></div>
+<div class="breit"><h3>App-Symbol</h3><img src="icon-512.png" alt="App-Symbol: Prisma mit Farbfächer" width="160" height="160"></div>
+<p>Neu machen: <code>tests/bildvergleich.mjs --gpu --store &lt;ordner&gt;</code> (alle Szenen beider Sprachen, gut 9 min), dann
+  die Auswahl nach <code>store/de/</code> und <code>store/en/</code> kopieren; Feature-Grafik mit <code>tools/store-grafik.mjs</code>
+  aus <code>grafik-welt-4-nach.jpg</code>, das Symbol mit <code>tools/app-icons.mjs</code>.</p>
+
+<h2>Angaben in der Play Console</h2>
+<div class="tabelle"><table>
+  <tr><th>Feld</th><th>Antwort</th></tr>
+  <tr><td>App oder Spiel</td><td>Spiel, kostenlos</td></tr>
+  <tr><td>Kategorie</td><td>Puzzle (Tags etwa: Logikrätsel, Entspannung, Einzelspieler, Offline)</td></tr>
+  <tr><td>Standardsprache</td><td>Deutsch (de-DE); Übersetzung Englisch (en-US) mit den Texten oben</td></tr>
+  <tr><td>E-Mail-Adresse (Kontakt)</td><td><code>bonomo.alessandro@yahoo.de</code></td></tr>
+  <tr><td>Website (freiwillig)</td><td><code>https://bonomoalessandro.github.io/Prisma/</code></td></tr>
+  <tr><td>Datenschutzerklärung</td><td><code>https://bonomoalessandro.github.io/Prisma/datenschutz.html</code> (Deutsch und Englisch auf einer Seite; im Spiel unter «Datenschutz» im Menü)</td></tr>
+  <tr><td>App-Zugriff</td><td>Alle Funktionen ohne Anmeldung und ohne besondere Zugangsdaten verfügbar</td></tr>
+  <tr><td>Werbung</td><td>Nein, die App enthält keine Werbung</td></tr>
+  <tr><td>Käufe in der App</td><td>Keine</td></tr>
+  <tr><td>Zielgruppe</td><td>Entscheidet der Nutzer. Vorschlag: 13 Jahre und älter. Wer auch Kinder unter 13 wählt, fällt unter die Richtlinie für Familien (strengere Prüfung; die App erhebt nichts, das wäre also möglich, braucht aber mehr Angaben).</td></tr>
+  <tr><td>Behörden-, Finanz-, Gesundheits-, Nachrichten-App</td><td>Nein</td></tr>
+</table></div>
+
+<h3>Datensicherheit</h3>
+<div class="tabelle"><table>
+  <tr><th>Frage</th><th>Antwort</th></tr>
+  <tr><td>Erhebt oder teilt die App Nutzerdaten der verlangten Typen?</td><td><b>Nein.</b> Der Spielstand liegt nur auf dem Gerät (im Speicher der App) und verlässt es nicht; kein Konto, keine Analyse, keine Werbung, keine Absturzberichte.</td></tr>
+  <tr><td>Folgefragen (Verschlüsselung, Löschen)</td><td>Entfallen mit «Nein». Gelöscht wird der Spielstand mit der App oder über «Von vorn» im Menü.</td></tr>
+  <tr><td>Berechtigungen</td><td>Nur <code>INTERNET</code> (Vorgabe von Capacitor; das Spiel lädt nichts aus dem Netz, der Link «Datenschutz» öffnet den Browser)</td></tr>
+</table></div>
+
+<h3>Inhaltseinstufung (Fragebogen der IARC)</h3>
+<div class="tabelle"><table>
+  <tr><th>Frage</th><th>Antwort</th></tr>
+  <tr><td>Kategorie</td><td>Spiel (Puzzle, Gelegenheitsspiel)</td></tr>
+  <tr><td>Gewalt, Blut, Angst</td><td>Nein</td></tr>
+  <tr><td>Sexuelle Inhalte, Nacktheit</td><td>Nein</td></tr>
+  <tr><td>Vulgäre Sprache</td><td>Nein</td></tr>
+  <tr><td>Drogen, Alkohol, Tabak</td><td>Nein</td></tr>
+  <tr><td>Glücksspiel, simuliertes Glücksspiel</td><td>Nein</td></tr>
+  <tr><td>Austausch zwischen Spielern (Chat, Inhalte teilen)</td><td>Nein</td></tr>
+  <tr><td>Teilt den Standort</td><td>Nein</td></tr>
+  <tr><td>Digitale Käufe</td><td>Nein</td></tr>
+  <tr><td>Zugang zum offenen Internet in der App</td><td>Nein (nur der Link zur Datenschutzerklärung, im Browser des Geräts)</td></tr>
+  <tr><td>Erwartete Einstufung</td><td>PEGI 3, USK ab 0, ESRB Everyone, IARC 3+</td></tr>
+</table></div>
+</main>
+<script>
+  // Länge je Feld wie der Store zählt (Zeichen, nicht Bytes) und Kopieren; ohne Zwischenablage den Text markieren
+  for (const el of document.querySelectorAll('[data-zaehle]')) {
+    el.textContent = `${[...document.getElementById(el.dataset.zaehle).textContent].length} Zeichen`;
+  }
+  for (const b of document.querySelectorAll('[data-kopiere]')) {
+    b.addEventListener('click', () => {
+      const pre = document.getElementById(b.dataset.kopiere);
+      navigator.clipboard?.writeText(pre.textContent).then(() => { b.textContent = 'Kopiert'; }, () => {
+        getSelection().selectAllChildren(pre);
+      });
+    });
+  }
+</script>
+</body>
+</html>

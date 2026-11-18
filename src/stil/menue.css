@@ -150,6 +150,17 @@
 }
 .menue-sprache .menue-ico { font-size: 14px; }
 .menue-sprache:hover { color: var(--menue-ink); }
+/* Datenschutz (Ticket 10 von .scratch/umbau/): ein Link unten links, so leise wie die Sprache (hoch oben links, ihr
+   gegenüber) */
+.menue-datenschutz {
+  position: absolute; left: 7%; bottom: 32px;
+  display: inline-flex; align-items: center; min-height: 44px; padding: 8px 12px; border-radius: 999px;
+  font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; text-decoration: none; color: var(--menue-dim);
+  -webkit-tap-highlight-color: transparent; transition: color 0.25s ease;
+}
+.menue-datenschutz:hover { color: var(--menue-ink); }
+.menue a:focus-visible { outline: 1.5px solid #fff; outline-offset: 4px; box-shadow: 0 0 20px rgba(var(--menue-glow), 0.55); }
+.menue.menue-zeiger a:focus-visible { outline: none; box-shadow: none; }
 .menue-info { display: none; } /* Stand des gewählten Grads unter der Karte: nur hoch (dort fehlt er im Reiter) */
 @media (prefers-reduced-motion: reduce) {
   .menue-weiter.menue-auf, .menue-hervor .menue-name, .menue-ring, .menue-erwacht, .menue-zieht { animation: none; }
@@ -207,6 +218,7 @@
   .menue-vonvorn { align-self: center; }
   .menue-sprache { top: max(10px, env(safe-area-inset-top)); right: max(4px, env(safe-area-inset-right)); padding: 8px 10px; font-size: 8.5px; letter-spacing: 0.22em; }
   .menue-sprache .menue-ico { font-size: 13px; }
+  .menue-datenschutz { top: max(10px, env(safe-area-inset-top)); bottom: auto; left: max(4px, env(safe-area-inset-left)); padding: 8px 10px; font-size: 8.5px; letter-spacing: 0.22em; }
   .menue-frage { place-items: end center; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
   .menue-frage-box { padding: 26px 20px 20px; }
 }
@@ -245,6 +257,7 @@
   .menue-knoepfe { left: auto; right: max(18px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); gap: 14px; }
   .menue-vonvorn { order: -1; font-size: 8.5px; letter-spacing: 0.22em; }
   .menue-sprache { top: 2px; right: max(10px, env(safe-area-inset-right)); font-size: 8.5px; letter-spacing: 0.22em; }
+  .menue-datenschutz { left: max(10px, env(safe-area-inset-left)); bottom: max(4px, env(safe-area-inset-bottom)); font-size: 8.5px; letter-spacing: 0.22em; }
   .menue-weiter { gap: 4px; padding: 8px 20px 7px calc(20px + 0.45em); font-size: 11px; }
   .menue-wohin { font-size: 9px; }
   .menue-frage-box { padding: 20px 22px 18px; }

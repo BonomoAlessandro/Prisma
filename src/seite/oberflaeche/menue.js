@@ -51,6 +51,14 @@ const createMenu = (() => {
     neu: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.2h3.2"/>',
     sprache: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5s1.2-6.2 3.6-8.5z"/>',
   };
+  /**
+   * Datenschutzerklärung (Ticket 10 von .scratch/umbau/, PLAN 4.9; unten links, hoch oben links): in einem neuen Tab.
+   * Im Browser die Seite neben dem Spiel (auch offline, im Speicher des Service Workers); in der Android-App
+   * (PRISMA_APP) die auf GitHub Pages, die Capacitor im Browser des Handys öffnet: In der WebView ersetzte sie das Spiel,
+   * und die Zurück-Taste fände dort keinen Weg zurück. Englisch springt zum englischen Teil.
+   */
+  const DATENSCHUTZ = (window.PRISMA_APP ? 'https://bonomoalessandro.github.io/Prisma/datenschutz.html' : 'datenschutz.html')
+    + (sprache === 'de' ? '' : '#en');
   const AKTION = Object.fromEntries(['weiter', 'beginnen', 'fortsetzen', 'uebersicht', 'vonvorn']
     .map((a) => [a, t(`menue.aktion.${a}`)]));
   // gleich wie im CSS des Menüs
@@ -161,6 +169,7 @@ const createMenu = (() => {
           <button type="button" class="menue-weiter" data-menue-fokus="weiter"><span class="menue-was"></span><span class="menue-wohin"></span></button>
         </div>
         <button type="button" class="menue-sprache" data-menue-fokus="sprache" aria-label="${esc(t('menue.sprache', { sprache: spracheName(sprache) }))}">${icon('sprache')}<span>${esc(spracheName(sprache))}</span></button>
+        <a class="menue-datenschutz" data-menue-fokus="datenschutz" href="${esc(DATENSCHUTZ)}" target="_blank" rel="noopener">${esc(t('menue.datenschutz'))}</a>
       </div>
       <div class="menue-frage menue-aus" role="alertdialog" aria-modal="true" aria-labelledby="${uid}-frage-titel" aria-describedby="${uid}-frage-text" hidden>
         <div class="menue-frage-box">

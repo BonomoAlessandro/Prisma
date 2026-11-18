@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- Namen der App (Ticket 10 von .scratch/umbau/): Vorgabe Englisch, values-de Deutsch, wie das Spiel seine Sprache
+     wählt (Deutsch bei Deutsch, sonst Englisch). Unter dem Icon heisst sie in jeder Sprache «Prisma»; den Namen im Store
+     («Prisma – Light Puzzle», «Prisma – Licht-Puzzle») trägt der Nutzer in der Play Console ein (store/). -->
+<resources>
+    <string name="app_name">Prisma</string>
+    <string name="title_activity_main">Prisma</string>
+    <string name="package_name" translatable="false">ch.bonomo.prisma</string>
+    <string name="custom_url_scheme" translatable="false">ch.bonomo.prisma</string>
+</resources>
