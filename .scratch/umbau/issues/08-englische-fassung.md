@@ -114,7 +114,7 @@ allein.
   Kopfzeilen, Übersicht und «ganz im Bild» bestanden. Der erste englische Lauf fand drei weitere deutsche Erwartungen
   in der Probe («Tippen»/«Klicken» beim Halt, Welt beim Wagen im Menü, «noch nicht begonnen»), umgestellt und
   wiederholt. Nicht gegen die Basis wiederholt (Zeitmessung: Reviewer).
-- `offline.mjs` (mit `--lang=de`): OFFLINE_ERGEBNIS
+- `offline.mjs` (mit `--lang=de`, `timeout 1500`): bestanden.
 - Sprachwahl und Manifest im Browser: siehe oben.
 
 ### Offene Punkte
