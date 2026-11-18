@@ -105,7 +105,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   stehen. Für den Unterpfad `/Prisma/` braucht das Spiel nichts Eigenes: Alle Pfade sind relativ (`base: './'`,
   Manifest mit `scope: "./"` und `start_url: "index.html"`, `sw.js` neben der Seite, also mit dem Bereich `/Prisma/`);
   lokal läuft dieselbe Ausgabe weiter unter `/`. Unter einem Unterpfad lokal prüfen: `npm run build`, dann
-  `npm run preview -- --base /Prisma/` (`http://localhost:4173/Prisma/`). Auf `bonomoalessandro.github.io` teilen
+  `npm run preview -- --base /Prisma/` (`http://localhost:4173/Prisma/`; in Git Bash mit `MSYS_NO_PATHCONV=1`
+  davor, sonst macht die Shell aus `/Prisma/` einen Windows-Pfad), oder `node tests/offline.mjs --unterpfad`. Auf `bonomoalessandro.github.io` teilen
   sich alle Seiten des Kontos einen Ursprung (`localStorage`, Cache Storage); das Spiel nutzt nur Schlüssel `prisma.*`
   und Speicher `prisma-*`, sein Service Worker gilt nur unter `/Prisma/`. Die Source-Maps gehen mit auf Pages
   (Entscheid in Ticket 09).
