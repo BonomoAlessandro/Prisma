@@ -1,6 +1,6 @@
 // Menü der Geschichte (Sternkarte mit Reitern) (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
-import './ui.js';
-import { setzeSprache, sprache, spracheName, t, VORHANDEN } from '../../texte/sprache.js';
+import { createSprachliste } from './sprachliste.js';
+import { beiSprachwechsel, setzeSprache, sprache, spracheName, t, VORHANDEN } from '../../texte/sprache.js';
 
 /* =====================================================================
    MENÜ DER GESCHICHTE (Ticket 05; seit Ticket 08 von .scratch/kleiner-wagen/ «Sternkarte mit Reitern», Variante F des
@@ -12,9 +12,14 @@ import { setzeSprache, sprache, spracheName, t, VORHANDEN } from '../../texte/sp
    (in dieser Sitzung) ein Stern erwacht, blitzt er auf, und seine Linien ziehen sich (der Moment aus dem Katalog).
    Desktop und Handy quer: Reiter links untereinander, die Karte daneben, der Knopf darunter; Handy hoch: Reiter oben
    als Segmente, darunter Karte und Stand, der Knopf ganz unten in Reichweite des Daumens. Oben rechts der Schalter
-   der Sprache (Ticket 07 von .scratch/umbau/; das Spiel hat keine eigenen Einstellungen): Globus und der Name der
-   Sprache, ein Klick wechselt zur nächsten und lädt neu. Texte über die Übersetzungsschicht (t). Gestalt im Stil
-   (Präfix menue-). Der Baustein .scratch/noa-geschichte/bausteine/menue/ («Lichtwege») ist damit überholt.
+   der Sprache (Ticket 07 von .scratch/umbau/; das Spiel hat keine eigenen Einstellungen): Globus, der Name der Sprache
+   (auf dem Handy, hochkant und quer, ihr Kürzel «DE») und ein ▾. Er öffnet eine Liste aller Sprachen, nach unten
+   (createSprachliste in sprachliste.js, Ticket 02 von .scratch/sprachwahl/; Esc schliesst nur sie, nicht das Menü).
+   Eine andere wählen wechselt ohne Neuladen (Ticket 01): Das Menü bleibt offen und schreibt seine Texte neu (Reiter,
+   Karte, Knopf, Stand, eine offene Rückfrage, Schalter und Liste), der Fokus liegt auf dem Schalter, und der
+   Bildschirmleser hört die neue Sprache; auch ein geschlossenes Menü folgt einem Wechsel. Texte über
+   die Übersetzungsschicht (t), die Namen von Graden, Welten und Aktionen erst beim Lesen. Gestalt im Stil (Präfix
+   menue-). Der Baustein .scratch/noa-geschichte/bausteine/menue/ («Lichtwege») ist damit überholt.
 
      const menu = createMenu({ root, onAction, wagen });
      menu.show(stand);   // einblenden; ist es offen, mit dem neuen Stand neu zeichnen (Fokus und Reiter bleiben)
@@ -30,20 +35,24 @@ import { setzeSprache, sprache, spracheName, t, VORHANDEN } from '../../texte/sp
    wagen: Form und Linien des Kleinen Wagens { form, linien, polarstern } (im Spiel das Modul wagen).
    onAction({ aktion, grad }): 'weiter' | 'beginnen' | 'fortsetzen' | 'uebersicht' | 'vonvorn' (nach der Rückfrage).
    Bedienung: Ein Reiter wählt seinen Grad (Klick, Tippen, Fokus); der Knopf und Enter auf einem Reiter führen die
-   Aktion des Grads aus. Pfeile: der Knopf, dann die Reiter von oben nach unten (Pos1, Ende). Ohne Abhängigkeiten vom
-   übrigen Spiel.
+   Aktion des Grads aus. Pfeile: der Knopf, dann die Reiter von oben nach unten (Pos1, Ende); solange die Liste der
+   Sprachen offen ist, bedienen Pfeile, Pos1, Ende, Enter, Tab und Esc nur sie. Ohne Abhängigkeiten vom übrigen Spiel.
    ===================================================================== */
 
 const createMenu = (() => {
-  /** Die Grade in der Reihenfolge des Menüs; id wie das Feld grad in LEVELS (GRAD_ANZEIGE im Spiel). */
+  /**
+   * Die Grade in der Reihenfolge des Menüs; id wie das Feld grad in LEVELS (GRAD_ANZEIGE im Spiel). Den Namen holt ein
+   * Getter erst beim Lesen, in der aktuellen Sprache.
+   */
   const GRADE = [
-    { id: 'leicht', name: t('grad.leicht'), punkte: 1 },
-    { id: 'mittel', name: t('grad.mittel'), punkte: 2 },
-    { id: 'schwer', name: t('grad.schwer'), punkte: 3 },
-    { id: 'sehr schwer', name: t('grad.sehrSchwer'), punkte: 4 },
+    { id: 'leicht', get name() { return t('grad.leicht'); }, punkte: 1 },
+    { id: 'mittel', get name() { return t('grad.mittel'); }, punkte: 2 },
+    { id: 'schwer', get name() { return t('grad.schwer'); }, punkte: 3 },
+    { id: 'sehr schwer', get name() { return t('grad.sehrSchwer'); }, punkte: 4 },
   ];
   /** Die sechs Welten eines Durchgangs, Welt i weckt Stern i + 1; vor der ersten Welt ist das Licht im Dorf. */
-  const WELTEN = ['wald', 'meer', 'wueste', 'vulkan', 'planeten', 'sterne'].map((id) => ({ id, name: t(`welt.${id}`) }));
+  const WELTEN = ['wald', 'meer', 'wueste', 'vulkan', 'planeten', 'sterne']
+    .map((id) => ({ id, get name() { return t(`welt.${id}`); } }));
   const JE_WELT = 10;
   const LEVEL = WELTEN.length * JE_WELT; // 60 je Grad
   /** Zeichen im Strich der STORY_ICONS: «Von vorn» wie «Level neu starten» im Spiel; die Sprache ein Globus. */
@@ -55,12 +64,13 @@ const createMenu = (() => {
    * Datenschutzerklärung (Ticket 10 von .scratch/umbau/, PLAN 4.9; unten links, hoch oben links): in einem neuen Tab.
    * Im Browser die Seite neben dem Spiel (auch offline, im Speicher des Service Workers); in der Android-App
    * (PRISMA_APP) die auf GitHub Pages, die Capacitor im Browser des Handys öffnet: In der WebView ersetzte sie das Spiel,
-   * und die Zurück-Taste fände dort keinen Weg zurück. Englisch springt zum englischen Teil.
+   * und die Zurück-Taste fände dort keinen Weg zurück. Englisch springt zum englischen Teil. In der aktuellen Sprache
+   * (ein Wechsel ohne Neuladen setzt Text und Ziel des Links neu).
    */
-  const DATENSCHUTZ = (window.PRISMA_APP ? 'https://bonomoalessandro.github.io/Prisma/datenschutz.html' : 'datenschutz.html')
+  const datenschutz = () => (window.PRISMA_APP ? 'https://bonomoalessandro.github.io/Prisma/datenschutz.html' : 'datenschutz.html')
     + (sprache === 'de' ? '' : '#en');
-  const AKTION = Object.fromEntries(['weiter', 'beginnen', 'fortsetzen', 'uebersicht', 'vonvorn']
-    .map((a) => [a, t(`menue.aktion.${a}`)]));
+  /** Name einer Aktion ('weiter' | 'beginnen' | 'fortsetzen' | 'uebersicht' | 'vonvorn') in der aktuellen Sprache. */
+  const aktionName = (a) => t(`menue.aktion.${a}`);
   // gleich wie im CSS des Menüs
   const HOCH = '(max-width: 600px) and (orientation: portrait)';
   const STILL = '(prefers-reduced-motion: reduce)';
@@ -168,8 +178,8 @@ const createMenu = (() => {
         <div class="menue-knoepfe">
           <button type="button" class="menue-weiter" data-menue-fokus="weiter"><span class="menue-was"></span><span class="menue-wohin"></span></button>
         </div>
-        <button type="button" class="menue-sprache" data-menue-fokus="sprache" aria-label="${esc(t('menue.sprache', { sprache: spracheName(sprache) }))}">${icon('sprache')}<span>${esc(spracheName(sprache))}</span></button>
-        <a class="menue-datenschutz" data-menue-fokus="datenschutz" href="${esc(DATENSCHUTZ)}" target="_blank" rel="noopener">${esc(t('menue.datenschutz'))}</a>
+        <button type="button" class="menue-sprache" data-menue-fokus="sprache">${icon('sprache')}</button>
+        <a class="menue-datenschutz" data-menue-fokus="datenschutz" href="${esc(datenschutz())}" target="_blank" rel="noopener">${esc(t('menue.datenschutz'))}</a>
       </div>
       <div class="menue-frage menue-aus" role="alertdialog" aria-modal="true" aria-labelledby="${uid}-frage-titel" aria-describedby="${uid}-frage-text" hidden>
         <div class="menue-frage-box">
@@ -177,7 +187,7 @@ const createMenu = (() => {
           <p class="menue-frage-text" id="${uid}-frage-text"></p>
           <div class="menue-frage-knoepfe">
             <button type="button" class="menue-pille" data-menue-frage="nein">${esc(t('menue.frage.abbrechen'))}</button>
-            <button type="button" class="menue-pille menue-pille-ja" data-menue-frage="ja">${esc(AKTION.vonvorn)}</button>
+            <button type="button" class="menue-pille menue-pille-ja" data-menue-frage="ja">${esc(aktionName('vonvorn'))}</button>
           </div>
         </div>
       </div>
@@ -191,13 +201,22 @@ const createMenu = (() => {
     const knopf = $('.menue-weiter'), knoepfe = $('.menue-knoepfe'), info = $('.menue-info');
     const frageEl = $('.menue-frage'), sr = $('.menue-sr');
     const neinBtn = $('[data-menue-frage="nein"]'), jaBtn = $('[data-menue-frage="ja"]');
-    // Sprache (Ticket 07 von .scratch/umbau/): die nächste der Sprachen mit Datei; die Seite lädt dann neu
-    // (setzeSprache). Mit nur einer Sprache bleibt alles, wie es ist.
-    $('.menue-sprache').addEventListener('click', () => {
-      if (offen && !gesperrt) setzeSprache(VORHANDEN[(VORHANDEN.indexOf(sprache) + 1) % VORHANDEN.length]);
+    // Sprache (Ticket 07 von .scratch/umbau/): Der Schalter öffnet die Liste der Sprachen mit Datei, nach unten, am
+    // rechten Rand des Schalters (Ticket 02 von .scratch/sprachwahl/). Eine andere wählen wechselt ohne Neuladen
+    // (setzeSprache, Ticket 01; das Menü schreibt sich dann neu, auch Schalter und Liste). Den Text des Schalters (voller
+    // Name, auf dem Handy das Kürzel) und das ▾ setzt die Liste; mit nur einer Sprache tut ein Klick nichts.
+    /** Name der Liste und aria-label des Schalters (voller Name und Kürzel) in der aktuellen Sprache. */
+    const sprachTexte = () => ({ liste: t('menue.sprachliste'),
+      schalter: t('menue.sprache', { sprache: spracheName(sprache), kuerzel: sprache.toUpperCase() }) });
+    const sprachliste = createSprachliste({
+      knopf: $('.menue-sprache'),
+      sprachen: VORHANDEN.map((k) => ({ kuerzel: k, name: spracheName(k) })),
+      aktuell: sprache, richtung: 'unten', ausrichtung: 'ende', texte: sprachTexte(),
+      onWahl: (k) => { if (offen && !gesperrt) setzeSprache(k); },
     });
 
-    let daten = lies({}, uebersicht);
+    let stand0 = {};        // der Stand des Spiels, den es zeigt (show, vorwaermen; ein Wechsel der Sprache liest ihn neu)
+    let daten = lies(stand0, uebersicht);
     let offen = false;
     let gesperrt = false;   // nach einer Aktion (ausser «Von vorn») bis zum nächsten show(): kein Doppelklick
     let frage = null;       // Grad der offenen Rückfrage
@@ -235,7 +254,7 @@ const createMenu = (() => {
         wahl.type = 'button';
         wahl.dataset.menueFokus = `wahl:${g.id}`;
         wahl.setAttribute('aria-label', t(g === daten.hervor ? 'menue.aria.wahlEmpfohlen' : 'menue.aria.wahl',
-          { grad: g.name, stand: ariaStand(g), aktion: AKTION[aktionVon(g)] }));
+          { grad: g.name, stand: ariaStand(g), aktion: aktionName(aktionVon(g)) }));
         const zeile = make('span', 'menue-zeile1');
         const pips = make('span', 'menue-pips');
         for (let k = 1; k <= 4; k++) pips.append(make('i', k <= g.punkte ? 'menue-on' : ''));
@@ -254,7 +273,7 @@ const createMenu = (() => {
           vv.dataset.menueFokus = `vonvorn:${g.id}`;
           vv.setAttribute('aria-label', t('menue.aria.vonvorn', { grad: g.name }));
           vv.setAttribute('aria-haspopup', 'dialog');
-          vv.innerHTML = `${icon('neu')}<span>${esc(AKTION.vonvorn)}</span>`;
+          vv.innerHTML = `${icon('neu')}<span>${esc(aktionName('vonvorn'))}</span>`;
           vv.addEventListener('click', () => oeffneFrage(g, vv));
           knoepfe.append(vv);
         }
@@ -271,9 +290,10 @@ const createMenu = (() => {
       }
       for (const b of knoepfe.querySelectorAll('.menue-vonvorn')) b.hidden = b.dataset.menueFokus !== `vonvorn:${g.id}`;
       const a = aktionVon(g);
-      knopf.querySelector('.menue-was').textContent = AKTION[a];
+      knopf.querySelector('.menue-was').textContent = aktionName(a);
       knopf.querySelector('.menue-wohin').textContent = wohin(g);
-      knopf.setAttribute('aria-label', t('menue.aria.knopf', { aktion: AKTION[a], grad: g.name, stand: ariaStand(g) }));
+      knopf.setAttribute('aria-label',
+        t('menue.aria.knopf', { aktion: aktionName(a), grad: g.name, stand: ariaStand(g) }));
       if (a === 'vonvorn') knopf.setAttribute('aria-haspopup', 'dialog'); else knopf.removeAttribute('aria-haspopup');
       info.querySelector('.menue-info-name').textContent = g.name;
       standEl(info.querySelector('.menue-stand'), g);
@@ -414,17 +434,22 @@ const createMenu = (() => {
 
     function oeffneFrage(g, von) {
       if (!offen || gesperrt) return;
+      sprachliste.schliessen(true); // nie Liste und Rückfrage zugleich
       clearTimeout(zeitFrage);
       frage = g;
       frageVon = von?.dataset.menueFokus ?? null;
-      $('.menue-frage-titel').textContent = t('menue.frage.titel', { grad: g.name });
-      $('.menue-frage-text').textContent = g.art === 'geschafft' ? t('menue.frage.geschafft')
-        : t('menue.frage.begonnen', { wo: g.dorf ? t('menue.imDorf') : weltName(g), n: g.geloest, N: LEVEL });
+      fuelleFrage(g);
       inhalt.inert = true;
       frageEl.hidden = false;
       void frageEl.offsetWidth; // erst sichtbar setzen, dann einblenden
       frageEl.classList.remove('menue-aus');
       neinBtn.focus({ preventScroll: true }); // sicher: Abbrechen zuerst
+    }
+    /** Titel und Text der Rückfrage zum Grad g (oeffneFrage, Wechsel der Sprache). */
+    function fuelleFrage(g) {
+      $('.menue-frage-titel').textContent = t('menue.frage.titel', { grad: g.name });
+      $('.menue-frage-text').textContent = g.art === 'geschafft' ? t('menue.frage.geschafft')
+        : t('menue.frage.begonnen', { wo: g.dorf ? t('menue.imDorf') : weltName(g), n: g.geloest, N: LEVEL });
     }
     /** ja: bestätigt («Von vorn» an das Spiel); sofort: ohne Ausblenden und ohne Fokus (show, hide). */
     function schliesseFrage(ja = false, sofort = false) {
@@ -453,10 +478,47 @@ const createMenu = (() => {
       requestAnimationFrame(() => { sr.textContent = text; });
     }
 
+    /* ---------- Wechsel der Sprache ---------- */
+
+    /** Die Namen auf der Sternkarte in der aktuellen Sprache, ohne sie neu zu zeichnen (ein Erwachen läuft weiter). */
+    function etiketten() {
+      svg.querySelectorAll('.menue-etikett').forEach((el, i) => { // in zeichne je Stern 1 … 7 eines
+        el.firstElementChild.textContent = i + 1 === polar ? t('welt.polarstern') : WELTEN[i].name;
+      });
+    }
+    /**
+     * Wechsel der Sprache (Ticket 01 von .scratch/sprachwahl/, ohne Neuladen): alle Texte neu, offen oder zu, mit dem
+     * Stand, den das Menü zeigt. Reiter, Fokus (meist auf dem Schalter), eine offene Rückfrage und ein Erwachen auf der
+     * Karte bleiben. Offen sagt der Bildschirmleser die neue Sprache an; eine ältere Meldung (alte Sprache) geht.
+     */
+    beiSprachwechsel(() => {
+      root.setAttribute('aria-label', t('menue.name'));
+      $('.menue-unter').textContent = t('start.untertitel');
+      liste.setAttribute('aria-label', t('menue.grade'));
+      sprachliste.setze({ aktuell: sprache, texte: sprachTexte() }); // Schalter, Häkchen, Name der Liste
+      const ds = $('.menue-datenschutz'); // Datenschutz: Text und Ziel (#en) in der neuen Sprache
+      ds.textContent = t('menue.datenschutz');
+      ds.href = datenschutz();
+      neinBtn.textContent = t('menue.frage.abbrechen');
+      jaBtn.textContent = aktionName('vonvorn');
+      const key = root.contains(document.activeElement) ? document.activeElement.dataset?.menueFokus : null;
+      daten = lies(stand0, uebersicht);
+      render(); // Reiter und «Von vorn» neu, Knopf und Stand (die Karte zeichnet dasselbe Bild nicht neu: etiketten)
+      etiketten();
+      if (frage) {
+        frage = daten.grade.find((g) => g.id === frage.id);
+        fuelleFrage(frage);
+      }
+      if (key) fokussiere(key);
+      if (offen) sage(t('menue.spracheGewechselt', { sprache: spracheName(sprache) }));
+      else sr.textContent = '';
+    });
+
     /* ---------- Tasten ---------- */
 
     /** true: die Taste gehört dem Menü (Standardaktion verhindert). */
     function taste(e) {
+      if (sprachliste.offen) return sprachliste.keydown(e); // die Taste gehört der Liste (Esc schliesst nur sie)
       if (e.ctrlKey || e.metaKey || e.altKey) return false;
       if (frage) {
         if (e.key === 'Escape') { schliesseFrage(false); return true; }
@@ -498,7 +560,7 @@ const createMenu = (() => {
       get offen() { return offen; },
       /** Einblenden mit dem Stand des Spiels; ist das Menü schon offen, neu aufbauen (Fokus und Reiter bleiben). */
       show(stand = {}) {
-        daten = lies(stand, uebersicht);
+        daten = lies(stand0 = stand, uebersicht);
         gesperrt = false;
         const war = offen;
         const key = war && root.contains(document.activeElement) ? document.activeElement.dataset?.menueFokus : null;
@@ -526,7 +588,7 @@ const createMenu = (() => {
       vorwaermen(stand = {}) {
         if (offen || warm) return;
         warm = true;
-        daten = lies(stand, uebersicht);
+        daten = lies(stand0 = stand, uebersicht);
         wahlId = startWahl();
         root.hidden = false;
         root.classList.add('menue-vorwaermen');
@@ -543,6 +605,7 @@ const createMenu = (() => {
         offen = false;
         if (momentBis) momentBis = 1; // ein unterbrochener Moment spielt beim nächsten Öffnen nicht noch einmal
         schliesseFrage(false, true);
+        sprachliste.schliessen(true);
         if (root.contains(document.activeElement)) document.activeElement.blur();
         root.inert = true;
         root.classList.add('menue-aus');
@@ -561,6 +624,7 @@ const createMenu = (() => {
        */
       keydown(e) {
         if (!offen) return false;
+        if (sprachliste.offen) return sprachliste.keydown(e);
         if (root.contains(e.target)) return e.defaultPrevented || taste(e) && (e.preventDefault(), true);
         if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'].includes(e.key)) {
           e.preventDefault();

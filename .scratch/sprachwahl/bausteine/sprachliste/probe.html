@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Probe: Sprachliste</title>
+<!--
+  Probe des Bausteins createSprachliste (Ticket 02 von .scratch/sprachwahl/), nicht Teil des Spiels. Auf einem
+  Hintergrund wie dem Menü, mit dessen Stil (src/stil/index.css) und Gerüst (Kopf, Reiter, Knopf und «Von vorn» als
+  feste Attrappe ohne Sternkarte), damit Lage und Grössen stimmen: oben rechts der Schalter des Menüs (.menue-sprache,
+  «DEUTSCH ▾», auf dem Handy «DE ▾»), dessen Liste nach unten aufgeht (am Ende ausgerichtet; so im Spiel, Ticket 03), links weiter unten einer,
+  dessen Liste nach oben aufgeht (am Anfang ausgerichtet), rechts in der Mitte einer mit nur einer Sprache. Eine Wahl
+  wechselt nur die Beschriftung des Schalters (ohne Spiel). Mit dem Massstab der Seite (SEITE) wie index.html.
+  Öffnen über http (ES-Modul, über file:// lädt Chrome es nicht): in der Wurzel des Repos npm run dev, dann
+  http://localhost:5173/.scratch/sprachwahl/bausteine/sprachliste/probe.html
+  Prüfung und Aufnahmen: probe.mjs daneben.
+-->
+<link rel="stylesheet" href="../../../../src/stil/index.css">
+<script>
+// Massstab der Seite wie im Kopf von index.html (gekürzt: ohne ?diag)
+const SEITE = (() => {
+  const dpr = window.devicePixelRatio || 1;
+  if (dpr <= 2 || !('currentCSSZoom' in Element.prototype) || !/Chrome\//.test(navigator.userAgent)
+    || CSS.supports('-webkit-touch-callout', 'none') || !window.visualViewport) return 1;
+  const meta = document.querySelector('meta[name="viewport"]'), vorher = meta.content, s = 2 / dpr;
+  meta.content = `width=device-width, initial-scale=${s}, minimum-scale=${s}, maximum-scale=${s}, user-scalable=no, viewport-fit=cover`;
+  void window.innerWidth;
+  if (Math.abs(visualViewport.scale - s) > 0.01) { meta.content = vorher; return 1; }
+  return dpr / 2;
+})();
+if (SEITE !== 1) {
+  document.documentElement.classList.add('seite');
+  document.documentElement.style.setProperty('--seite', SEITE);
+  const um = (regeln) => {
+    for (const r of regeln) {
+      if (r instanceof CSSMediaRule) r.media.mediaText = r.media.mediaText.replace(/(\d*\.?\d+)px/g, (_, v) => `${+(v * SEITE).toFixed(3)}px`);
+      if (r.cssRules) um(r.cssRules);
+      if (r.styleSheet) um(r.styleSheet.cssRules); // @import: hier ungebaut (im Spiel fügt Vite die Teile zusammen)
+    }
+  };
+  for (const blatt of document.styleSheets) um(blatt.cssRules);
+}
+</script>
+<style>
+  /* Himmel wie hinter dem Menü (ohne Spiel: ein Verlauf) */
+  body { background: radial-gradient(ellipse at 45% 45%, #2e63ad, #13306b 55%, #081634); }
+  /* die beiden Schalter nur der Probe: wo das Menü frei ist (Desktop und quer unten links, hoch über der Karte) */
+  .probe-unten { top: auto !important; right: auto !important; left: max(7%, env(safe-area-inset-left)); bottom: 9%; }
+  .probe-eins { top: 45% !important; right: auto !important; left: 58%; }
+  .probe-notiz { position: absolute; left: 58%; top: calc(45% + 44px); margin: 0 0 0 12px; font-size: 10px; letter-spacing: 0.1em; color: var(--menue-dim); white-space: nowrap; }
+  @media (max-width: 600px) and (orientation: portrait) {
+    .probe-unten { left: max(16px, env(safe-area-inset-left)); bottom: 40%; }
+    .probe-eins { left: auto; right: max(16px, env(safe-area-inset-right)) !important; top: 50% !important; }
+    .probe-notiz { left: auto; right: max(28px, env(safe-area-inset-right)); top: calc(50% + 44px); }
+  }
+  @media (orientation: landscape) and (max-height: 500px) {
+    .probe-unten { left: max(14px, env(safe-area-inset-left)); bottom: max(10px, env(safe-area-inset-bottom)); }
+  }
+</style>
+</head>
+<body>
+<div class="menue" id="menue" role="dialog" aria-label="Menü">
+  <div class="menue-inhalt">
+    <header class="menue-kopf"><h2 class="menue-titel">Prisma</h2><p class="menue-unter">Ein Lichtsignal an die Sterne</p></header>
+    <!-- Attrappe des Menüs (Gerüst wie createMenu, ohne Sternkarte und ohne Bedienung) -->
+    <ol class="menue-grade" aria-label="Grade">
+      <li class="menue-grad menue-begonnen menue-an"><button type="button" class="menue-wahl" tabindex="-1"><span class="menue-zeile1"><span class="menue-pips"><i class="menue-on"></i><i></i><i></i><i></i></span><span class="menue-name">Leicht</span></span><span class="menue-stand"><span>Wüste</span><span class="menue-trenn">·</span><span class="menue-zahl">29 / 60</span></span></button></li>
+      <li class="menue-grad menue-begonnen"><button type="button" class="menue-wahl" tabindex="-1"><span class="menue-zeile1"><span class="menue-pips"><i class="menue-on"></i><i class="menue-on"></i><i></i><i></i></span><span class="menue-name">Mittel</span></span><span class="menue-stand"><span>Bergwald</span><span class="menue-trenn">·</span><span class="menue-zahl">0 / 60</span></span></button></li>
+      <li class="menue-grad menue-neu"><button type="button" class="menue-wahl" tabindex="-1"><span class="menue-zeile1"><span class="menue-pips"><i class="menue-on"></i><i class="menue-on"></i><i class="menue-on"></i><i></i></span><span class="menue-name">Schwer</span></span><span class="menue-stand">noch nicht begonnen</span></button></li>
+      <li class="menue-grad menue-neu"><button type="button" class="menue-wahl" tabindex="-1"><span class="menue-zeile1"><span class="menue-pips"><i class="menue-on"></i><i class="menue-on"></i><i class="menue-on"></i><i class="menue-on"></i></span><span class="menue-name">Sehr schwer</span></span><span class="menue-stand">noch nicht begonnen</span></button></li>
+    </ol>
+    <div class="menue-karte" aria-hidden="true"></div>
+    <div class="menue-info" aria-hidden="true"><span class="menue-info-name">Leicht</span><span class="menue-stand"><span>Wüste</span><span class="menue-trenn">·</span><span class="menue-zahl">29 / 60</span></span><span class="menue-fein">Als Nächstes erwacht Stern 3: Wüste</span></div>
+    <div class="menue-knoepfe">
+      <button type="button" class="menue-weiter" tabindex="-1"><span class="menue-was">Weiter</span><span class="menue-wohin">Leicht · Wüste 29 / 60</span></button>
+      <button type="button" class="menue-vonvorn" tabindex="-1"><svg class="menue-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.2h3.2"/></svg><span>Von vorn</span></button>
+    </div>
+    <button type="button" class="menue-sprache probe-unten" id="unten"></button>
+    <button type="button" class="menue-sprache probe-eins" id="eins"></button>
+    <p class="probe-notiz">nur eine Sprache</p>
+    <!-- der Schalter des Menüs, wie dort zuletzt in .menue-inhalt -->
+    <button type="button" class="menue-sprache" id="oben"></button>
+  </div>
+</div>
+<script type="module">
+  // Seit dem Einbau ins Menü importiert der Baustein zuerst ui.js, nur für die Reihenfolge beim Laden im Spiel (README,
+  // src/seite/). Die Probe lädt ihn ohne diese Zeile, sonst käme das ganze Spiel mit.
+  const quelle = await (await fetch('../../../../src/seite/oberflaeche/sprachliste.js')).text();
+  const ohne = quelle.replace(/^import '\.\/ui\.js';\r?\n/m, '');
+  const { createSprachliste } = await import(URL.createObjectURL(new Blob([ohne], { type: 'text/javascript' })));
+
+  const root = document.getElementById('menue');
+  // Fokusrahmen erst nach einer Taste, wie createMenu
+  addEventListener('pointerdown', () => root.classList.add('menue-zeiger'), true);
+  addEventListener('keydown', () => root.classList.remove('menue-zeiger'), true);
+
+  const ALLE = [{ kuerzel: 'de', name: 'Deutsch' }, { kuerzel: 'en', name: 'English' }];
+  const LISTE = { de: 'Sprache', en: 'Language' };
+  // wie menue.sprache und menue.sprachliste in den Sprachdateien, aber gekürzt (im Spiel mit Kürzel, «Sprache wählen»)
+  const SCHALTER = { de: 'Sprache: {sprache}', en: 'Language: {sprache}' };
+  const GLOBUS = '<svg class="menue-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5s1.2-6.2 3.6-8.5z"/></svg>';
+  const name = (k) => ALLE.find((s) => s.kuerzel === k).name;
+  /** Texte für den Bildschirmleser in der Sprache k (im Spiel aus den Sprachdateien). */
+  const texte = (k) => ({ liste: LISTE[k], schalter: SCHALTER[k].replace('{sprache}', name(k)) });
+  const wahlen = [];
+  const listen = {};
+  function baue(id, sprachen, richtung, ausrichtung) {
+    const knopf = document.getElementById(id);
+    knopf.innerHTML = GLOBUS; // den Text der Sprache und das ▾ setzt der Baustein
+    const l = createSprachliste({
+      knopf, sprachen, aktuell: 'de', richtung, ausrichtung, texte: texte('de'),
+      onWahl(k) {
+        wahlen.push(`${id}:${k}`);
+        l.setze({ aktuell: k, texte: texte(k) }); // im Spiel: nach dem Wechsel ohne Neuladen (Ticket 01)
+      },
+    });
+    listen[id] = l;
+  }
+  baue('oben', ALLE, 'unten', 'ende');
+  baue('unten', ALLE, 'oben', 'start');
+  baue('eins', ALLE.slice(0, 1), 'unten', 'ende');
+  // für die Prüfung (probe.mjs): Klicks, die hinter einer offenen Liste ankommen (sollen es nicht), und der Baustein
+  const durch = { titel: 0, reiter: 0 };
+  document.querySelector('.menue-titel').addEventListener('click', () => durch.titel++);
+  for (const b of document.querySelectorAll('.menue-wahl')) b.addEventListener('click', () => durch.reiter++);
+  window.__probe = { listen, wahlen, durch, createSprachliste };
+</script>
+</body>
+</html>

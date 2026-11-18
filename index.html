@@ -100,7 +100,7 @@ if (SEITE !== 1) {
   <button id="btn-restart" data-t-title="steuerung.neustart.titel" data-t-aria-label="steuerung.neustart.name">
     <svg viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.2h3.2"/></svg>
   </button>
-  <button id="btn-sound" data-t-title="steuerung.ton.titel" data-t-aria-label="steuerung.ton.aus" aria-pressed="false">
+  <button id="btn-sound" data-t-title="steuerung.ton.titel" data-t-aria-label="steuerung.ton.aus" data-zustand="aria-label" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M4 9.5h3l4.5-4v13l-4.5-4H4z"/><path class="on" d="M15 9a4 4 0 0 1 0 6M17.5 6.5a7.5 7.5 0 0 1 0 11"/><path class="off" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></svg>
   </button>
   <button id="btn-overview" data-t-title="steuerung.uebersicht.titel" data-t-aria-label="steuerung.uebersicht.name" hidden>
@@ -112,10 +112,10 @@ if (SEITE !== 1) {
 </nav>
 
 <div id="solved" class="hidden" inert aria-live="polite">
-  <div class="msg" id="solved-msg" data-t="geloest.level"></div>
+  <div class="msg" id="solved-msg" data-t="geloest.level" data-zustand="text"></div>
   <div class="best" id="solved-best"></div>
   <div class="stats" id="solved-stats"></div>
-  <button id="btn-next" data-t="geloest.weiter"></button>
+  <button id="btn-next" data-t="geloest.weiter" data-zustand="text"></button>
 </div>
 
 <div id="story" class="hidden" inert aria-live="polite" tabindex="-1">
@@ -126,7 +126,7 @@ if (SEITE !== 1) {
     <div class="tap"></div>
   </div>
 </div>
-<button id="btn-skip" class="hidden" type="button" data-t="geschichte.ueberspringen" inert></button>
+<button id="btn-skip" class="hidden" type="button" data-t="geschichte.ueberspringen" data-zustand="text" inert></button>
 <div id="lade" aria-hidden="true"></div> <!-- Ladezeichen: der Kleine Wagen, solange die Geschichte auf einen Himmel wartet (ladeZeichen) -->
 
 <div id="menue"></div> <!-- Menü der Geschichte (createMenu füllt es) -->
@@ -156,7 +156,7 @@ if (SEITE !== 1) {
     </div>
   </div>
   <div class="sub" data-t="start.untertitel"></div>
-  <button class="start"><span data-t="start.tippen"></span></button>
+  <button class="start"><span data-t="start.tippen" data-zustand="text"></span></button>
 </div>
 
 <script src="vendor/three-0.147.0/three.min.js" vite-ignore></script>

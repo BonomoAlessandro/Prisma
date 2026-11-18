@@ -1,0 +1,69 @@
+/* ---------- Liste der Sprachen am Schalter (Ticket 02 von .scratch/sprachwahl/, createSprachliste in
+   src/seite/oberflaeche/sprachliste.js) ----------
+   Im Stil der Rückfrage «Von vorn»: feine Linie, dunkler Grund, leichter Hof. Liste und Schleier liegen hinter dem
+   Schalter im DOM (im Menü in .menue-inhalt), fest im Bild (position: fixed, Lage aus createSprachliste) über allem im
+   Menü, auch über der Rückfrage (z-index 3). Farben aus dem Menü (--menue-*), mit Rückfall, damit der Baustein auch
+   allein aussieht wie dort. Klassen mit «menue-sl-». */
+/* Text des Schalters: der volle Name, in den Handy-Layouts des Menüs (hochkant und quer, dieselben Medienabfragen wie
+   menue.css) das Kürzel; beide Bedingungen zusammen mit denen in menue.css ändern */
+.menue-sl-kurz { display: none; }
+@media (max-width: 600px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px) {
+  .menue-sl-voll { display: none; }
+  .menue-sl-kurz { display: inline; }
+}
+.menue-sl-schalter .menue-sl-pfeil { font-size: 12px; margin-left: -0.4em; opacity: 0.85; transition: transform 0.3s ease; }
+.menue-sl-schalter.menue-sl-offen { color: var(--menue-ink, #e8e6f0); }
+.menue-sl-schalter.menue-sl-offen .menue-sl-pfeil { transform: rotate(180deg); }
+/* unsichtbar über allem: ein Klick daneben schliesst nur (darunter wird nichts ausgelöst); seine Polsterung sind die
+   sicheren Ränder (createSprachliste misst sie) */
+.menue-sl-schleier {
+  position: fixed; inset: 0; z-index: 4; box-sizing: border-box;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  -webkit-tap-highlight-color: transparent;
+}
+.menue-sl-schleier[hidden] { display: none; }
+.menue-sl {
+  position: fixed; left: 0; top: 0; z-index: 5; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 2px; padding: 6px; overflow-y: auto; overscroll-behavior: contain;
+  /* mindestens so breit wie der Schalter (createSprachliste setzt --menue-sl-schalter), höchstens das Bild ohne Rand
+     (vw im vergrösserten Teil durch --seite, siehe seite.css) */
+  min-width: max(120px, var(--menue-sl-schalter, 0px)); max-width: calc(100vw / var(--seite, 1) - 16px);
+  border: 1px solid var(--menue-linie, rgba(232, 230, 240, 0.3)); border-radius: 14px; background: rgba(8, 8, 22, 0.94);
+  box-shadow: 0 0 40px rgba(var(--menue-glow, 170, 180, 255), 0.18);
+  color: var(--menue-dim, rgba(232, 230, 240, 0.66));
+  font-family: var(--font, "Jost", "Helvetica Neue", "Segoe UI Light", "Segoe UI", system-ui, sans-serif); font-weight: 300;
+  -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.menue-sl[hidden] { display: none; }
+.menue-sl.menue-sl-aus { opacity: 0; transform: translateY(-6px); pointer-events: none; }
+.menue-sl.menue-sl-oben.menue-sl-aus { transform: translateY(6px); }
+.menue-sl-eintrag {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; padding: 6px 20px 6px 10px; margin: 0;
+  border: 0; border-radius: 9px; background: none; cursor: pointer;
+  font: inherit; font-size: 13px; letter-spacing: 0.12em; text-align: left; white-space: nowrap; color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+.menue-sl-eintrag:hover { color: var(--menue-ink, #e8e6f0); background: rgba(255, 255, 255, 0.05); }
+.menue-sl-eintrag[aria-checked="true"] { color: #fff; }
+.menue-sl-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.menue-sl-haken { display: inline-flex; width: 14px; flex: none; }
+.menue-sl-haken .menue-ico { font-size: 14px; }
+.menue-sl-eintrag[aria-checked="false"] .menue-sl-haken svg { visibility: hidden; }
+/* Tastaturfokus: innen (die Liste schneidet einen Rahmen aussen ab), hell mit Hof wie im Menü; nach Zeiger oder Finger
+   keiner (.menue-zeiger, createMenu) */
+.menue-sl .menue-sl-eintrag:focus-visible {
+  outline: none; color: #fff; background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), 0 0 16px rgba(var(--menue-glow, 170, 180, 255), 0.35);
+}
+.menue.menue-zeiger .menue-sl .menue-sl-eintrag:focus-visible { box-shadow: none; }
+.menue.menue-zeiger .menue-sl .menue-sl-eintrag:focus-visible:not(:hover) { background: none; }
+/* Finger: Trefferflächen von mindestens 44 px */
+@media (pointer: coarse) {
+  .menue-sl-eintrag { min-height: 46px; font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .menue-sl.menue-sl-aus, .menue-sl.menue-sl-oben.menue-sl-aus { transform: none; }
+  .menue-sl-schalter .menue-sl-pfeil { transition: none; }
+}

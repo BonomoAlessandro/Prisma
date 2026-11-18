@@ -37,11 +37,18 @@ const STORY_ICONS = {
   sterne: '<path d="M12 3l1.9 7.1L21 12l-7.1 1.9L12 21l-1.9-7.1L3 12l7.1-1.9z"/>',
 };
 /**
+ * Texte in den Daten der Geschichte holt ein Getter erst beim Lesen, in der aktuellen Sprache (Ticket 01 von
+ * .scratch/sprachwahl/: ein Wechsel lädt nicht neu, und die Objekte bleiben dieselben). textAn setzt ihn an die Stelle
+ * i eines Arrays (aufzählbar wie ein Eintrag); in Objekten stehen Getter (get title() …).
+ */
+const textAn = (liste, i, text) => Object.defineProperty(liste, i, { get: text, enumerable: true });
+/**
  * Stationen des Wegs: das Dorf, dann je Kapitel eine (Station k ist Stern k des Kleinen Wagens), je [Kennung, Name];
  * die Kennung nennt ihr Zeichen (STORY_ICONS), ihren Namen (welt.<kennung> der Sprachdatei) und die Welt im
  * Speicherstand.
  */
-const STORY_STATIONS = ['dorf', 'wald', 'meer', 'wueste', 'vulkan', 'planeten', 'sterne'].map((id) => [id, t(`welt.${id}`)]);
+const STORY_STATIONS = ['dorf', 'wald', 'meer', 'wueste', 'vulkan', 'planeten', 'sterne']
+  .map((id) => textAn([id], 1, () => t(`welt.${id}`)));
 /**
  * Leiste unter dem Untertitel der Ankunft (story.fillPath, Leiste C aus dem Skizzenkatalog von .scratch/kleiner-wagen/):
  * massstab: CSS-Pixel je Einheit von wagen.form (bei voller Breite, Desktop), rand: Platz um die Form [x, y] (px),
@@ -58,7 +65,8 @@ const STORY_LEISTE = { massstab: 2.1, rand: [22, 20], zeichen: 19 };
  */
 const kapitel = (station, k) => {
   const id = STORY_STATIONS[station][0], text = (was) => t(`geschichte.kapitel.${id}.${was}`);
-  return { station, title: text('titel'), ...k, travel: text('reise'), done: text('fertig'), next: text('weiter') };
+  return { station, ...k, get title() { return text('titel'); }, get travel() { return text('reise'); },
+    get done() { return text('fertig'); }, get next() { return text('weiter'); } };
 };
 const STORY_CHAPTERS = [
   kapitel(1, { sky: 'forest', carrier: 'glow' }),
@@ -68,7 +76,7 @@ const STORY_CHAPTERS = [
   kapitel(5, { sky: 'solar', carrier: 'comet' }),
   kapitel(6, { sky: 'milky', finale: true }),
 ];
-const STORY_FINALE = [1, 2, 3].map((n) => t(`geschichte.finale.${n}`));
+const STORY_FINALE = [1, 2, 3].reduce((liste, n, i) => textAn(liste, i, () => t(`geschichte.finale.${n}`)), []);
 /** Kennung einer Welt im Speicherstand (gesehen): die ihrer Station auf dem Weg (STORY_STATIONS), etwa meer. */
 const storyChapterId = (ch) => STORY_STATIONS[ch.station][0];
 /**
@@ -326,12 +334,13 @@ const himmelsWagen = (() => {
  * «Überspringen», danach tragen die Glühwürmchen das Licht in den Bergwald. done/next: «Gelöst» nach der letzten Übung.
  * sky: der Hintergrund, die Skybox «Noas Dorf bei Nacht» (village; fehlt sie, nimmt setSky die Milchstrasse).
  */
-const STORY_DORF = { station: 0, title: t('geschichte.dorf.titel'), sky: 'village',
-  angebot: { kicker: t('geschichte.dorf.titel'), ueben: t('geschichte.dorf.ueben'), los: t('geschichte.dorf.los'),
-    text: t('geschichte.dorf.angebot') },
-  einstieg: { kicker: t('geschichte.dorf.einstiegKicker'), traeger: null, moment: 'dorf', path: 0,
-    text: t('geschichte.dorf.einstieg') },
-  ende: t('geschichte.dorf.ende'), done: t('geschichte.dorf.fertig'), next: t('geschichte.dorf.weiter') };
+const STORY_DORF = { station: 0, get title() { return t('geschichte.dorf.titel'); }, sky: 'village',
+  angebot: { get kicker() { return t('geschichte.dorf.titel'); }, get ueben() { return t('geschichte.dorf.ueben'); },
+    get los() { return t('geschichte.dorf.los'); }, get text() { return t('geschichte.dorf.angebot'); } },
+  einstieg: { get kicker() { return t('geschichte.dorf.einstiegKicker'); }, traeger: null, moment: 'dorf', path: 0,
+    get text() { return t('geschichte.dorf.einstieg'); } },
+  get ende() { return t('geschichte.dorf.ende'); }, get done() { return t('geschichte.dorf.fertig'); },
+  get next() { return t('geschichte.dorf.weiter'); } };
 /** So lange (ms) bleibt «Überspringen» nach dem Ende eines Einstiegs weg, bevor es im Dorf das Kapitel meint. */
 const STORY_SKIP_RUHE = 2000;
 /**
@@ -443,26 +452,26 @@ const BUEHNENWAGEN = {
 const STORY_PROLOG = [
   { from: { x: 820, y: 160, z: 1.08 }, fromP: { x: 760, y: 120, z: 1.08 }, cam: { x: 800, y: 470, z: 1 },
     camP: { x: 760, y: 470, z: 1 }, move: 6,
-    text: t('geschichte.prolog.1') },
+    get text() { return t('geschichte.prolog.1'); } },
   { cam: { x: 520, y: 590, z: 2 }, move: 4.5,
-    text: t('geschichte.prolog.2') },
+    get text() { return t('geschichte.prolog.2'); } },
   { cam: { x: 560, y: 560, z: 2.2 }, move: 2.6, act: 'lamp',
-    text: t('geschichte.prolog.3') },
+    get text() { return t('geschichte.prolog.3'); } },
   { cam: { x: 900, y: 300, z: 1.35 }, camP: { x: 760, y: 330, z: 1.3 }, move: 5, act: 'reach',
-    text: t('geschichte.prolog.4') },
+    get text() { return t('geschichte.prolog.4'); } },
   { cam: { x: 760, y: 600, z: 1.55 }, camP: { x: 560, y: 600, z: 1.55 }, move: 4, act: 'gather',
-    text: t('geschichte.prolog.5') },
+    get text() { return t('geschichte.prolog.5'); } },
   { cam: { x: 1250, y: 560, z: 1.7 }, camP: { x: 1300, y: 590, z: 1.6 }, move: 5.5, act: 'carry',
-    text: t('geschichte.prolog.6') },
+    get text() { return t('geschichte.prolog.6'); } },
 ];
 const STORY_EPILOG = [
   { from: { x: 900, y: 120, z: 1.12 }, fromP: { x: 980, y: 160, z: 1.08 }, cam: { x: 760, y: 420, z: 1.25 },
     camP: { x: 520, y: 470, z: 1.3 }, move: 6.5,
-    text: t('geschichte.epilog.1') },
+    get text() { return t('geschichte.epilog.1'); } },
   { cam: { x: 790, y: 400, z: 1.2 }, camP: { x: 1000, y: 300, z: 1.1 }, move: 2.5, act: 'blink',
-    text: t('geschichte.epilog.2') },
+    get text() { return t('geschichte.epilog.2'); } },
   { cam: { x: 720, y: 560, z: 1.4 }, camP: { x: 500, y: 560, z: 1.6 }, winkelWie: 'reach', move: 3, act: 'answer',
-    text: t('geschichte.epilog.3') },
+    get text() { return t('geschichte.epilog.3'); } },
 ];
 
 // Testschnittstelle: Diese Namen lesen Proben als globale Namen (src/seite/testschnittstelle.ts)

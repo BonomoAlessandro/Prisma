@@ -6,7 +6,8 @@
    Startbildschirm; hinter dem Menü schaut die Kamera in den Himmel.
    Desktop und Handy quer: Reiter links untereinander, die Karte rechts daneben, der Knopf darunter. Handy hoch: die
    Reiter oben als Segmente, darunter Karte und Stand, der Knopf ganz unten in Reichweite des Daumens.
-   Die Bedingung für hoch steht gleich in createMenu (HOCH): beide zusammen ändern. */
+   Die Bedingung für hoch steht gleich in createMenu (HOCH): beide zusammen ändern. Die Bedingungen für hoch und quer
+   stehen auch in sprachliste.css (Kürzel der Sprache auf dem Schalter). */
 .menue {
   --menue-glow: 170, 180, 255; /* bläulicher Hof wie um den Titel und den Strahl des Startbildschirms */
   --menue-ink: var(--ink, #e8e6f0);

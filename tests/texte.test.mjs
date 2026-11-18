@@ -17,7 +17,9 @@
 // - Seit Ticket 08: en.json ohne deutsche Reste (kein Umlaut, kein Text gleich dem deutschen ausser Namen), die Texte der
 //   Geschichte und der Führung ohne die Muster, die in PLAN 1a.2 «zu stark nach KI» wirkten (Gedankenstrich,
 //   Doppelpunkt), je Sprache.
-// - Der Kern: Nachschlagen, Rückfall auf Deutsch, Platzhalter, Texte je Gerät, die Wahl der Sprache.
+// - Der Kern: Nachschlagen, Rückfall auf Deutsch, Platzhalter, Texte je Gerät, die Wahl der Sprache und (seit Ticket 01
+//   von .scratch/sprachwahl/) der Wechsel ohne Neuladen: Übersetzer und Titel folgen der neuen Sprache, die Abonnenten
+//   hören davon, gleiche oder unbekannte Sprache tut nichts.
 // Läuft in Node ohne Browser (etwa 2 s): node tests/texte.test.mjs
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -27,7 +29,7 @@ import { root } from '../tools/spielserver.mjs';
 import { alsText, kuerzel, sprachen, sprachText } from '../tools/texte.mjs';
 import * as L from '../src/logik.js';
 import {
-  blaetter, istGeraeteText, nachschlagen, platzhalter, spracheWaehlen, titelVon, uebersetzer,
+  blaetter, istGeraeteText, nachschlagen, platzhalter, sprachSchicht, spracheWaehlen, titelVon, uebersetzer,
 } from '../src/texte/uebersetzung.js';
 
 let passed = 0;
@@ -372,3 +374,45 @@ test('Wahl der Sprache: gewünscht (?sprache=), gespeichert, sonst das Gerät (d
     assert.equal(spracheWaehlen({ gewuenscht: 'en', gespeichert: 'de', geraet: 'de', vorhanden: beide }), 'en');
     assert.equal(spracheWaehlen({ gewuenscht: 'xx', gespeichert: 'de', geraet: 'en', vorhanden: beide }), 'de');
   });
+test('Wechsel (sprachSchicht, Ticket 01 von .scratch/sprachwahl/): t, titel und sprache folgen der neuen Sprache, '
+  + 'die Abonnenten hören davon in ihrer Reihenfolge; gleiche oder unbekannte Sprache tut nichts', () => {
+  const s = sprachSchicht(SPRACHEN, 'de', { touch: false });
+  const { t } = s, name = L.LEVELS[L.TUTORIAL_COUNT].name, gehoert = [];
+  s.abonniere((m) => gehoert.push(['a', m, t('menue.aktion.weiter')]));
+  s.abonniere((m) => gehoert.push(['b', m, s.sprache]));
+  assert.equal(s.sprache, 'de');
+  assert.equal(t('menue.aktion.weiter'), DE.menue.aktion.weiter);
+  assert.equal(t('start.tippen'), DE.start.tippen.maus, 'Gerät aus touch');
+  assert.equal(s.titel(name), DE.titel[name]);
+  assert.equal(s.wechsle('de'), false, 'gleiche Sprache');
+  assert.equal(s.wechsle('xx'), false, 'ohne Datei');
+  assert.deepEqual(gehoert, [], 'nichts gemeldet');
+  assert.equal(s.sprache, 'de');
+  assert.equal(s.wechsle('en'), true);
+  assert.equal(s.sprache, 'en');
+  // dasselbe t (wie es Module importieren) gibt jetzt Englisch, schon in den Abonnenten
+  assert.equal(t('menue.aktion.weiter'), SPRACHEN.en.menue.aktion.weiter);
+  assert.notEqual(SPRACHEN.en.menue.aktion.weiter, DE.menue.aktion.weiter);
+  assert.equal(t('kopf.uebung', { n: 2, N: 4 }), SPRACHEN.en.kopf.uebung.replace('{n}', 2).replace('{N}', 4));
+  assert.equal(t('start.tippen', { touch: true }), SPRACHEN.en.start.tippen.touch);
+  assert.equal(s.titel(name), SPRACHEN.en.titel[name]);
+  assert.deepEqual(gehoert, [['a', { sprache: 'en', vorher: 'de' }, SPRACHEN.en.menue.aktion.weiter],
+    ['b', { sprache: 'en', vorher: 'de' }, 'en']]);
+  assert.equal(s.wechsle('en'), false);
+  assert.equal(gehoert.length, 2, 'ein zweites Mal dieselbe: nichts');
+  assert.equal(s.wechsle('de'), true);
+  assert.equal(t('menue.aktion.weiter'), DE.menue.aktion.weiter, 'zurück');
+  assert.deepEqual(gehoert.slice(2).map(([w, m]) => [w, m]), [['a', { sprache: 'de', vorher: 'en' }],
+    ['b', { sprache: 'de', vorher: 'en' }]]);
+  // unbekannte Sprache beim Start: Deutsch
+  assert.equal(sprachSchicht(SPRACHEN, 'xx').sprache, 'de');
+});
+test('Wechsel: Wirft ein Abonnent, kommen die übrigen trotzdem dran, der Fehler geht an fehler', () => {
+  const fehler = [], gehoert = [];
+  const s = sprachSchicht(SPRACHEN, 'de', { fehler: (e) => fehler.push(e.message) });
+  s.abonniere(() => { throw new Error('kaputt'); });
+  s.abonniere(({ sprache }) => gehoert.push(sprache));
+  assert.equal(s.wechsle('en'), true);
+  assert.deepEqual(fehler, ['kaputt']);
+  assert.deepEqual(gehoert, ['en']);
+});

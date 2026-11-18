@@ -27,7 +27,7 @@ import {
   COLORS, createBoard, isRotatable, LEVELS, mod8, NEBENBEI, STORY_LEVELS, TUTORIAL_COUNT,
 } from '../logik.js';
 import { progress } from '../spielstand.js';
-import { levelTitel, t } from '../texte/sprache.js';
+import { levelTitel, setzeSprache, t } from '../texte/sprache.js';
 import { neueAufgabe } from './aufgabe.ts';
 import { alsGlobal } from './testschnittstelle.ts';
 
@@ -153,6 +153,8 @@ window.__prisma.buehne = { modus: 'gl', bilder: (n) => story.scene?.gl?.bilder(n
 // wählt das Menü (menu, oder story.choose(grad), solange es offen ist), einen Stand setzen Proben im Speicher der Seite
 // (progress) und Neuladen. uebersicht: die Übersicht (offen, Daten aus story.overviewData). beamView, shockUniforms,
 // STORY_LEVELS, COLORS: für den Bildvergleich (tests/bildvergleich.mjs), der nur über dieses Objekt in die Seite greift.
+// sprache(kürzel): die Sprache wechseln wie der Schalter im Menü (setzeSprache: gespeichert, ohne Neuladen, Ticket 01
+// von .scratch/sprachwahl/), in jedem Zustand des Spiels; zurück lang des Dokuments danach.
 window.__prismaDebug = { beamView, shockUniforms, STORY_LEVELS, COLORS, arbeit, fuehrung, scene, camera, renderer, boardTheme, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu, uebersicht, adaptiveResolution, sceneLoop,
   settle(seconds) {
     if (FIXED_TIME === null) throw new Error('settle braucht ?t=');
@@ -186,6 +188,10 @@ window.__prismaDebug = { beamView, shockUniforms, STORY_LEVELS, COLORS, arbeit, 
       const delta = mod8(lvl.solution[key] - (el.type === 'combiner' ? el.dir : el.rot));
       if (delta) rotateElement(el, delta);
     }
+  },
+  sprache(kuerzel) {
+    setzeSprache(kuerzel);
+    return document.documentElement.lang;
   } };
 
 /**

@@ -28,7 +28,7 @@ import { leistung } from '../leistung.js';
 import { mulberry32 } from '../../zufall.js';
 import { LEVELS, STORY_LEVELS, TUTORIAL_COUNT } from '../../logik.js';
 import { progress } from '../../spielstand.js';
-import { levelTitel, t } from '../../texte/sprache.js';
+import { beiSprachwechsel, levelTitel, t } from '../../texte/sprache.js';
 import { alsGlobal } from '../testschnittstelle.ts';
 
 // wie der Rückflug der Kamera; die flachere Kurve aus leistung-11 ist zurückgenommen (Ursache der Ruckler war die
@@ -230,6 +230,8 @@ const story = {
   entering: null,     // ein Einstieg (enter) läuft, bis das Level zu wachsen beginnt: { skip } (Überspringen, land)
   endeWartet: false,  // «Überspringen» im Dorf, während eine Zwischenszene lief: danach (done)
   skipShown: false,   // «Überspringen» (#btn-skip) ist zu sehen (update, skippable)
+  skipEinstieg: true, // es überspringt einen Einstieg, sonst das Kapitel «Im Dorf» (beim Einblenden; skipBeschriften)
+  captionInhalt: null, // Inhalt des Untertitels (fillCaption), für einen Wechsel der Sprache (sprachwechsel)
   skipRuhe: 0,        // bis dann (performance.now) kein «Dorf überspringen»: gleich nach einem Einstieg
   landing: false,     // ein übersprungener Einstieg landet (land): Tippen beschleunigt nicht
   gaze: 0,            // Blick in den Himmel, 0 … 1 (updateCamera)
@@ -276,6 +278,7 @@ const story = {
     this.skipBtn = $('btn-skip');
     this.skipBtn.addEventListener('click', (e) => { e.stopPropagation(); this.skip(); this.keepFocus(this.skipBtn); });
     this.buildScene();
+    beiSprachwechsel(() => this.sprachwechsel());
   },
   /**
    * Grad setzen: sein Durchgang aus STORY_LEVELS, sein Stand, sein Platz (ein Wiederholen endet, ebenso eine Übung im
@@ -554,9 +557,10 @@ const story = {
     const best = progress.best(grade);
     const level = (name) => {
       const geloest = s.geloest.includes(name), b = geloest ? best[name] ?? {} : {};
-      return { name, titel: levelTitel({ name }), geloest, bestzeit: b.zeit ?? null, drehungen: b.drehungen ?? null };
+      return { name, get titel() { return levelTitel({ name }); }, geloest, bestzeit: b.zeit ?? null,
+        drehungen: b.drehungen ?? null };
     };
-    const welten = STORY_CHAPTERS.map((ch, c) => ({ name: STORY_STATIONS[ch.station][1],
+    const welten = STORY_CHAPTERS.map((ch, c) => ({ get name() { return STORY_STATIONS[ch.station][1]; },
       icon: storyChapterId(ch), level: (STORY_LEVELS[grade]?.[c] ?? []).map(level) }));
     const d = { grad: grade, welten, geschafft: s.geschafft }, dorf = storyDorfStand(s.dorf);
     if (dorf) {
@@ -718,10 +722,10 @@ const story = {
     // «Im Dorf» und die Knöpfe erst, wenn der letzte Satz des Prologs aus ist (Abnahme Ticket 12: Sie schoben ihn
     // sonst noch im Ausblenden hinauf); dann steht der Satz des Angebots gleich dort, wo er bleibt
     let knoepfe;
-    const umgebaut = sc.say(a.text, { umbau: () => {
-      sc.kicker(a.kicker);
+    const umgebaut = sc.say(() => a.text, { umbau: () => {
+      sc.kicker(() => a.kicker);
       knoepfe = new Promise((resolve) => {
-        sc.actions([[a.ueben, () => resolve(true)], [a.los, () => resolve(false)]], { angebot: true });
+        sc.actions([[() => a.ueben, () => resolve(true)], [() => a.los, () => resolve(false)]], { angebot: true });
       });
     } });
     this.see('prolog'); // schon jetzt: Ein Neuladen vor der Wahl bringt nur noch das Angebot (begin)
@@ -864,7 +868,7 @@ const story = {
     const hoch = this.gazeTo(1, 1.8);
     await this.wait(0.6);
     this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el,
-      { kicker: STORY_DORF.title, text: STORY_DORF.ende, tap: t('geschichte.tippen') }));
+      () => ({ kicker: STORY_DORF.title, text: STORY_DORF.ende, tap: t('geschichte.tippen') })));
     await hoch;
     const { index } = this.steps[this.step], sunk = this.sinkTo(index); // erst im Himmel: kein leeres Brett
     // der Himmel des Bergwalds kommt schon, während der Satz steht («Am Waldrand blinken schon …»): Nach dem Tippen
@@ -927,7 +931,7 @@ const story = {
   async travel(from, ch, index) {
     const fl = this.flare, carrier = this.carrier, n = STORY_CHAPTERS.indexOf(ch) + 1, F = STORY_FLUG;
     carrier.start(from.carrier, fl.position);
-    this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el, this.ankunft(ch)));
+    this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el, () => this.ankunft(ch)));
     // Der geweckte Stern ist Stern n − 1, der nächste Stern n (der der neuen Welt). Das Licht bleibt bei ihm, während
     // der Träger es aufnimmt; es steht schon über dem Untertitel (der Blick des Aufstiegs, chapterEnd)
     const dist = fl.position.distanceTo(camera.position), stern = himmelsWagen.richtung(n - 1);
@@ -1039,7 +1043,7 @@ const story = {
     await this.ascend(sechster, { ende: () => this.wagenBlick(oben / innerHeight), aus: true });
     // Satz 1: Das Licht geht im sechsten Stern auf, der Blick gleitet zum ganzen Wagen über dem Untertitel
     this.amStern = sechster;
-    await this.caption(STORY_FINALE[0], (cap) => {
+    await this.caption(() => STORY_FINALE[0], (cap) => {
       const von = this.gazeDir.clone(), blick = this.wagenBlick(cap.getBoundingClientRect().top / innerHeight);
       this.tween(P.blick, (x) => { this.gazeDir.copy(von).lerp(blick, x).normalize(); });
       const hell = fl.material.opacity;
@@ -1047,9 +1051,9 @@ const story = {
       return this.puls();
     });
     // Satz 2: über die Deichsel zum Polarstern
-    await this.caption(STORY_FINALE[1], () => this.deichsel());
+    await this.caption(() => STORY_FINALE[1], () => this.deichsel());
     // Satz 3: Alles steht still, jetzt fällt ein langes Bild nicht auf (die Bühne wird vorgezeichnet)
-    await this.caption(STORY_FINALE[2], () => this.prewarmScene(STORY_EPILOG));
+    await this.caption(() => STORY_FINALE[2], () => this.prewarmScene(STORY_EPILOG));
     const cap = this.el.querySelector('.caption');
     cap.classList.add('swap');
     await storySleep(350);
@@ -1109,7 +1113,8 @@ const story = {
     this.stand.geschafft = true;
     this.save();
     this.himmelStand(); // der ganze Wagen (dahinter, für das Menü nach dem Epilog)
-    await this.playScene(STORY_EPILOG, { soft, actions: [[t('geschichte.zumMenue'), () => this.afterEpilog()]] });
+    await this.playScene(STORY_EPILOG,
+      { soft, actions: [[() => t('geschichte.zumMenue'), () => this.afterEpilog()]] });
   },
   /**
    * Prolog oder Epilog auf der Bühne: je Einstellung eine Kamerafahrt mit einem Satz, weiter mit Tippen. Tippen
@@ -1151,8 +1156,8 @@ const story = {
       if (this.skipped) break;
       if (sc.gl) await sc.gl.bereit(shots.indexOf(shot)); // WebGL: Texturen der Fahrt fertig (meist schon im Ruhepunkt)
       // vor dem letzten Satz des Epilogs schon der Platz für «Zum Menü» (er rückt dann nicht mehr, Abnahme Ticket 12)
-      if (actions && shot === shots.at(-1)) sc.say(shot.text, { umbau: () => sc.platzFuer(actions) });
-      else sc.say(shot.text);
+      if (actions && shot === shots.at(-1)) sc.say(() => shot.text, { umbau: () => sc.platzFuer(actions) });
+      else sc.say(() => shot.text);
       sc.hint(false);
       if (shot.act) sc.act(shot.act);
       await sc.moveTo(shot);
@@ -1172,7 +1177,7 @@ const story = {
       // (nur in diesem Ruhepunkt: schnell getippt, könnte schon der nächste stehen)
       const hier = shots.indexOf(shot), naechste = shots[hier + 1];
       this.ladeSperre = ['gather', 'carry'].includes(naechste?.act);
-      if (naechste) setTimeout(() => { if (this.stillBild && sc.running && sc.fahrtIndex === hier) { sc.vorSagen(naechste.text); if (naechste.act) sc.vorbereiten(naechste.act); } }, sc.ruheNachHalt);
+      if (naechste) setTimeout(() => { if (this.stillBild && sc.running && sc.fahrtIndex === hier) { sc.vorSagen(() => naechste.text); if (naechste.act) sc.vorbereiten(naechste.act); } }, sc.ruheNachHalt);
       await this.untilTap();
       this.stillBild = false;
     }
@@ -1586,8 +1591,11 @@ const story = {
   async enter(index, ch, sunk, wie = {}) {
     prepareLevel(index); // nach «Üben» ein anderes als in begin
     const c = STORY_CHAPTERS.indexOf(ch), fl = this.flare, carrier = this.carrier;
-    const { kicker = t('geschichte.kapitelKicker', { n: c + 1, titel: ch.title }), text = ch.travel, path = ch.station,
-      traeger = c > 0 ? STORY_CHAPTERS[c - 1].carrier : 'glow', moment = storyChapterId(ch) } = wie;
+    const { path = ch.station, traeger = c > 0 ? STORY_CHAPTERS[c - 1].carrier : 'glow',
+      moment = storyChapterId(ch) } = wie;
+    // der Untertitel, Texte in der Sprache des Augenblicks (fillCaption; ein Wechsel schreibt ihn neu)
+    const inhalt = () => ({ kicker: wie.kicker ?? t('geschichte.kapitelKicker', { n: c + 1, titel: ch.title }),
+      text: wie.text ?? ch.travel, path, tap: t('geschichte.tippen'), warte: true });
     const e = this.entering = { skip: false };
     this.himmelStand(); // nach «Üben» das Dorf, nach dem Dorf der Bergwald
     this.fast = 1; // ein Tippen davor (Prolog, Bühne) beschleunigt den Einstieg nicht; Tippen während seiner schon
@@ -1626,8 +1634,7 @@ const story = {
     };
     follow(0);
     this.gaze = 1;
-    this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el,
-      { kicker, text, path, tap: t('geschichte.tippen'), warte: true }));
+    this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el, inhalt));
     let gezuckt = !stern;
     await this.tween(F.einstieg.dauer, (k) => {
       place(weg(k));
@@ -1812,12 +1819,12 @@ const story = {
   /**
    * Ein Satz, weiter mit Tippen. waehrend(el): was zum Satz geschieht (Finale), gerufen, sobald er erscheint (el: der
    * Untertitel, schon mit dem Satz gefüllt, wenn vorher keiner stand); erst wenn es fertig ist (Promise), wartet der Satz
-   * auf Tippen, bis dahin ohne Aufforderung.
+   * auf Tippen, bis dahin ohne Aufforderung. text: der Satz oder eine Funktion, die ihn gibt (fillCaption).
    */
   async caption(text, waehrend = null) {
     const cap = this.el.querySelector('.caption');
-    const zeigen = this.present('caption', cap,
-      (el) => this.fillCaption(el, { text, tap: t('geschichte.tippen'), warte: !!waehrend }));
+    const zeigen = this.present('caption', cap, (el) => this.fillCaption(el,
+      () => ({ text: typeof text === 'function' ? text() : text, tap: t('geschichte.tippen'), warte: !!waehrend })));
     await Promise.all([zeigen, waehrend?.(cap)]);
     cap.classList.remove('warte');
     await this.untilTap();
@@ -1826,15 +1833,41 @@ const story = {
    * Untertitel füllen: Kapitel darüber, Leiste unten am Rand (beides nur bei der Ankunft in einer Welt; dann stehen
    * Kicker und Text in der Mitte, .mitte), Aufforderung zum Tippen. neu: auf der Reise (die Leiste zeigt das Erwachen).
    * warte: die Aufforderung bleibt verborgen (ihr Platz bleibt), bis das, worauf der Satz wartet, fertig ist (Finale)
-   * bzw. das Licht über ihm anhält (anhalten).
+   * bzw. das Licht über ihm anhält (anhalten). inhalt: { kicker, text, path, tap, neu, warte } oder eine Funktion, die
+   * ihn gibt; der Untertitel merkt sie sich (captionInhalt): Ein Wechsel der Sprache schreibt seine Texte daraus neu
+   * (sprachwechsel).
    */
-  fillCaption(el, { kicker = '', text, path, tap = '', neu = false, warte = false }) {
+  fillCaption(el, inhalt) {
+    const { kicker = '', text, path, tap = '', neu = false, warte = false } =
+      typeof inhalt === 'function' ? inhalt() : inhalt;
+    if (el === this.el.querySelector('.caption')) this.captionInhalt = inhalt; // nicht die Kopie von captionVorab
     el.querySelector('.kicker').textContent = kicker;
     el.querySelector('.text').textContent = text;
     el.classList.toggle('mitte', path !== undefined);
     el.classList.toggle('warte', warte);
     this.fillPath(el.querySelector('.path'), path, neu);
     el.querySelector('.tap').textContent = tap;
+    this.licht = null; // neu messen (lichtHoch)
+  },
+  /** «Überspringen» (#btn-skip) beschriften: im Einstieg die Fahrt, sonst (im Dorf) das Kapitel (skipEinstieg). */
+  skipBeschriften() {
+    this.skipBtn.textContent = t(this.skipEinstieg ? 'geschichte.ueberspringen' : 'geschichte.dorfUeberspringen');
+  },
+  /**
+   * Wechsel der Sprache (Ticket 01 von .scratch/sprachwahl/, ohne Neuladen): «Überspringen» und der Untertitel (auch
+   * ein verborgener) aus seinem Inhalt (captionInhalt) in der neuen Sprache. Ihr Zustand bleibt: «Überspringen» meint
+   * dasselbe, Leiste und Gestalt des Untertitels bleiben, eine schon weggetippte Aufforderung kommt nicht wieder. Die
+   * Bühne schreibt ihre Texte selbst neu (createStoryScene), Kopfzeile und «Gelöst» ui.
+   */
+  sprachwechsel() {
+    this.skipBeschriften();
+    const i = this.captionInhalt;
+    if (!i) return;
+    const cap = this.el.querySelector('.caption'), tap = cap.querySelector('.tap');
+    const { kicker = '', text = '', tap: neu = '' } = typeof i === 'function' ? i() : i;
+    cap.querySelector('.kicker').textContent = kicker;
+    cap.querySelector('.text').textContent = text;
+    if (tap.textContent) tap.textContent = neu;
     this.licht = null; // neu messen (lichtHoch)
   },
   /** Untertitel der Ankunft in der Welt ch auf der Reise (travel; fillCaption). */
@@ -2053,7 +2086,10 @@ const story = {
     if (skip !== this.skipShown) {
       this.skipShown = skip;
       // im Dorf sagt der Knopf, was er überspringt (nur beim Einblenden: kein Wechsel vor den Augen)
-      if (skip) this.skipBtn.textContent = t(this.entering ? 'geschichte.ueberspringen' : 'geschichte.dorfUeberspringen');
+      if (skip) {
+        this.skipEinstieg = !!this.entering;
+        this.skipBeschriften();
+      }
       setShown(this.skipBtn, skip);
     }
     this.carrier?.update(dt * this.fast);

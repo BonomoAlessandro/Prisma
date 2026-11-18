@@ -5,7 +5,7 @@ import { audio } from '../ton.js';
 import { IS_TOUCH } from '../oberflaeche/dom.ts';
 import { storyEase, storyLinear, storySleep } from './geschichte.js';
 import { mulberry32 } from '../../zufall.js';
-import { t } from '../../texte/sprache.js';
+import { beiSprachwechsel, t } from '../../texte/sprache.js';
 
 /**
  * Bühne für Prolog und Epilog: ein Bergdorf bei Nacht über den ganzen Bildschirm, gezeichnet in sechs Ebenen (Himmel,
@@ -292,6 +292,13 @@ function createStoryScene(host, { wagenLage = null } = {}) {
    */
   const layers = [...el.querySelectorAll('.ebene')].map((e) => ({ p: +e.dataset.p, inhalt: e }));
   const lines = [...el.querySelectorAll('.line')];
+  /*
+   * Texte der Bühne (Satz, Zeile darüber, Knöpfe; say, vorSagen, kicker, actions) kommen als Text oder als Funktion,
+   * die ihn in der aktuellen Sprache gibt (etwa () => shot.text). quellen: je Element seine Quelle; ein Wechsel der
+   * Sprache (Ticket 01 von .scratch/sprachwahl/, ohne Neuladen) schreibt daraus neu, was die Bühne zeigt oder
+   * bereithält.
+   */
+  const quellen = new Map(), wert = (text) => (typeof text === 'function' ? text() : text);
 
   /* ---- Bewegung: Werte nach der Zeit der Bühne, je Bild gezeichnet von glBuehne ---- */
   let scene = null;
@@ -1063,6 +1070,14 @@ function createStoryScene(host, { wagenLage = null } = {}) {
   };
   const gl = glBuehne();
   q('.hint span').textContent = t('geschichte.weitergehen', { touch: IS_TOUCH });
+  beiSprachwechsel(() => {
+    q('.skip').textContent = t('geschichte.ueberspringen');
+    q('.hint span').textContent = t('geschichte.weitergehen', { touch: IS_TOUCH });
+    for (const [e, quelle] of quellen) {
+      if (!e.isConnected) quellen.delete(e);
+      else if (typeof quelle === 'function') e.textContent = quelle();
+    }
+  });
   // Arm mit der Lampe zeigt zum Polarstern (Grad; er steht an der Spitze des Wagens, scene.wagenOrte), so wie man beide
   // in der Einstellung sieht, in der Noa zu ihm hinauf leuchtet (Prolog 4 reach, schon beim Heben in lamp; Epilog 3
   // answer), mit der Parallaxe von Himmel und Hügel (Abnahme Ticket 11; vorher wie bei Zoom 1, und der Strahl lief auf
@@ -1553,13 +1568,15 @@ function createStoryScene(host, { wagenLage = null } = {}) {
      * (Angebot: «Im Dorf» und die Knöpfe; Epilog: Platz für «Zum Menü»), und läuft erst, wenn der alte Satz ganz
      * ausgeblendet ist; dann kommt der neue mit allem gleich (sofort). So steht jeder Satz von Anfang an dort, wo er
      * bleibt, und keiner rückt, solange man ihn sieht (Abnahme Ticket 12: Die Bühne ist unten bündig, Knöpfe darunter
-     * schoben den Satz hinauf). Zurück dann: erfüllt nach dem Umbau.
+     * schoben den Satz hinauf). Zurück dann: erfüllt nach dem Umbau. quelle: der Satz oder eine Funktion, die ihn gibt
+     * (quellen).
      */
-    say(text, { umbau = null } = {}) {
+    say(quelle, { umbau = null } = {}) {
       this.umbauLos?.(false);
       const [a, b] = lines, cur = a.classList.contains('on') ? a : b, next = cur === a ? b : a;
-      const sichtbar = cur.classList.contains('on') && cur.textContent;
+      const sichtbar = cur.classList.contains('on') && cur.textContent, text = wert(quelle);
       cur.classList.remove('on');
+      if (text) quellen.set(next, quelle);
       if (text && next.textContent !== text) next.textContent = text; // schon gesetzt und gerastert (vorSagen)
       if (!umbau) { if (text) next.classList.add('on'); return; }
       return new Promise((fertig) => {
@@ -1589,26 +1606,34 @@ function createStoryScene(host, { wagenLage = null } = {}) {
      * Den nächsten Satz schon im Ruhepunkt in die verborgene Zeile setzen: Chrome rastert ihn dann jetzt und nicht beim
      * Tippen, wo er mit dem Beginn der Fahrt ein bis zwei Bilder kostete (Ticket 20). say nimmt ihn so, wie er steht.
      */
-    vorSagen(text) {
-      const next = lines.find((l) => !l.classList.contains('on'));
-      if (text && next && next.textContent !== text) next.textContent = text;
+    vorSagen(quelle) {
+      const next = lines.find((l) => !l.classList.contains('on')), text = wert(quelle);
+      if (!text || !next) return;
+      quellen.set(next, quelle);
+      if (next.textContent !== text) next.textContent = text;
     },
     hint(on) { q('.hint').classList.toggle('on', on); },
-    /** Zeile über dem Untertitel (Angebot nach dem Prolog: «Im Dorf»); leer: blendet aus. */
-    kicker(text) {
-      const k = q('.sub .kicker');
-      if (text) { k.textContent = text; q('.sub').classList.add('angebot'); } // Gestalt des Angebots (CSS), bis reset
+    /** Zeile über dem Untertitel (Angebot nach dem Prolog: «Im Dorf»; Text oder Funktion); leer: blendet aus. */
+    kicker(quelle) {
+      const k = q('.sub .kicker'), text = wert(quelle);
+      if (text) { // dazu die Gestalt des Angebots (CSS), bis reset
+        k.textContent = text;
+        quellen.set(k, quelle);
+        q('.sub').classList.add('angebot');
+      }
       k.classList.toggle('on', !!text);
     },
-    /** Knöpfe unter dem Untertitel ([Beschriftung, Aktion]); angebot: blenden mit dem Satz ein (CSS). */
+    /** Knöpfe unter dem Untertitel ([Beschriftung, Aktion], Beschriftung wie bei say); angebot: mit dem Satz ein (CSS). */
     actions(list, { angebot = false } = {}) {
       const box = q('.actions');
       box.classList.toggle('angebot', angebot);
+      for (const b of box.children) quellen.delete(b);
       box.replaceChildren();
       if (!list.length) { box.classList.remove('platz'); box.style.minHeight = ''; }
       for (const [label, fn] of list) {
         const b = document.createElement('button');
-        b.textContent = label;
+        b.textContent = wert(label);
+        quellen.set(b, label);
         b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
         box.append(b);
       }

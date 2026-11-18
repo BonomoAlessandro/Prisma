@@ -290,7 +290,9 @@ der deutsche Text. Werte stehen als Platzhalter im Text («Übung {n} / {N}»), 
 ist am Handy «Tippe», mit der Maus «Klicke»). Auch die Titel der Level (unter ihrem Namen) und die Sätze der Führung
 stehen dort; die Leveldaten nennen nur Schlüssel. Die Sprache ist beim ersten Start die des Geräts, danach die im Menü
 gewählte (Speicherschicht, `prisma.sprache`): Deutsch bei einem deutschen Gerät, sonst Englisch
-(`src/texte/en.json`, seit Ticket 08). Umbau für die Stores, Tickets 07 und 08; im Code `src/texte/`.
+(`src/texte/en.json`, seit Ticket 08). Ein Wechsel im Menü lädt nicht neu (Sprachwahl, Ticket 01): Das laufende Spiel
+zeigt gleich jeden Text in der neuen Sprache, auch was gerade verborgen ist, und bleibt, wo es ist. Umbau für die
+Stores, Tickets 07 und 08; im Code `src/texte/`.
 _Vermeiden_: i18n, Lokalisierung (für die Schicht selbst), Sprachpaket
 
 **Testschnittstelle**:

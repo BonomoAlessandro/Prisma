@@ -2,7 +2,7 @@
   "name": "prisma",
   "private": true,
   "description": "Prisma – ein 3D-Licht-Puzzle",
-  "appVersion": "2026-11-18 umbau-10",
+  "appVersion": "2026-11-18 umbau-10 sprachwahl",
   "android": {
     "versionCode": 1,
     "versionName": "1.0"
