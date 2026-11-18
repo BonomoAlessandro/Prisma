@@ -6,7 +6,9 @@
 // auch Milchstrasse und Sonnensystem online).
 // Ausgeliefert wird der Build (frisch gebaut über tools/spielserver.mjs in einen eigenen Ordner im Temp-Verzeichnis;
 // PRISMA_OHNE_BAU=1 nimmt das vorhandene dist/) samt dem dort erzeugten sw.js.
-// Aufruf: node tests/offline.mjs [--redirect]   (--redirect: Server leitet index.html auf ./ weiter, wie manche Hoster)
+// Aufruf: node tests/offline.mjs [--redirect] [--unterpfad]   (--redirect: Server leitet index.html auf ./ weiter, wie
+//   manche Hoster; --unterpfad: das Spiel unter /Prisma/ wie auf GitHub Pages, /Prisma ohne Schrägstrich leitet dorthin
+//   weiter, ausserhalb gibt es nur 404; Ticket 09 von .scratch/umbau/)
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
@@ -22,14 +24,18 @@ const dist = process.env.PRISMA_OHNE_BAU ? DIST : baue(mkdtempSync(join(tmpdir()
 if (dist !== DIST) process.once('exit', () => rmSync(dist, { recursive: true, force: true }));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const redirect = process.argv.includes('--redirect');
+const PRAEFIX = process.argv.includes('--unterpfad') ? '/Prisma' : '';
 
-// Statischer Server für dist/; merkt sich die Parameter der Seitenaufrufe
+// Statischer Server für dist/ (unter PRAEFIX); merkt sich die Parameter der Seitenaufrufe
 const pageQueries = [];
 const server = createServer((req, res) => {
   const reqUrl = new URL(req.url, 'http://x');
-  if (reqUrl.pathname === '/' || reqUrl.pathname === '/index.html') pageQueries.push(reqUrl.search);
-  if (redirect && reqUrl.pathname === '/index.html') { res.writeHead(301, { Location: '/' + reqUrl.search }); res.end(); return; }
-  let path = decodeURIComponent(reqUrl.pathname);
+  if (PRAEFIX && reqUrl.pathname === PRAEFIX) { res.writeHead(301, { Location: `${PRAEFIX}/${reqUrl.search}` }); res.end(); return; }
+  if (!reqUrl.pathname.startsWith(`${PRAEFIX}/`)) { res.writeHead(404); res.end(); return; }
+  const pfad = reqUrl.pathname.slice(PRAEFIX.length);
+  if (pfad === '/' || pfad === '/index.html') pageQueries.push(reqUrl.search);
+  if (redirect && pfad === '/index.html') { res.writeHead(301, { Location: `${PRAEFIX}/${reqUrl.search}` }); res.end(); return; }
+  let path = decodeURIComponent(pfad);
   if (path.endsWith('/')) path += 'index.html';
   const file = join(dist, path);
   if (!file.startsWith(dist) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404); res.end(); return; }
@@ -40,7 +46,7 @@ const sockets = new Set();
 server.on('connection', (s) => { sockets.add(s); s.on('close', () => sockets.delete(s)); });
 const stopServer = () => { server.close(); for (const s of sockets) s.destroy(); };
 await new Promise(r => server.listen(0, '127.0.0.1', r));
-const base = `http://127.0.0.1:${server.address().port}/`;
+const base = `http://127.0.0.1:${server.address().port}${PRAEFIX}/`;
 
 const chrome = [
   process.env.CHROME_PATH,
@@ -116,6 +122,13 @@ try {
   await waitFor(sceneRuns, 'Szene online');
   await waitFor('!!navigator.serviceWorker?.controller', 'Service Worker übernimmt die Seite');
   check(true, 'online: Szene läuft, Service Worker aktiv');
+  // Bereich des Service Workers und des Manifests: genau der Ordner der Seite (unter /Prisma/ wie auf GitHub Pages)
+  const bereich = await evaluate(`navigator.serviceWorker.getRegistration().then(async (r) => {
+    const link = document.querySelector('link[rel="manifest"]'), m = await (await fetch(link.href)).json();
+    return { sw: r?.scope, scope: new URL(m.scope, link.href).href, start: new URL(m.start_url, link.href).href };
+  })`);
+  const bereichOk = bereich?.sw === base && bereich?.scope === base && bereich?.start === base + 'index.html';
+  check(bereichOk, `online: Service Worker und Manifest gelten für ${base}` + (bereichOk ? '' : ` (${JSON.stringify(bereich)})`));
   check(await evaluate(fontReady), 'online: Schrift Jost geladen');
   check(relevantErrors().length === 0, 'online: Konsole ohne Fehler' + (relevantErrors().length ? '\n        ' + relevantErrors().join('\n        ') : ''));
 
@@ -193,6 +206,11 @@ try {
     const all = [...relevantErrors(), ...skyWarnings()];
     check(all.length === 0, `offline: Skybox ${sky.id} ganz geladen (mit Streifen), Konsole ohne Fehler` + (all.length ? '\n        ' + all.join('\n        ') : ''));
   }
+  // die Datenschutzerklärung (Ticket 09): auch offline lesbar, beide Sprachen
+  await send('Page.navigate', { url: base + 'datenschutz.html' });
+  await waitFor('document.readyState === "complete" && !!document.getElementById("en")', 'Datenschutzerklärung offline', 50);
+  check(await evaluate('!!document.getElementById("de") && performance.getEntriesByType("navigation")[0].workerStart > 0'),
+    'offline: Datenschutzerklärung vom Service Worker, Deutsch und Englisch');
 } catch (e) {
   check(false, e.message);
 } finally {

@@ -13,10 +13,15 @@
   // Manifest (Icon für den Android-Startbildschirm) und Service Worker (offline spielbar, siehe sw.js) nur über
   // http(s): über file:// blockiert der Browser das Manifest mit Fehler und kennt keine Service Worker. updateViaCache:
   // sw.js bei jedem Besuch beim Server prüfen. Im Dev-Server (npm run dev) setzt vite.config.mjs PRISMA_DEV: dort kein
-  // Service Worker, sonst lieferte er alte Stände
+  // Service Worker, sonst lieferte er alte Stände. Registriert erst, wenn load da ist und src/main.ts das Spiel geladen
+  // und die Enthüllung hinter sich hat (Ereignis prisma-ruhig, Ticket 09 des Umbaus): Mit await auf oberster Ebene in
+  // den Modulen kommt load schon vor dem Seitenstart, und das Vorab-Speichern liefe sonst während seiner mit
   if (/^https?:/.test(location.protocol)) {
     document.head.insertAdjacentHTML('beforeend', '<link rel="manifest" href="manifest.webmanifest">');
-    if ('serviceWorker' in navigator && !window.PRISMA_DEV) addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {}));
+    if ('serviceWorker' in navigator && !window.PRISMA_DEV) {
+      Promise.all(['load', 'prisma-ruhig'].map((e) => new Promise((r) => addEventListener(e, r, { once: true }))))
+        .then(() => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })).catch(() => {});
+    }
   }
 </script>
 <meta name="theme-color" content="#030308">

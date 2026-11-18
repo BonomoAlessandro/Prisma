@@ -1476,6 +1476,75 @@ console.log('Offline');
     assert.deepEqual(uebertragen, daten.map((d) => d.buffer));
     assert.ok(ctx.zu, 'Worker schliesst sich nicht');
   });
+  // GitHub Pages (Ticket 09 von .scratch/umbau/): dieselbe Ausgabe unter dem Unterpfad /Prisma/ und unter /
+  test('Pages: alle Pfade relativ (Seite, Stil, Manifest), Service Worker und Manifest mit dem Bereich des Ordners', () => {
+    const absolut = [...distHtml.matchAll(/\b(?:src|href)="(\/[^"]*)"/g)].map((m) => m[1]);
+    assert.deepEqual(absolut, [], 'index.html im Build mit absoluten Pfaden');
+    assert.deepEqual(stile.flatMap((s) => urls(readFileSync(join(aus, s), 'utf8'))).filter((u) => u.startsWith('/')), []);
+    const manifest = JSON.parse(readFileSync(join(aus, 'manifest.webmanifest'), 'utf8'));
+    assert.equal(manifest.scope, './');
+    assert.equal(manifest.start_url, 'index.html');
+    assert.deepEqual(manifest.icons.map((i) => i.src).filter((s) => s.startsWith('/') || /^https?:/.test(s)), []);
+    assert.match(quelle, /navigator\.serviceWorker\.register\('sw\.js'/, 'sw.js nicht relativ registriert');
+    // sw.js unter /Prisma/ ausgeführt: die Seite und ihre Dateien, nichts ausserhalb des Ordners
+    const g = 'https://bonomoalessandro.github.io';
+    const unter = vm.createContext({ URL, location: new URL(`${g}/Prisma/sw.js`), addEventListener() {} });
+    unter.self = unter;
+    vm.runInContext(readFileSync(join(aus, 'sw.js'), 'utf8'), unter);
+    const key = (u) => vm.runInContext(`cacheKey(${JSON.stringify(u)})`, unter);
+    assert.equal(key(`${g}/Prisma/?noadapt`), `${g}/Prisma/index.html`);
+    assert.equal(key(`${g}/Prisma/index.html`), `${g}/Prisma/index.html`);
+    assert.equal(key(`${g}/Prisma/${skripte[0]}`), `${g}/Prisma/${skripte[0]}`);
+    assert.equal(key(`${g}/Prisma/datenschutz.html`), `${g}/Prisma/datenschutz.html`);
+    assert.equal(key(`${g}/index.html`), null);
+    assert.equal(key(`${g}/anderes/assets/x-AbCd1234.js`), null);
+  });
+  test('Pages: Service Worker erst nach load und nach der Enthüllung (src/main.ts, Ereignis prisma-ruhig, Review 04)', () => {
+    const kopf = quelle.slice(0, quelle.indexOf('</head>'));
+    assert.match(kopf, /Promise\.all\(\['load', 'prisma-ruhig'\]\.map\(/, 'Registrierung wartet nicht auf beide');
+    assert.ok(!/addEventListener\('load', \(\) => navigator\.serviceWorker/.test(kopf), 'noch die alte Registrierung bei load');
+    const main = readFileSync(join(root, 'src/main.ts'), 'utf8').replace(/^\s*\/\/.*$/gm, '').split(/\r?\n/)
+      .map((z) => z.trim()).filter(Boolean);
+    assert.deepEqual(main, ["import './seite/schleife.js';", "import { introCalm } from './seite/oberflaeche/ui.js';",
+      "introCalm.then(() => dispatchEvent(new Event('prisma-ruhig')));"], 'src/main.ts: nach den Teilen genau das Ereignis');
+    const js = readFileSync(join(aus, skripte[0]), 'utf8').replace(/\/\/# sourceMappingURL=\S+\s*$/, '').trimEnd();
+    assert.match(js.slice(-160), /\.then\(\(\) => dispatchEvent\(new Event\([`"']prisma-ruhig[`"']\)\)\);?$|\.then\(\(\)=>dispatchEvent\(new Event\([`"']prisma-ruhig[`"']\)\)\);?$/,
+      'Ereignis nicht am Ende des Spiels im Build');
+  });
+  test('Pages: Datenschutzerklärung (PLAN 4.9) im Build und im Speicher, Deutsch und Englisch, lädt nichts', () => {
+    assert.ok(readFileSync(join(aus, 'datenschutz.html')).equals(readFileSync(join(root, 'datenschutz.html'))), 'nicht wie die Quelle');
+    const text = readFileSync(join(aus, 'datenschutz.html'), 'utf8');
+    assert.ok(swFiles.includes('datenschutz.html'), 'datenschutz.html nicht in FILES');
+    assert.match(text, /<section id="de" lang="de">/);
+    assert.match(text, /<section id="en" lang="en">/);
+    assert.ok(!/<script\b/i.test(text), 'Skript in der Datenschutzerklärung');
+    // laden darf sie nur das Icon daneben; Adressen draussen nur als Verweis (<a href>)
+    const geladen = [...text.matchAll(/<(?!a\b)\w+\b[^>]*?\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]);
+    assert.deepEqual(geladen, ['favicon.svg']);
+    assert.deepEqual(text.match(/url\(|@import/g) ?? [], []);
+  });
+  test('Pages: Workflow nur bei Push auf main und von Hand, Tests, Build, offizielle Actions mit fester Hauptversion', () => {
+    const wf = readFileSync(join(root, '.github/workflows/pages.yml'), 'utf8').replaceAll('\r\n', '\n');
+    assert.match(wf, /^on:\n {2}push:\n {4}branches: \[main\]\n {2}workflow_dispatch:/m);
+    assert.ok(!/pull_request|schedule:/.test(wf), 'weitere Auslöser');
+    const uses = [...wf.matchAll(/uses: ([\w/-]+)@(\S+)/g)];
+    assert.deepEqual(uses.map((u) => u[1]).sort(), ['actions/checkout', 'actions/configure-pages', 'actions/deploy-pages',
+      'actions/setup-node', 'actions/upload-pages-artifact']);
+    assert.deepEqual(uses.filter((u) => !/^v\d+$/.test(u[2])).map((u) => u[0]), [], 'Version nicht fest auf eine Hauptversion');
+    assert.match(wf, /run: npm ci$/m);
+    assert.match(wf, /run: npm run build$/m);
+    assert.match(wf, /path: dist$/m);
+    // die Tests: nur Namen aus tests/alle.mjs, nicht leise (nur unter Windows)
+    const namen = wf.match(/run: node tests\/alle\.mjs ([\w -]+)$/m)?.[1].trim().split(/\s+/) ?? [];
+    const alle = [...readFileSync(join(root, 'tests/alle.mjs'), 'utf8').replaceAll('\r\n', '\n').matchAll(/^\s+'?([\w-]+)'?: '[\w.-]+\.mjs',$/gm)].map((m) => m[1]);
+    assert.ok(alle.length > 10 && namen.length >= 5, 'keine Tests im Workflow');
+    assert.deepEqual(namen.filter((n) => !alle.includes(n)), [], 'unbekannte Tests im Workflow');
+    assert.ok(!namen.includes('leise'), 'leise läuft nur unter Windows');
+    // wuerfelliste sucht die Commits der Herkunft («Stand …») in der Geschichte: checkout holt sonst nur einen Commit
+    if (namen.includes('wuerfelliste')) {
+      assert.match(wf, /uses: actions\/checkout@v\d+\n {8}with:\n {10}fetch-depth: 0$/m, 'checkout ohne fetch-depth: 0');
+    }
+  });
   // Dev-Server (npm run dev): Version eingesetzt, kein Service Worker, vendor/ und backgrounds/ roh
   const { createServer } = await import('vite');
   const dev = await createServer({ root, configFile: join(root, 'vite.config.mjs'), logLevel: 'silent',

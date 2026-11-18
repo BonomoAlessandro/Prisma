@@ -92,12 +92,34 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   (`Network: http://192.168.…:4173/`), diese im Browser des Handys öffnen. Der Rechner muss Verbindungen auf Port 4173
   zulassen (Windows-Firewall: beim ersten Mal «Zugriff zulassen» für Node). Über http ohne s gibt es dort keinen Service
   Worker (Browser verlangen https ausser auf `localhost`); offline spielbar ist erst die Fassung auf GitHub Pages.
+- **Im Netz (GitHub Pages, Ticket 09 des Umbaus):** Die Browser-Fassung steht unter
+  **`https://bonomoalessandro.github.io/Prisma/`** (fest, PLAN 4.1: der Fortschritt hängt an der Adresse), die
+  Datenschutzerklärung (Deutsch und Englisch, `datenschutz.html`) unter
+  `https://bonomoalessandro.github.io/Prisma/datenschutz.html`. Veröffentlicht wird von selbst: Jeder Push auf `main`
+  startet den Workflow `.github/workflows/pages.yml` (von Hand auch unter Actions → «Pages» → «Run workflow»): `npm
+  ci`, die schnellen Node-Tests ohne Chrome (`node tests/alle.mjs golden logic hall speicher testschnittstelle texte
+  vorrat wuerfelliste ki-tester typecheck`; `geschichte`, `beurteilung`, `levelliste`, `generator` rechnen lange und
+  laufen wie `leise` (nur unter Windows) nur lokal), `npm run build`, dann `dist/` mit den offiziellen Actions
+  (`configure-pages`, `upload-pages-artifact`, `deploy-pages`) auf Pages. Scheitert ein Test oder der Build, bleibt der bisherige Stand online. Die Proben mit
+  Chrome und der Bildvergleich laufen nur lokal. Im Repo muss unter Settings → Pages als «Source» «GitHub Actions»
+  stehen. Für den Unterpfad `/Prisma/` braucht das Spiel nichts Eigenes: Alle Pfade sind relativ (`base: './'`,
+  Manifest mit `scope: "./"` und `start_url: "index.html"`, `sw.js` neben der Seite, also mit dem Bereich `/Prisma/`);
+  lokal läuft dieselbe Ausgabe weiter unter `/`. Unter einem Unterpfad lokal prüfen: `npm run build`, dann
+  `npm run preview -- --base /Prisma/` (`http://localhost:4173/Prisma/`; in Git Bash mit `MSYS_NO_PATHCONV=1`
+  davor, sonst macht die Shell aus `/Prisma/` einen Windows-Pfad), oder `node tests/offline.mjs --unterpfad`. Auf `bonomoalessandro.github.io` teilen
+  sich alle Seiten des Kontos einen Ursprung (`localStorage`, Cache Storage); das Spiel nutzt nur Schlüssel `prisma.*`
+  und Speicher `prisma-*`, sein Service Worker gilt nur unter `/Prisma/`. Die Source-Maps gehen mit auf Pages
+  (Entscheid in Ticket 09).
 - **Version:** `appVersion` in `package.json` ist die einzige Quelle; Dev-Server und Build setzen sie in `index.html`
   und `sw.js` ein (Platzhalter `__APP_VERSION__`). Mit jedem Stand für einen Handy-Durchlauf nachführen.
 - **Offline:** Über http(s) ausgeliefert, speichert der Service Worker `sw.js` alle Dateien; danach läuft das Spiel
   auch ohne Verbindung. Die Listen `FILES` und `LAZY` entstehen beim Build aus `dist/` (nichts mehr von Hand
   eintragen): alles nach `FILES`, ausser `sw.js` und den Lizenztexten; Teile der Skyboxen ohne `precache` nach `LAZY`
-  (gespeichert beim ersten Gebrauch). Ein Test prüft die Listen am Build.
+  (gespeichert beim ersten Gebrauch). Ein Test prüft die Listen am Build. Registriert wird er erst, wenn `load` da
+  ist **und** `src/main.ts` die Teile geladen hat und die Enthüllung vorbei ist (`introCalm`, ohne Intro sofort;
+  Ereignis `prisma-ruhig`, Ticket 09 des Umbaus): So läuft sein Vorab-Speichern (gut 13 MB) nicht neben dem
+  Seitenstart und der Enthüllung her. Die Datenschutzerklärung
+  `datenschutz.html` kommt unverändert nach `dist/` und in den Speicher.
   Der Dev-Server registriert keinen Service Worker (`PRISMA_DEV`); einen alten, noch registrierten derselben Adresse
   meldet er ab. Wer `dist/` mit `npm run preview` auf `localhost` öffnet, hat danach dort einen Service Worker (er
   liefert das Spiel auch bei gestopptem Server): In den DevTools unter Application → Service Workers „Unregister“ oder
@@ -429,7 +451,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Glühwürmchen Ruhe. Gemessen in der Seite über rAF und `draw` (auch headless brauchbar); Ergebnis nach
     `tests/output/energie/ruhetakt-*.json`.
   - `node tests/offline.mjs` prüft den Offline-Betrieb am frisch gebauten `dist/` mit dessen `sw.js` (`--redirect`:
-    Server leitet index.html weiter; startet Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
+    Server leitet index.html weiter; `--unterpfad`: das Spiel unter `/Prisma/` wie auf GitHub Pages; startet
+    Headless-Chrome, also wie die Screenshots nur über `leise.sh`). Er prüft auch den Bereich von Service Worker und
+    Manifest (der Ordner der Seite) und die Datenschutzerklärung offline.
   - `GPU=1 LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/spiegel-probe.mjs
     [pruefe|messen|bilder] [--handy] [--welten forest,beach,…] [--runden 4] [--level 212] [--fassungen …]
     [--vorher datei] [--ordner pfad]` (Tickets 03 und 04 der Energie, je etwa 3 min): `pruefe` (Vorgabe) wechselt in
