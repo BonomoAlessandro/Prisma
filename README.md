@@ -3,13 +3,130 @@
 Ein 3D-Licht-Puzzle im Browser: Spiegel und Kristalle drehen, Licht lenken,
 mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 
-- **Starten:** `index.html` direkt im Browser öffnen (keine Installation, kein Build-Step, kein Internet nötig).
-  Three.js r147 (MIT) und die Schrift Jost (SIL OFL 1.1) liegen in `vendor/`, die Lizenztexte daneben.
+- **Starten:** Node 22.12 oder neuer, einmal `npm install` (Abhängigkeiten nur zum Entwickeln: Vite und TypeScript,
+  Versionen fest in `package-lock.json`). Dann `npm run dev`: Dev-Server auf `http://localhost:5173/`, lädt bei einer
+  Änderung neu. Three.js r147 (MIT) und die Schrift Jost (SIL OFL 1.1) liegen in `vendor/`, die Lizenztexte daneben.
+- **Bauen:** `npm run build` legt das fertige Spiel nach `dist/` (nicht im Repo; etwa 2 s), mit relativen Pfaden
+  (`base: './'`, läuft also auch in einem Unterordner wie `/Prisma/`). `npm run preview` liefert `dist/` über http
+  (`http://localhost:4173/`), mit Service Worker wie später im Netz. Wie gebaut wird, steht im Kopf von
+  `vite.config.mjs`: Vite bündelt die Module zu einer verkleinerten Datei unter `dist/assets/` (mit Source-Map, nicht
+  im Speicher des Service Workers), den Stil zu einer zweiten; was `index.html` direkt lädt (three.js, das Register
+  der Skyboxen), trägt `vite-ignore`; `vendor/`, `icons/`, `favicon.svg`, `manifest.webmanifest` und die Skyboxen
+  des Registers kommen unverändert nach `dist/`, die Schrift mit Hash nach `dist/assets/`.
+- **Aufbau des Codes (seit Ticket 04 des Umbaus):** `index.html` ist nur das Gerüst der Seite: Markup, zwei kleine
+  Skripte im Kopf (Manifest und Service Worker; Massstab der Seite `SEITE`), three.js und das Register der Skyboxen
+  als klassische Skripte, dann das Spiel als ES-Modul `src/main.ts`. Der Stil liegt in `src/stil/` (`index.css`
+  bindet die Teile in ihrer Reihenfolge ein: `grund`, `oberflaeche`, `start`, `geschichte`, `menue`, `uebersicht`,
+  `leistung`, `seite`). Das Spiel in `src/`:
+  - `logik.js` (Strahlregel, Löser-Grundlagen, `LEVELS`, `LEVELS_3D` und `STORY_LEVELS` aus den Leveldaten; auch für
+    Node), `daten/level.js` (die Level und die Reise der Geschichte als Daten, seit Ticket 06; siehe «Levels»),
+    `zufall.js`, `hall.js`,
+    `hall-worker.ts` (Worker des Halls); `himmelbild.js` (Farbbilder der Skyboxen dekodieren, `decode`) mit
+    `himmelbild-worker.ts`, `brettdaten.js` (Texturen der Bretter rechnen, `BRETT_DATEN`) mit `brettdaten-worker.ts`
+    (seit Ticket 05 eigene Module; bis dahin bekamen diese Worker den Text der Funktionen als Blob, und der Build
+    durfte keine Namen kürzen). Ohne Worker rechnet die Seite mit denselben Funktionen im Hauptthread;
+  - `speicher.ts`, die Speicherschicht (Ticket 05 des Umbaus): Aller Zugriff auf den Spielstand läuft über ihre kleine
+    Schnittstelle `Speicher` (`lesen`, `schreiben`, `loeschen` je Schlüssel, Werte als Text; wirft nie). Die Umsetzung
+    wählt die Plattform beim Start (`speicherFuerPlattform`), heute überall `localStorage`; später etwa eine Datei für
+    Steam Cloud, ohne dass sich das Spiel ändert. Kein anderer Teil des Codes nennt `localStorage` (Test).
+    `spielstand.js` legt Schlüssel und Format fest (unverändert seit Noas Geschichte): `progress` (Stand je Grad unter
+    `prisma.noa.<grad>`, Bestwerte unter `prisma.noa.<grad>.bestwerte`, zuletzt gespielt unter `prisma.noa.zuletzt`)
+    und `einstellungen` (Ton aus unter `prisma.muted`, seit Ticket 07 die gewählte Sprache unter `prisma.sprache`);
+  - `texte/`, die Übersetzungsschicht (Ticket 07 des Umbaus): Jeder Text, den der Spieler sieht, steht in einer
+    JSON-Datei je Sprache (`de.json`; eine neue Sprache ist nur eine neue Datei `<kürzel>.json`, das Spiel findet sie
+    mit `import.meta.glob`). Der Code nennt Schlüssel: `t('menue.aktion.weiter')`, mit Werten
+    `t('kopf.uebung', { n, N })` («Übung {n} / {N}»); ein Blatt kann je Gerät verschieden sein (`{ touch, maus }`,
+    «Tippen»/«Klicken»), und die Platzhalter `{Tippe}` und `{Drücke lang}` holen die Befehlsform je Gerät aus dem
+    Bereich `geraet`. Fehlt ein Schlüssel in einer Sprache, gilt der deutsche Text. Die Titel der Level stehen im
+    Bereich `titel` unter ihrem Namen (`levelTitel`; ohne Eintrag, etwa ein Kandidat der KI-Tester, der Name), die
+    Sätze der Führung unter `fuehrung` (die Leveldaten nennen nur den Schlüssel). Den Kern (Nachschlagen,
+    Platzhalter, Wahl der Sprache) hat `uebersetzung.js`, auch für Node; `sprache.js` lädt die Dateien, wählt die
+    Sprache (`?sprache=<kürzel>` zum Prüfen, sonst die im Menü gewählte, sonst die des Geräts: `de*` Deutsch, sonst
+    Englisch, solange es `en.json` gibt), setzt `lang` des Dokuments und die festen Texte in `index.html`
+    (`data-t`, `data-t-title`, `data-t-aria-label`, `data-t-content`). Der Schalter der Sprache steht oben rechts im
+    Menü (das Spiel hat keine eigenen Einstellungen); ein Wechsel speichert die Sprache und lädt die Seite neu.
+    Werkzeuge lesen und schreiben die Dateien über `tools/texte.mjs` (feste Form);
+  - `seite/` die Teile des Spiels, in der Reihenfolge, in der sie laden: `konfiguration.ts` (Fassung, Gerät,
+    Schalter der Adresse, Qualität, Masse), `szene.js` (Renderer, Szene, Hauptschleife `sceneLoop`, Ruhe,
+    Übersetzen der Programme), `texturen.js`, `himmel/` (`sterne.js` Umgebung und Sternenhimmel, `sonnensystem.js`,
+    `skybox.js` Skyboxen aus Blender und `skyTheme`), `brett/brett.js` (Bretter je Himmel, Spiegelung),
+    `bildschritte.js` (Licht, Bloom, Pinsel, letzter Schritt), `kamera.js`, `brett/elemente.js` (3D-Modelle der
+    Elemente), `brett/feld.js` (`game`: Logik und Darstellung verbunden, Laden, Drehen, Würfel), `brett/strahlen.js`,
+    `eingabe.js` (Maus, Finger, Mausrad), `ton.js`, `levelfluss.js` (Lösungsmoment, Übergänge, Fortschritt),
+    `oberflaeche/dom.ts`, `fuehrung.js` (Führung im Dorf), `oberflaeche/` (`ui.js` Kopfzeile, Knöpfe, «Gelöst»,
+    Startbildschirm; `menue.js`; `uebersicht.js`), `geschichte/` (`daten.js` Kapitel und Texte, `buehne.js` Bühne von Prolog und
+    Epilog, `geschichte.js` Ablauf `story`), `aufloesung.js` (Grösse, Uhr, adaptive Auflösung, Spiegelung je Bild),
+    `leistung.js` (Messwerkzeug, Leistungsanzeige `?perf`, Bildrate), `schleife.js` (Hauptschleife, Testschnittstelle
+    `window.__prisma`/`__prismaDebug`, Seitenstart). Dazu `aufgabe.ts` (eine neue Aufgabe abwarten) und
+    `testschnittstelle.ts`.
+  Jeder Teil importiert zuerst den vorherigen, `src/main.ts` den letzten: So laufen sie beim Laden in derselben
+  Reihenfolge wie früher die Skripte, und beim Laden ruft ein Teil nichts aus einem späteren auf (zur Laufzeit schon;
+  zyklische Importe sind darum gewollt). `szene.js` und `kamera.js` warten zuerst auf eine neue Aufgabe (`await` auf
+  oberster Ebene), wo bis Ticket 04 ein neues klassisches Skript begann (Seitenstart in Stücken, Ticket 10 der
+  Leistung). Neue Abhängigkeiten zwischen den Teilen sind gewöhnliche `import`/`export`. Proben lesen über
+  Runtime.evaluate einige Namen der Seite als globale Namen (`game`, `camera`, `draw` …); die zeigt jedes Modul am
+  Schluss mit `alsGlobal` (`src/seite/testschnittstelle.ts`) als Eigenschaften von `window`, `draw` und
+  `renderReflection` auch zum Ersetzen. Braucht eine Probe einen weiteren Namen, kommt er dort dazu;
+  `tests/testschnittstelle.test.mjs` (seit Ticket 05) meldet jeden Namen der obersten Ebene, den eine Probe im Code
+  der Seite nennt und `alsGlobal` nicht zeigt.
+- **Module und TypeScript (seit den Tickets 03 und 04 des Umbaus):** `npm run typecheck` (`tsc --noEmit` für
+  `tsconfig.json` und, mit WebWorker statt DOM, `tsconfig.worker.json`) prüft die Typen; es gehört zu `npm test`.
+  Übersetzt (Typen entfernt) wird nur von Vite. Neue und herausgelöste Module dürfen TypeScript sein (`.ts`, import
+  mit Endung `.ts`); der übrige Code ist JavaScript (`allowJs`, nicht geprüft: `checkJs` aus) und wird es Stück für
+  Stück. TypeScript sind heute `src/main.ts`, die Worker `src/*-worker.ts`, `src/seite/konfiguration.ts`,
+  `src/seite/oberflaeche/dom.ts`, `src/seite/aufgabe.ts`, `src/seite/testschnittstelle.ts` und `src/speicher.ts`; was
+  die klassischen Skripte global bereitstellen (`THREE`), deklariert `src/globale.d.ts`. Tests und Werkzeuge
+  importieren die Spiellogik, den Zufall und den Hall (`tools/solver.mjs` liefert die Logik als `L`;
+  `src/package.json`: `"type": "module"`). Diese drei Module und die Leveldaten `src/daten/level.js` haben eine feste
+  Form, damit Tests und Werkzeuge sie auch als Text ausführen können (etwa die Leveldaten mit weiteren Leveln,
+  `tools/seitenmodule.mjs`): am Anfang (nach Kommentaren) nur `import { … } from './x.js';` (die Logik:
+  `./daten/level.js`), am Schluss ein `export { … };` mit allen Namen der obersten Ebene. Tests, die Code der Seite
+  als Text lesen, lesen `index.html` und alle Module zusammen (`spielQuelltext`). Die KI-Tester bauen das Spiel für
+  Kandidaten mit anderen Leveldaten (`spielServer` mit `daten`, `PRISMA_LEVELDATEN` in `vite.config.mjs`; bis Ticket
+  06 eine andere Spiellogik). Node 22.12 lädt TypeScript nicht ohne Weiteres:
+  `node --experimental-strip-types` genügt (ohne Abhängigkeit, mit einer Warnung `ExperimentalWarning`), ebenso ein
+  Lade-Haken über `module.register`, der für `.ts` das Format `module-typescript` meldet (ohne Schalter; danach
+  `await import('…/x.ts')`; so `tools/ts-modul.mjs`, `tsModul('src/spielstand.js')`, seit Ticket 05). Ab Node 22.18
+  entfernt Node Typen von selbst.
+- **Auf dem Handy (gleiches WLAN):** `npm run build`, dann `npm run preview -- --host`; Vite nennt die Adresse im Netz
+  (`Network: http://192.168.…:4173/`), diese im Browser des Handys öffnen. Der Rechner muss Verbindungen auf Port 4173
+  zulassen (Windows-Firewall: beim ersten Mal «Zugriff zulassen» für Node). Über http ohne s gibt es dort keinen Service
+  Worker (Browser verlangen https ausser auf `localhost`); offline spielbar ist erst die Fassung auf GitHub Pages.
+- **Im Netz (GitHub Pages, Ticket 09 des Umbaus):** Die Browser-Fassung steht unter
+  **`https://bonomoalessandro.github.io/Prisma/`** (fest, PLAN 4.1: der Fortschritt hängt an der Adresse), die
+  Datenschutzerklärung (Deutsch und Englisch, `datenschutz.html`) unter
+  `https://bonomoalessandro.github.io/Prisma/datenschutz.html`. Veröffentlicht wird von selbst: Jeder Push auf `main`
+  startet den Workflow `.github/workflows/pages.yml` (von Hand auch unter Actions → «Pages» → «Run workflow»): `npm
+  ci`, die schnellen Node-Tests ohne Chrome (`node tests/alle.mjs golden logic hall speicher testschnittstelle texte
+  vorrat wuerfelliste ki-tester typecheck`; `geschichte`, `beurteilung`, `levelliste`, `generator` rechnen lange und
+  laufen wie `leise` (nur unter Windows) nur lokal), `npm run build`, dann `dist/` mit den offiziellen Actions
+  (`configure-pages`, `upload-pages-artifact`, `deploy-pages`) auf Pages. Scheitert ein Test oder der Build, bleibt der bisherige Stand online. Die Proben mit
+  Chrome und der Bildvergleich laufen nur lokal. Im Repo muss unter Settings → Pages als «Source» «GitHub Actions»
+  stehen. Für den Unterpfad `/Prisma/` braucht das Spiel nichts Eigenes: Alle Pfade sind relativ (`base: './'`,
+  Manifest mit `scope: "./"` und `start_url: "index.html"`, `sw.js` neben der Seite, also mit dem Bereich `/Prisma/`);
+  lokal läuft dieselbe Ausgabe weiter unter `/`. Unter einem Unterpfad lokal prüfen: `npm run build`, dann
+  `npm run preview -- --base /Prisma/` (`http://localhost:4173/Prisma/`; in Git Bash mit `MSYS_NO_PATHCONV=1`
+  davor, sonst macht die Shell aus `/Prisma/` einen Windows-Pfad), oder `node tests/offline.mjs --unterpfad`. Auf `bonomoalessandro.github.io` teilen
+  sich alle Seiten des Kontos einen Ursprung (`localStorage`, Cache Storage); das Spiel nutzt nur Schlüssel `prisma.*`
+  und Speicher `prisma-*`, sein Service Worker gilt nur unter `/Prisma/`. Die Source-Maps gehen mit auf Pages
+  (Entscheid in Ticket 09).
+- **Version:** `appVersion` in `package.json` ist die einzige Quelle; Dev-Server und Build setzen sie in `index.html`
+  und `sw.js` ein (Platzhalter `__APP_VERSION__`). Mit jedem Stand für einen Handy-Durchlauf nachführen.
 - **Offline:** Über http(s) ausgeliefert, speichert der Service Worker `sw.js` alle Dateien; danach läuft das Spiel
-  auch ohne Verbindung. Neue Dateien in die Liste `FILES` in `sw.js` eintragen (ein Test prüft das); grosse, die nicht jedes Gerät braucht, in
-  `LAZY` (gespeichert beim ersten Gebrauch).
-  Beim Entwickeln über `localhost` bleibt der Service Worker für diese Adresse registriert (er liefert das Spiel auch
-  bei gestopptem Server): In den DevTools unter Application → Service Workers „Unregister“ oder „Bypass for network“.
+  auch ohne Verbindung. Die Listen `FILES` und `LAZY` entstehen beim Build aus `dist/` (nichts mehr von Hand
+  eintragen): alles nach `FILES`, ausser `sw.js` und den Lizenztexten; Teile der Skyboxen ohne `precache` nach `LAZY`
+  (gespeichert beim ersten Gebrauch). Ein Test prüft die Listen am Build. Registriert wird er erst, wenn `load` da
+  ist **und** `src/main.ts` die Teile geladen hat und die Enthüllung vorbei ist (`introCalm`, ohne Intro sofort;
+  Ereignis `prisma-ruhig`, Ticket 09 des Umbaus): So läuft sein Vorab-Speichern (gut 13 MB) nicht neben dem
+  Seitenstart und der Enthüllung her. Die Datenschutzerklärung
+  `datenschutz.html` kommt unverändert nach `dist/` und in den Speicher.
+  Der Dev-Server registriert keinen Service Worker (`PRISMA_DEV`); einen alten, noch registrierten derselben Adresse
+  meldet er ab. Wer `dist/` mit `npm run preview` auf `localhost` öffnet, hat danach dort einen Service Worker (er
+  liefert das Spiel auch bei gestopptem Server): In den DevTools unter Application → Service Workers „Unregister“ oder
+  „Bypass for network“.
+- **Über file://:** Ein Doppelklick auf `index.html` geht nicht mehr: Das Spiel sind ES-Module (seit Ticket 04 des
+  Umbaus; seit Ticket 03 stand in der Quelle statt der Spiellogik eine Marke). Proben und Tests laufen über http gegen
+  `dist/`.
 - **Spezifikation:** siehe [SPEC.md](SPEC.md).
 - **Würfel-Level (3D-Prototyp):** Vorgehen, Modell und offene Punkte in [3D-WUERFEL.md](3D-WUERFEL.md).
 - **Plan und offene Punkte:** siehe [PLAN.md](PLAN.md) – was noch umgesetzt werden soll, Entscheidungen, Erledigtes.
@@ -20,7 +137,59 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Startbildschirm „Prisma“. `manifest.webmanifest` (feste `id` „prisma“, nicht mehr ändern) wird nur über http(s)
   eingebunden, über file:// blockiert es der Browser.
 - **Tests:**
-  - `node tests/logic.test.mjs` prüft die Strahllogik, im Block „Würfel (dim: 3)“ auch die Würfel-Level.
+  - `npm test` (`tests/alle.mjs`) lässt alle Node-Tests ohne Browser nacheinander laufen, jeden bis zum Ende, mit einer
+    Übersicht am Schluss (mehrere Minuten, nur über `leise.sh`: `LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh
+    timeout -k 30 3600 npm test`); `node tests/alle.mjs logic golden` nur diese. `npm run test:bild` ist der
+    Bildvergleich (Ticket 01 des Umbaus).
+  - **Art der Läufe unter `leise.sh`** (Ticket 13 des Umbaus; siehe `leise.sh` unter Werkzeuge). Leichte Läufe messen
+    keine Zeiten und laufen bis zu vier gleichzeitig: `LEISE_ART=leicht LEISE_MAX_CPU=100 LEISE_CPU=100 sh
+    tools/leise.sh …`. Alleinige (Vorgabe, ohne `LEISE_ART`) laufen nie neben einem anderen Lauf.
+
+    | Art | Läufe |
+    |---|---|
+    | leicht | `npm test` und jeder Node-Test einzeln (`golden`, `logic`, `geschichte`, `generator` …), `bildvergleich.mjs`, `offline.mjs`, `screenshot.mjs`, `spiegel-probe.mjs bilder`, `buehne-messung.mjs bilder`, Werkzeuge (`generiere.mjs`, `ordne-level.mjs`, `geschichte.mjs`, KI-Tester `prepare.mjs` und `shots.mjs` …) |
+    | allein | `leerlauf-probe.mjs`, `ruhetakt-probe.mjs`, `start-probe.mjs`, `buehne-messung.mjs` (messen), `spiegel-probe.mjs` (`pruefe`, `messen`), `geschichte-probe.mjs` (misst in jedem Ablauf die Lücken im Bildtakt), `brett-probe.mjs` (scheitert an Lücken über 100 ms auf der Grafikkarte, `mechanik` und `reise`), `tools/bench.mjs`, alles mit `--fenster` |
+
+    **Regeln für die Agenten** (Nutzer, 16. und 17.11.2026): Umsetzer lassen nur die schnellen Prüfungen laufen, als
+    leichte Läufe: Node-Tests (`npm test` oder die betroffenen), Golden, den Bildvergleich **auf der Grafikkarte**
+    (`--gpu`, etwa 8 min), dazu die Proben, die ihr Ticket direkt betrifft. Der Reviewer lässt den ganzen Satz einmal
+    laufen, den Bildvergleich in **SwiftShader** (ohne `--gpu`, die genaue Prüfung, etwa 35 min); die Proben mit
+    Zeitmessung (alleinige) nur er. Wackelt ein paralleler Lauf (Zeitüberschreitung, Flake), ihn als alleinigen
+    wiederholen (ohne `LEISE_ART`, beim Bildvergleich dazu `--jobs 1`), bevor man einen Fehler meldet. Nach einem
+    Treiberupdate der Grafikkarte (oder einer neuen Fassung von Chrome) kann der GPU-Weg überall rot werden: dann zuerst
+    den Bildvergleich in SwiftShader laufen lassen, und erst wenn er grün ist, die GPU-Referenzen mit `--gpu --write`
+    neu schreiben.
+    **Proben mit Bildtakt** (`geschichte-probe`, `brett-probe`, `leerlauf-probe`, `ruhetakt-probe`, `start-probe`):
+    Eine einzelne Lücke über 100 ms kommt auf diesem Rechner schon auf der Basis vor (Review Ticket 01 des Umbaus:
+    `geschichte-probe --dorf` in 2 von 3 Läufen auf dem alten Stand). Scheitert eine solche Probe an einer Lücke, sie
+    wiederholen bzw. gleich oft auf der Basis laufen lassen (Stand vor dem Ticket, etwa in einem `git worktree`); es
+    zählt nur ein Fehler, der auf der Basis nicht kommt.
+  - **Proben im Browser** öffnen das Spiel über http aus `dist/` (seit Ticket 02 des Umbaus, nicht mehr über file://).
+    Die Adresse steht an einer Stelle, `tools/spielserver.mjs`: `spielServer()` baut das Spiel frisch (seit Ticket 13
+    je Prozess in einen eigenen Ordner im Temp-Verzeichnis, nicht nach `dist/`, damit gleichzeitige leichte Läufe
+    einander den Build nicht wegräumen; danach gelöscht) und liefert es über einen kleinen Server auf `127.0.0.1`
+    (freier Port), mit einem leeren Service Worker statt `sw.js` (wie früher über file:// ohne Vorab-Speichern) und
+    einer leeren Antwort auf `/favicon.ico` (Chrome fragt danach; eine 404 stünde als Fehler in der Konsole).
+    `tools/chrome.mjs` lässt Chrome seinen Port selbst wählen (`--remote-debugging-port=0`), damit viele gleichzeitige
+    Chrome nie zusammenstossen, und meldet Deutsch als Sprache des Geräts (`--lang=de`, Option `sprache`; seit Ticket
+    07 des Umbaus wählt das Spiel danach seine Sprache, Headless-Chrome meldete sonst die des Rechners). Der
+    Bildvergleich prüft, dass er das deutsche Spiel sieht (`navigator.language`, `lang` des Dokuments).
+    `PRISMA_OHNE_BAU=1` nimmt das vorhandene `dist/`, `PRISMA_SPIEL=<url>` eine laufende Adresse (etwa den Dev-Server). `--seite`/`--vorher` der Messproben liefern eine Kopie einer früheren
+    `index.html` ungebaut aus ihrem Ordner (eine Fassung ab Ticket 03 braucht den Build). Bei `npm test` prüft
+    `tests/typecheck.mjs` auch die Typen (`npm run typecheck`). Spiellogik und Hall
+    importieren die Tests als Module aus `src/`; die Level und die Reise stehen seit Ticket 06 in den Leveldaten
+    `src/daten/level.js` (bis dahin als markierte Bereiche `LEVELS`, `WUERFEL` und `GESCHICHTE` in `src/logik.js`), und
+    dorthin schreiben die Werkzeuge (`ordne-level.mjs`, `ordne-wuerfel.mjs`, `geschichte.mjs`, `vorrat.mjs`).
+  - `node tests/logic.test.mjs` prüft die Strahllogik, im Block „Würfel (dim: 3)“ auch die Würfel-Level. Was er aus der
+    Seite liest, liest er aus `index.html` und allen Modulen (`spielQuelltext`). Im Block „Module“ prüft er das Gerüst
+    `index.html` (nur ein Modul, keine grossen Skripte), die Reihenfolge der Teile unter `src/seite/` und die Form von
+    Logik, Zufall und Hall (der `export`-Block nennt alle Namen der obersten Ebene). Im Block „Offline“ baut er das
+    Spiel einmal in einen eigenen Ordner und prüft den Build (Listen von `sw.js`, statische Dateien Byte für Byte,
+    `index.html` bis auf `vite-ignore`, Stil und Spiel unter `assets/` gleich wie die Quelle, der Stil enthält genau
+    die Teile aus `src/stil/`, das Spiel ist verkleinert (auch Namen), mit Version, den drei Workern als eigene
+    Dateien (kein Worker aus einem Blob) und Source-Map auf die Module, der gebaute Worker des Halls rechnet
+    bitgleich) und den Dev-Server (Version, Module einzeln, Worker übersetzt, kein Service Worker, `vendor/` und
+    `backgrounds/` roh); braucht `npm install`.
   - `node tests/golden.mjs` vergleicht die Strahlbilder aller flachen Level (Start- und Lösungsstellung) mit
     `tests/golden.json`, dazu den Löser für eine Stichprobe aus Spiel und Vorrat: das Tutorial, je Grad der Geschichte
     jedes 10. Level (das erste jeder Welt), jedes 10. flache Level des Vorrats und jedes 10. Würfel-Level (seit Ticket
@@ -34,10 +203,83 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     oder wegfallen; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben. Bis
     Ticket 21 hielt die Referenz für 24 Level auch die alte Wertung (`score`) fest, und diese Einträge bildeten die
     Stichprobe.
-  - `node tests/hall.test.mjs` prüft die Impulsantwort des Halls (`hallImpulse`, Bereich HALL:BEGIN … HALL:END in
-    `index.html`; Ticket 05 von `.scratch/leistung/`): Für 44,1, 48 und 96 kHz ist sie bitgleich mit der alten
-    Berechnung beim ersten Klick (Prüfsumme und Stichproben aus dem Stand `963177d`; das Rauschen kommt aus `mulberry32`
-    mit festem Samen), unabhängig von der Stückgrösse, und ihr Quelltext läuft für sich wie im Worker (unter 1 s).
+  - `LEISE_ART=leicht LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 5400 node
+    tests/bildvergleich.mjs [--gpu] [--write] [--groesse desktop,handy,quer,poco]
+    [--nur start,dorf,welt-1-2,welt-3-4,welt-5-6] [--sprache de,en] [--jobs n]` ist der Bildvergleich des Umbaus (`.scratch/umbau/`, Ticket 01; etwa 35 min allein: gemessen 27–33 min
+    für die drei ersten Grössen unter `leise.sh` mit 100 %, davon Desktop 16–20 min, Handy hochkant und quer je 5–7 min,
+    dazu «poco» gut 6 min; neben anderen leichten Läufen entsprechend länger; mit `--groesse` und `--nur` kürzer). Er
+    nimmt eine feste Liste von Ansichten in Headless-Chrome auf und vergleicht sie mit den Referenzbildern in
+    `tests/bildvergleich/referenz/` (77 JPEG, 8,5 MB). `--jobs n` lässt die Abläufe je Grösse in n eigenen Prozessen
+    laufen (Ticket 13); auf diesem Rechner bringt das nichts, denn SwiftShader rechnet schon in einem Chrome auf allen
+    Kernen (nacheinander 27 min, mit 2 Prozessen 29 min, mit 4 Prozessen 29 min, mit 6 Zeitüberschreitungen), Vorgabe
+    darum 1. **`--gpu`** (oder `GPU=1`; Entscheid des Nutzers 17.11.2026, Ticket 13) zeichnet auf der Grafikkarte statt
+    in SwiftShader: alle 77 Bilder in knapp 8 min, mit eigenen Referenzen in `tests/bildvergleich/referenz-gpu/`, eigener
+    Toleranz (`TOLERANZ_GPU`, 0,03 % statt 0,01 %; zwischen GPU-Läufen weichen nur Sternpunkte im Bild der Planeten um
+    bis 6 ab) und Ausgabe nach `tests/output/bildvergleich-gpu/`. Headless nimmt Chrome sonst die eingebaute Intel UHD
+    630; der Bildvergleich startet es mit `--force_high_performance_gpu` (`tools/chrome.mjs`, Option `hochleistung`)
+    und bricht ab, wenn `WEBGL_debug_renderer_info` nicht die NVIDIA meldet (andere Karte: `PRISMA_GPU=<Muster>`).
+    Höchstens zwei GPU-Bildvergleiche zeichnen gleichzeitig (Plätze `prisma-bildvergleich-gpu-<n>` im Temp-Verzeichnis),
+    ein dritter wartet. Der GPU-Weg ist der schnelle für Umsetzer; die genaue Prüfung bleibt SwiftShader (Regeln oben).
+    Ansichten: Startbildschirm, Menü mit den vier Graden, Übersicht, jede Welt der Geschichte mit ihrem
+    Himmel je in einem Level vor und nach dem Lösen, die vier Übungen im Dorf mit Band, Lichtkegel und Hand, Prolog,
+    Reise (Bergwald → Meer) und Epilog; jedes Element steht mindestens einmal im Bild. Seit Ticket 08 alles auch auf
+    Englisch (Chrome mit `--lang=en-US`): Bilder `en-<grösse>-<ansicht>.jpg` mit eigenen Referenzen in beiden
+    Ordnern, die deutschen bleiben, wie sie sind; ohne `--sprache` beide Sprachen (doppelte Laufzeit),
+    `--sprache de` bzw. `--sprache en` nur eine. Je in drei Grössen: Desktop
+    1280 × 800, Handy hochkant 390 × 844 und Handy quer 844 × 390 (Pixeldichte 1); dazu «poco» wie das Poco F4 GT
+    (393 × 873, Pixeldichte 2,75, Android-Kennung, nur `start`, `dorf` und `welt-1-2`): Nur so laufen der Massstab der
+    Seite (`SEITE`) und das Pixelverhältnis 2 des Renderers wie auf den echten Handys (der Lauf prüft beides; Fund
+    Review Ticket 01, Referenzen seit Ticket 13). Gleiche Bilder bei jedem Lauf:
+    `?t=12` (Zeit steht, Zufall fest, dazu `phasenZufall`), `?noadapt`, SwiftShader; was bei stehender Zeit nie fertig
+    oder still würde (Strahlen, Feier, CSS-Animationen, Uhr der Bühne, Hand im Dorf, Glühwürmchen der Reise), hält die
+    Prüfung nur in der Seite fest. Die Bühne von Prolog und Epilog friert sie erst ein, wenn ihre Bewegungen fertig und
+    ihre Texturen ganz gerastert sind (sonst unter Last rot, Ticket 13). Aufgenommen wird eine Ansicht, wenn zwei
+    Aufnahmen gleich sind; nur bei «poco» gilt sie nach 7 Aufnahmen auch als ruhig, wenn die letzten zwei innerhalb der
+    Toleranz liegen (ein Fleck im Lichtstreifen des Titels wechselt dort von Bild zu Bild). Diese Fälle meldet der Lauf
+    («fast ruhig») und zählt sie in der Übersicht am Schluss (Ticket 14). Verglichen wird JPEG mit JPEG je Pixel: rot, wenn mehr als 0,01 % der Pixel in einem
+    Farbkanal um mehr als 3 abweichen (`TOLERANZ`; ausgenommen nur ein Rechteck im Wasser von Handy quer, Meer 1, das
+    das Spiel nicht in jedem Lauf gleich zeichnet, `AUSNAHMEN`); bei Rot liegen Bild, Referenz und Differenzbild unter
+    `tests/output/bildvergleich/`. Ab Ticket 02 muss er nach jedem Schritt des Umbaus grün sein. `--write` schreibt die
+    Referenzen neu, aber nur bei einer bewussten Änderung des Aussehens (im Umbau nie; auch nach einer neuen Fassung von
+    Chrome, wenn der Vergleich davon rot wird, und dann begründet). `--diag` gibt
+    je Bild den Zustand aus (Kamera, Uhren, Ziele), wenn zwei Läufe voneinander abweichen. Das Spiel kommt seit den Tickets
+    03 und 13 des Umbaus aus `dist/` über http (`tools/spielserver.mjs`, wie die Proben); die Referenzen stammen noch aus der
+    `index.html` über file:// und gelten unverändert (erster Lauf gegen `dist/`: alle 66 Bilder grün, grösste
+    Abweichung 3).
+  - `node tests/hall.test.mjs` prüft die Impulsantwort des Halls (`hallImpulse` im Modul `src/hall.js`; Ticket 05 von
+    `.scratch/leistung/`): Für 44,1, 48 und 96 kHz ist sie bitgleich mit der alten Berechnung beim ersten Klick
+    (Prüfsumme und Stichproben aus dem Stand `963177d`; das Rauschen kommt aus `mulberry32` mit festem Samen),
+    unabhängig von der Stückgrösse, auch als Text ausgeführt, und die Seite importiert das Modul (unter 1 s).
+  - `node tests/speicher.test.mjs` prüft die Speicherschicht (Ticket 05 des Umbaus; wenige Sekunden): Kein Teil des
+    Spiels ausser `src/speicher.ts` nennt `localStorage` oder `sessionStorage` (`index.html`, `sw.js`, alle Module,
+    auch Kommentare; mit Gegenprobe); die Umsetzung für `localStorage` legt jeden Text unverändert unter seinem
+    Schlüssel ab; ein Spielstand von heute (Fortschritt in drei Graden samt Dorf, Bestwerte, zuletzt gespielt, Ton aus,
+    alte und fremde Schlüssel) wird ohne Umrechnung gelesen und, unverändert gespeichert, Byte für Byte gleich
+    geschrieben; scheitert der Speicher (gesperrt, voll, gar keiner), wirft nichts, und das Spiel beginnt von vorn.
+    Module in TypeScript lädt er wie `levelliste.test.mjs` über `tools/ts-modul.mjs` (`tsModul`, ein Lade-Haken für
+    `.ts`, nötig bis Node 22.18).
+  - `node tests/testschnittstelle.test.mjs` prüft die Testschnittstelle (Ticket 05 des Umbaus, aus Review 04; etwa
+    2 s): Jeder Name der obersten Ebene eines Moduls unter `src/`, den eine Probe im Code der Seite nennt, steht in
+    einer Liste `alsGlobal`. Proben sind `tests/*.js` (ganz Code der Seite) und jede Datei unter `tests/` und `tools/`,
+    die Chrome steuert; dort gilt jeder String und jedes Template als Code der Seite. Mit dem Parser von TypeScript
+    gezählt werden freie Namen (nicht als Eigenschaft, nicht im Code selbst deklariert, dazu `window.name`);
+    Wortlisten und einzelne Wörter sind Daten, ausser `ev('…')` wertet sie aus. Mit Gegenproben; der Stand vor
+    Review 04 fällt mit allen sechs fehlenden Namen auf.
+  - `node tests/texte.test.mjs` prüft die Übersetzungsschicht (Ticket 07 des Umbaus; etwa 3 s): Jede Sprachdatei hat
+    genau die Schlüssel von `de.json` (je Blatt dieselbe Art, Text oder Text je Gerät), jeder Platzhalter des
+    deutschen Texts steht auch in der Übersetzung; jeder Schlüssel, den der Code nennt (auch Muster wie
+    `` `welt.${id}` ``, `data-t` in `index.html`, die Schritte der Übungen, `NEBENBEI`), steht in `de.json`, und jeder
+    dort wird genannt; die Titel sind genau die Level im Spiel. Die Regeln der Führung je Sprache und Gerät (bis
+    Ticket 07 in `logic.test.mjs`): ein Schritt 3–18 Wörter, höchstens 105 Zeichen, ein oder zwei Sätze, ein Hinweis
+    nebenbei höchstens 16 Wörter. Kein deutscher Text im Code der Oberfläche (`index.html`, `src/main.ts`,
+    `src/seite/`, `src/texte/sprache.js`) ausser über `t()`: ein String mit Umlaut, einem grossgeschriebenen Wort der
+    deutschen Texte oder zwei Wörtern daraus hintereinander, in HTML Text und gelesene Attribute; ohne Kommentare,
+    Shader, Konsole, Fehler und Protokoll der Arbeit, mit einer Liste bewusster Ausnahmen (`AUSNAHMEN`, je mit Grund).
+    Seit Ticket 08 zählen dafür die Wörter aller Sprachen (auch englischer Text fällt auf), `en.json` hat keine
+    deutschen Reste, Geschichte und Führung sind je Sprache ohne Gedankenstrich und Doppelpunkt (PLAN 1a.2), und jede
+    Sprache ausser Deutsch hat ihr Manifest `manifest-<kürzel>.webmanifest` (gleich bis auf Name, Beschreibung,
+    `lang`).
+    Dazu der Kern (Rückfall auf Deutsch, Platzhalter, Wahl der Sprache).
   - `node tests/beurteilung.test.mjs` prüft die Beurteilung (unter `leise.sh` etwa 40 s, auf einem Thread 90–130 s je
     nach Last): den Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue
     Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von Hand gebauten Leveln geprüft und an den 150 heutigen
@@ -118,7 +360,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     er rot. Dazu Kandidaten ohne Platz im Spiel: die Seite mit den Kandidaten für die Bilder und `prepare.mjs
     --kandidaten` (Name, Referenz, Feld als Text, Abweisung bei falschem Grad; ohne Bilder).
   - `node tests/vorrat.test.mjs` prüft den Vorrat und den gemeinsamen Lader (`.scratch/noa-geschichte/`, Ticket 02;
-    wenige Sekunden, auf Kopien der Texte im Speicher): Ablegen und Zurückholen sind verlustfrei (`index.html` und der
+    wenige Sekunden, auf Kopien der Texte im Speicher): Ablegen und Zurückholen sind verlustfrei (`src/daten/level.js` und
     Vorrat byte-gleich, auch in Teilen, in anderer Gruppierung und Reihenfolge, über mehrere Schritte, für alle Level
     und mit CRLF), die Folge nach dem Zurückholen, das Format (Block wie im Spiel, Platz, Titel), Auswahl und Fehler;
     dazu der Lader auf dem Stand der Dateien (jedes Level genau einmal, wie nach dem Zurückholen aller) und seit dem
@@ -144,13 +386,14 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     gutem Urteil; `ausbauListe` für `ordne-level.mjs --ausbau`. Dazu Gegenproben an erfundenen Änderungen und Pools
     (auch zur Regel der 3 Plätze über die Weltgrenze, gegen alle Anordnungen eines kleinen Falls zur kleinsten
     Verschiebung und gegen alle Mengen kleiner Fälle zur Suche über den ganzen Grad). Die Wahl im Spiel (Ticket 04):
-    `index.html` enthält das Tutorial und genau die 240 mit dem Titel aus `wahl.json`, in der Reihenfolge der Reihe,
-    keine Würfel-Level; der Datenblock der Geschichte (`STORY_LEVELS`) ist die Reise aus `wahl.json`;
+    das Spiel (`src/daten/level.js`) hat das Tutorial und genau die 240 mit dem Titel aus `wahl.json`, in der
+    Reihenfolge der Reihe, keine Würfel-Level; der Datenblock der Geschichte (`REISE`, in der Spiellogik
+    `STORY_LEVELS`) ist die Reise aus `wahl.json`;
     `geschichte.mjs spiel` ändert danach nichts und bringt an Kopien der Texte ein Level der Wahl aus dem Vorrat zurück
     und ein anderes hin (ohne Titel), byte-gleich.
   - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
     [--grad leicht,mittel,…] [--welten 2 | --ganz] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf] [--dorf-raender]
-    [--groesse 360x640]` spielt Noas
+    [--groesse 360x640] [--sprache en]` spielt Noas
     Geschichte in Headless-Chrome über das Menü (Tickets 04 bis 07; etwa 3 min je Grad; der Zeitrahmen läuft erst, wenn `leise.sh`
     die Sperre hat): je Grad ein Durchgang durch die ersten Welten (Karte im Menü, Prolog, Einstieg, je 10 Level,
     Reise), danach Neuladen und «Weiter» am selben Platz ohne Einstieg; `--finale` das Finale ab der letzten Welt bis
@@ -181,7 +424,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Sitzung vom Menü bis zum Epilog und zurück ins Menü, mit Neuladen mitten in der Wüste und den Bildzeiten jeder
     Zwischenszene (Prolog, Einstieg, fünf Reisen, Finale, Epilog). `--handy` 390 × 844 (mit `--groesse` ein anderes
     Handy, etwa 360x640), `--quer` 844 × 390, beide mit Touch (`Input.dispatchTouchEvent`),
-    sonst 1440 × 900 mit der Maus. Gelöst wird über die Testschnittstelle (`__prismaDebug.loese`), einen Stand setzt
+    sonst 1440 × 900 mit der Maus. `--sprache en` (Ticket 08): Chrome meldet Englisch, die erwarteten Texte kommen aus
+    `en.json` (ohne: Deutsch). Gelöst wird über die Testschnittstelle (`__prismaDebug.loese`), einen Stand setzt
     die Probe in `localStorage`. Sie prüft Kopfzeile, Speicherstand, Menü und Konsole, dass das Menü nach der Wahl
     sofort ausblendet und die Kamera im Himmel bleibt, bis die Welt bereit ist (kein leeres Brett), misst die
     Bildzeiten der Übergänge (Lücken über 100 ms sind Fehler) und legt Bilder nach `tests/output/geschichte/`
@@ -214,8 +458,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (`?ruhetakt=60`): stetig voller Takt, Grund «Spiel (Ruhe aus)». `wald` (ohne Parameter): auch mit den
     Glühwürmchen Ruhe. Gemessen in der Seite über rAF und `draw` (auch headless brauchbar); Ergebnis nach
     `tests/output/energie/ruhetakt-*.json`.
-  - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
-    Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
+  - `node tests/offline.mjs` prüft den Offline-Betrieb am frisch gebauten `dist/` mit dessen `sw.js` (`--redirect`:
+    Server leitet index.html weiter; `--unterpfad`: das Spiel unter `/Prisma/` wie auf GitHub Pages; startet
+    Headless-Chrome, also wie die Screenshots nur über `leise.sh`; Chrome mit `--lang=de`, damit das Ergebnis nicht
+    von der Sprache des Rechners abhängt). Er prüft auch den Bereich von Service Worker und Manifest (der Ordner der
+    Seite) und die Datenschutzerklärung offline.
   - `GPU=1 LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/spiegel-probe.mjs
     [pruefe|messen|bilder] [--handy] [--welten forest,beach,…] [--runden 4] [--level 212] [--fassungen …]
     [--vorher datei] [--ordner pfad]` (Tickets 03 und 04 der Energie, je etwa 3 min): `pruefe` (Vorgabe) wechselt in
@@ -304,7 +551,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   kommt die Übersicht. Der Platz im Speicherstand fällt dabei nie zurück, und das Wiederholen eines geschafften Grads
   ändert den zuletzt gespielten Grad nicht. Eine neue Bestmarke meldet das Feld «Gelöst» («Neue Bestzeit», «Weniger
   Drehungen»), aber nur, wenn es schon einen Wert gab. Die Level je Grad und Welt stehen im Datenblock
-  `STORY_LEVELS` (`GESCHICHTE:BEGIN/END`, geschrieben von `tools/geschichte.mjs spiel`). Speicherstand je Grad unter
+  `STORY_LEVELS` (`REISE` in `src/daten/level.js`, geschrieben von `tools/geschichte.mjs spiel`). Speicherstand je Grad unter
   `prisma.noa.<grad>` (`sehr schwer` als `sehr-schwer`; Platz in der Reise, gelöste Level nach Namen, gesehene
   Momente, geschafft, `gespielt`: Zeit des letzten Speicherns für «Weiter»), die Bestwerte je Level unter
   `prisma.noa.<grad>.bestwerte` (Zeit in ganzen Sekunden, überleben «Von vorn», Entscheid 27) und der zuletzt
@@ -318,7 +565,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   und nicht, solange ein Satz auf Tippen wartet (am Ende des Dorfs lädt der Wald schon, während man liest).
   Nur Deckkraft und Transform in CSS, damit er auch läuft, während das Laden den Hauptthread anhält. Gewählt aus dem
   Prototyp mit sechs Varianten (Branch `prototyp/ladeindikator`, `.scratch/ladeindikator/prototyp.html`).
-  Kopfzeile: «Das Meer – Sandbank» (Welt und Titel des Levels, `titel ?? name`), darunter in einer Zeile die
+  Kopfzeile: «Das Meer – Sandbank» (Welt und Titel des Levels, `levelTitel`), darunter in einer Zeile die
   Ziele, die schon in ihrer Farbe leuchten, und der Grad («Ziele 1 / 3 · ●○○○ Leicht»; Kapitel, Level und Bedienung
   stehen seit dem 09.11.2026 nicht mehr da). Der Ring am Ziel hat einen festen Platz je Grundfarbe
   (Rot links, Grün rechts, Blau vorne) und zeigt, aus welchen die gesuchte Farbe besteht. Kommt eine gebrauchte
@@ -521,7 +768,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Ist nur die Eindeutigkeit gefragt, hält `solve(level, { unique: true })` bei der zweiten Lösung an;
   `show.mjs` zeigt Level als Textfeld, Start und Lösung, mit Grad, drehbaren Elementen, Zielen und Klicks und, wo sie
   vorliegt, der Beurteilung: die JSON-Zeilen von `generiere.mjs` mit Schwierigkeit, Spielwert und Kernideen
-  (`… generiere.mjs leicht --anzahl 3 | node tools/show.mjs`), ein Level aus index.html mit `--level <platz|name>`
+  (`… generiere.mjs leicht --anzahl 3 | node tools/show.mjs`), ein Level aus dem Spiel mit `--level <platz|name>`
   (Platz in LEVELS ab 1, das Tutorial mitgezählt). `--beurteilen` beurteilt Level ohne mitgegebene Beurteilung (alle
   Regeln, mit ihrem Grad; je Level bis einige Sekunden) und nennt dazu die Ausschlussgründe;
   `ordne-level.mjs [--ausbau datei] [--schreiben] [--json datei]` (über `leise.sh`, etwa 40 s) ordnet die flachen Level
@@ -546,7 +793,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   der Häufungsregel, Schwellen und ihre Herleitung, die Duldungsliste nach Grund und Grad samt neuen Leveln darauf und
   die Regeln der Levelliste, darunter jedes korrigierte Level, das zu weit steht (Platz davor, nach den Korrekturen, am
   Ende). `--schreiben` trägt Reihenfolge und Grad in Spiel und Vorrat ein (seit Ticket 08 von Noas Geschichte über
-  `inGanzerFolge` in `vorrat.mjs`: die Level im Spiel zwischen `LEVELS:BEGIN/END`, die übrigen im Vorrat an ihrem
+  `inGanzerFolge` in `vorrat.mjs`: die Level im Spiel in `FLACH` in `src/daten/level.js`, die übrigen im Vorrat an ihrem
   Platz; was im Spiel steht, bleibt im Spiel, was im Vorrat liegt, im Vorrat, vorher zurückholen muss man nichts) und
   Duldungsliste, Prüfliste und `prueflisteErledigt` in `tools/levelliste.json`; die ursprüngliche Duldungsliste, die
   entfernten Namen, `prueflisteFormel` und die Gruppe `behalten` (Ticket 24, nur ohne Level, die es nicht mehr gibt)
@@ -580,7 +827,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `wuerfel.mjs bedarf` zeigt Bestand und Bedarf; `ordne-wuerfel.mjs [--kandidaten datei] [--json datei]
   [--schreiben]` ordnet die Würfel-Level nach den Regeln in `wuerfelliste.mjs` (eine eigene Reihenfolge ohne Bestand,
   Grade nach der Schwelle, Korrekturen der KI-Tester aus Läufen `wuerfel-…`) und schreibt sie in Spiel und Vorrat
-  (`index.html` zwischen `WUERFEL:BEGIN` und `WUERFEL:END`, `tools/vorrat/wuerfel.js`; neue in den Vorrat, solange
+  (`WUERFEL` in `src/daten/level.js`, `tools/vorrat/wuerfel.js`; neue in den Vorrat, solange
   dort Würfel-Level liegen);
   `aehnlichkeit.mjs` misst, wie ähnlich zwei Level aufgebaut sind (Elemente mit Art, Farbe und Zelle, das Höchste über
   die acht Symmetrien des Felds, im Würfel über seine 48 mit der Drehachse von Spiegel, Prisma und Kombinator); ab 0,5
@@ -616,14 +863,28 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `leise.sh <befehl …>` (mit `leise.ps1`, nur unter Windows) startet einen Befehl samt allen Unterprozessen in einem
   Job-Objekt mit harter CPU-Obergrenze und Priorität „Leerlauf“, damit der Rechner bedienbar bleibt. Vorgabe sind 20 %
   der ganzen Maschine; der Generator und die Vorbereitung der KI-Tester (`prepare.mjs`, Screenshots) dürfen
-  `LEISE_CPU=50`, mehr nimmt `leise.sh` ohne `LEISE_MAX_CPU` nicht an. Weil Läufe nur nacheinander laufen, bleibt die
-  Arbeit an Tickets insgesamt unter 70 % der Maschine (Vorgabe des Nutzers). Ein Rechner, auf dem mehr erlaubt ist,
+  `LEISE_CPU=50`, mehr nimmt `leise.sh` ohne `LEISE_MAX_CPU` nicht an. Die Grenze gilt je Lauf: Leichte Läufe (unten)
+  laufen bis zu vier gleichzeitig, jeder mit seiner Grenze; wo das zu viel ist, `LEISE_LEICHT_MAX=1` (dann wie bis
+  Ticket 13 des Umbaus alles nacheinander). Ein Rechner, auf dem mehr erlaubt ist,
   hebt die Obergrenze lokal mit der Umgebungsvariablen `LEISE_MAX_CPU` an (Standard 50; nicht versioniert, etwa in
   `.claude/settings.local.json` unter `env`, das gitignored ist), etwa `LEISE_MAX_CPU=65 LEISE_CPU=65 sh tools/leise.sh
   …`. Dieselbe Grenze prüfen Generator, Messskript und Screenshots (`tools/deckel.mjs`). Alle schweren Läufe (Tests,
-  Messungen, Screenshots, Generator) laufen darüber, nie mehrere gleichzeitig: Eine Sperre (`/tmp/prisma-leise.lock`)
-  lässt einen zweiten Lauf warten („leise: warte auf laufenden Lauf“), auch aus parallel arbeitenden Worktrees; ein Aufruf innerhalb eines
-  Laufs läuft direkt, eine verwaiste Sperre (Halter tot, oder über eine Minute ohne pid-Datei) wird übernommen;
+  Messungen, Screenshots, Generator) laufen darüber, auch aus parallel arbeitenden Worktrees, über eine Sperre
+  (`/tmp/prisma-leise.lock`) mit zwei Arten von Läufen (Ticket 13 des Umbaus; welcher Lauf welche Art ist: Tabelle im
+  Abschnitt Tests): **allein** (Vorgabe, Läufe mit Bildzeiten oder Messungen) startet erst, wenn kein anderer Lauf mehr
+  läuft, und solange er läuft, startet keiner („leise: warte auf laufenden Lauf“); **leicht** (`LEISE_ART=leicht`)
+  laufen bis zu `LEISE_LEICHT_MAX` (Vorgabe 4) gleichzeitig und halten die Sperre gemeinsam (der letzte räumt sie weg),
+  so wartet auch eine ältere Kopie von `leise.sh` auf sie. Warten mehrere alleinige, geht die kleinere Zahl
+  `LEISE_VORRANG` vor (Nummer des Tickets, ohne Angabe 500). Ein leichter Lauf lässt jedem wartenden alleinigen mit
+  gleicher oder kleinerer Zahl den Vortritt; einen mit grösserer Zahl, der schon vor ihm wartete, überholt er höchstens
+  `LEISE_FRIST` Minuten (Vorgabe 10) lang, danach lässt ihn jeder leichte vor. Ein wartender leichter Lauf trägt sich
+  in die Warteschlange ein (`<vorrang>.leicht.<pid>`, Ticket 14), so lässt ihm jeder alleinige mit grösserer Zahl den
+  Vortritt, auch eine Kette alleiniger Läufe eines anderen Agenten; solange er selbst einen alleinigen vorlässt, nimmt
+  er den Eintrag zurück (sonst warteten beide aufeinander). Stirbt der Halter einer Gruppe hart (`taskkill /F`), trägt
+  sich binnen 5 s ein anderer lebender leichter Lauf als Halter ein (Wache je leichtem Lauf). Ein Aufruf innerhalb eines
+  Laufs läuft direkt, eine verwaiste Sperre (Halter tot und kein lebender leichter Lauf darin, oder über eine Minute
+  ohne pid-Datei) wird übernommen, unter der Sperre der Gruppe (`<sperre>.leicht`). `node tests/leise.test.mjs` prüft
+  das mit eigenen Pfaden (`LEISE_SPERRE`, `LEISE_WARTE`), nie an der echten Sperre;
   `chrome.mjs` steuert Headless-Chrome über das DevTools-Protokoll (für `tests/screenshot.mjs` und die KI-Tester;
   mit `fenster` sichtbar, für Messungen im echten Bildschirmtakt; `on` hört auf Ereignisse wie die eines Traces).
 - **Beurteilung** (`tools/beurteilung/`, nur für die Entwicklung; ADR 0002, Spec „Beurteilung“ und „Feldform“): ein
@@ -841,12 +1102,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     beurteilen (Probelauf). `--kandidaten` nimmt neue Level ohne Platz in der Reihe auf (Ausbau, Läufe `ausbau-…`, mit
     der Vorschau aus `ordne-level.mjs --ausbau … --json`; einst Austausch, Läufe `ersatz-…`): eine JSON-Liste
     `{ formel, level }`; ohne Vorschau ist die Referenz der Platz nach der Formel mit dem Grad dort, im Protokoll heisst
-    ein Kandidat „Kandidat <Abdruck>“, und seine Bilder kommen von einer Kopie von index.html mit den Kandidaten am Ende
-    von `LEVELS` (`<lauf>/seite/`, ausserhalb von `eingabe/`).
+    ein Kandidat „Kandidat <Abdruck>“, und seine Bilder kommen von einer Seite mit den Kandidaten am Ende
+    von `LEVELS` (ihre Leveldaten in `<lauf>/seite/level.js`, ausserhalb von `eingabe/`; `shots.mjs` zeigt sie über
+    `tools/spielserver.mjs`, alle Bilder kommen über http aus `dist/`).
     Die Bilder der Anker kommen aus einem Zwischenspeicher (`tests/output/ki-tester/anker-bilder/`), solange sich nichts
-    geändert hat, was sie beeinflusst: Fingerabdruck des Ablaufs, `index.html`, `vendor/`, `backgrounds/`, `shots.mjs`,
-    `chrome.mjs`, der Chrome selbst, Leveldaten, Platz und Kennung des Ankers. `--ohne-zwischenspeicher` nimmt sie neu
-    auf. Unter `tests/output/ki-tester/<lauf>/` entstehen:
+    geändert hat, was sie beeinflusst: Fingerabdruck des Ablaufs, `index.html`, `src/`, `vendor/`, `backgrounds/`,
+    `shots.mjs`, `chrome.mjs`, der Chrome selbst, Leveldaten, Platz und Kennung des Ankers. `--ohne-zwischenspeicher`
+    nimmt sie neu auf. Unter `tests/output/ki-tester/<lauf>/` entstehen:
     - `eingabe/`: das Feld als Text je Level (`field.mjs`: Raster, Elemente, Licht der Startstellung, ohne Lösung, Name
       und Markierung), Screenshots der Startstellung auf Desktop und Handy (`shots.mjs`) und das Schema der Antwort;
     - `antwort-A/` und `antwort-B/`: je KI-Tester ein eigener, leerer Ordner für seine `urteile.json`;
@@ -900,15 +1162,16 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Kopfzeile eines Levels ausserhalb der Geschichte auf. Seit Ticket 04 zeigt es jedes Level nach dem Neuladen über die
     Testschnittstelle (`__prismaDebug.zeige`) vor der Milchstrasse (`?sky=milky`), wie zuvor ohne Speicherstand.
 - **Vorrat und Lader** (`.scratch/noa-geschichte/`, Ticket 02; nur für die Entwicklung): Level, die nicht im Spiel
-  stehen, liegen versioniert in `tools/vorrat/` (`flach.js`, `wuerfel.js`): je Level sein Block aus `index.html`
-  Zeile für Zeile (Lösung und Herkunft im Kommentar, Name, wahlweise `titel`, Grad, Elemente, Lösung), darüber
-  `// Platz im Spiel: nach „<Name>“`, das Level unmittelbar davor in der ganzen Folge aus Spiel und Vorrat.
+  stehen, liegen versioniert in `tools/vorrat/` (`flach.js`, `wuerfel.js`): je Level sein Block aus den Leveldaten
+  `src/daten/level.js` Zeile für Zeile (Lösung und Herkunft im Kommentar, Name, Grad, Elemente,
+  Lösung), darüber `// Platz im Spiel: nach „<Name>“`, das Level unmittelbar davor in der ganzen Folge aus Spiel und
+  Vorrat. Die Level stehen dort zwischen `const VORRAT_FLACH = [` (bzw. `VORRAT_WUERFEL`) und `];`.
   `node tools/vorrat.mjs ablegen <name …> [--flach] [--wuerfel] [--grad <grad>] [--datei <datei>]` nimmt Level aus
-  `index.html` (das Tutorial bleibt), `zurueckholen` mit denselben Angaben oder `--alle` setzt sie an ihren Platz
-  zurück, `liste` zeigt den Vorrat je Art und Grad; hin und zurück ist `index.html` byte-gleich. Der gemeinsame Lader
-  (`tools/lader.mjs`) liefert `ALLE` (`LEVELS`, `TUTORIAL_COUNT`, `LEVELS_3D` wie nach dem Zurückholen aller, die Level
-  im Spiel als dieselben Objekte wie in `solver.mjs`), `VORRAT`, `ort(name)` und `alleText()` (`index.html` mit allen
-  Leveln). Wer alle Level braucht, liest über ihn; `ordne-level.mjs` und `ordne-wuerfel.mjs` rechnen mit ihm und
+  `src/daten/level.js` (das Tutorial bleibt), `zurueckholen` mit denselben Angaben oder `--alle` setzt sie an ihren
+  Platz zurück, `liste` zeigt den Vorrat je Art und Grad; hin und zurück ist `src/daten/level.js` byte-gleich. Der
+  gemeinsame Lader (`tools/lader.mjs`) liefert `ALLE` (`LEVELS`, `TUTORIAL_COUNT`, `LEVELS_3D` wie nach dem Zurückholen
+  aller, die Level im Spiel als dieselben Objekte wie in `solver.mjs`), `VORRAT`, `ort(name)` und `alleText()`
+  (`src/daten/level.js` mit allen Leveln). Wer alle Level braucht, liest über ihn; `ordne-level.mjs` und `ordne-wuerfel.mjs` rechnen mit ihm und
   schreiben seit Ticket 08 in Spiel und Vorrat (`inGanzerFolge` in `vorrat.mjs`: alle Level der Art zurückholen, ordnen,
   die vorher abgelegten und neue wieder ablegen; ohne Level der Art im Vorrat bleiben neue im Spiel). Seit Ticket 04
   liegen dort die flachen Level ausserhalb von Noas Geschichte (seit Ticket 09 298) und alle 300 Würfel-Level.
@@ -928,10 +1191,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   die noch nicht in Spiel oder Vorrat stehen, für `ordne-level.mjs --ausbau`. Die Titel stehen von Hand in
   `tools/geschichte/titel.json` (je Welt und Grad 10 in der Reihenfolge der Plätze); nach einer Änderung ordnet `node tools/geschichte.mjs titel` sie
   neu zu und prüft sie. `node tools/geschichte.mjs spiel [--trocken]` bringt `wahl.json` ins Spiel (Ticket 04):
-  In `index.html` stehen danach das Tutorial und genau die 240 Level mit ihrem Titel, in der Reihenfolge der Reihe
-  (nicht umgeordnet, damit der Lader sie unverändert zusammensetzt); die übrigen flachen und alle Würfel-Level legt es
-  in den Vorrat, Level der Wahl im Vorrat holt es zurück, und zwischen `GESCHICHTE:BEGIN` und `GESCHICHTE:END` schreibt
-  es den Datenblock der Reise (je Grad 6 Welten mit den Schlüsseln ihrer 10 Level). Ein zweiter Lauf ändert nichts.
+  In `src/daten/level.js` stehen danach das Tutorial und genau die 240 Level (ihre Titel seit Ticket 07 des Umbaus in
+  `src/texte/de.json`, Bereich `titel`, zuerst die Übungen, dann in der Reihenfolge von `FLACH`), in der Reihenfolge der
+  Reihe (nicht umgeordnet, damit der Lader sie unverändert zusammensetzt); die übrigen flachen und alle Würfel-Level
+  legt es in den Vorrat, Level der Wahl im Vorrat holt es zurück, und in `REISE` schreibt es den Datenblock der Reise
+  (je Grad 6 Welten mit den Schlüsseln ihrer 10 Level). Ein zweiter Lauf ändert nichts.
   Neue Level kommen vorher über `ordne-level.mjs --ausbau` in die Reihe (so die 15 neuen sehr schweren in Ticket 04 und
   die 23 aus Ticket 09, damals mit allen flachen Leveln im Spiel, also erst `vorrat.mjs zurueckholen --flach`; seit
   Ticket 08 schreibt `ordne-level.mjs` in Spiel und Vorrat). Ein Ausbau sehr schwerer Level läuft heute so:
@@ -940,13 +1204,30 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `tools/geschichte/sehr-schwer-kandidaten.json`, `geschichte.mjs wahl`, `geschichte.mjs ausbau <datei>`,
   `ordne-level.mjs --ausbau <datei> --schreiben` (die neuen in den Vorrat), `tests/golden.mjs --write` (nur die neuen
   dazu), `geschichte.mjs spiel`.
-- **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`; seit PLAN 1a.3 «Tutorial neu» 4 Level
+- **Wo die Level liegen** (seit Ticket 06 des Umbaus): in der Datendatei `src/daten/level.js`, einem JavaScript-Modul
+  nur mit Daten (kein JSON, damit jedes Level seine Kommentare zu Lösung und Herkunft behält). Darin `UEBUNGEN` (die
+  Übungen im Dorf, von Hand), `FLACH` (die Level der Reihe im Spiel), `WUERFEL` (die Würfel-Level im Spiel, heute
+  leer) und `REISE` (die Reise der Geschichte: je Grad 6 Welten mit den Namen ihrer 10 Level). Die Spiellogik
+  `src/logik.js` setzt daraus `LEVELS` (`UEBUNGEN`, dann `FLACH`), `LEVELS_3D` und `STORY_LEVELS` zusammen; Vite
+  bündelt die Datei beim Build ins Spiel (kein Nachladen, offline spielbar). Die übrigen Level liegen im Vorrat
+  (`tools/vorrat/`, siehe «Vorrat und Lader»). Die Werkzeuge schreiben je in einen Bereich: die Zeilen zwischen
+  `const FLACH = [` und der nächsten Zeile `];` (ebenso `WUERFEL`, und `REISE` bis `};`); darin steht jedes Level als
+  Block von `  {` bis `  },`, sonst nichts.
+  **Ein Level ändern:** Ein Level im Spiel direkt in seinem Block in `src/daten/level.js` ändern (liegt es im Vorrat,
+  zuerst `node tools/vorrat.mjs zurueckholen <name>` oder den Block in `tools/vorrat/` ändern), die Lösung im
+  Kommentar und in `solution` nachführen, dann `node tests/golden.mjs` (zeigt die Änderung; ist sie gewollt, mit
+  `--write` die Referenz neu schreiben), `node tests/logic.test.mjs` (Lösung stimmt und ist eindeutig) und die Tests
+  der Levelliste. Reihenfolge und Grad nicht von Hand ändern: Das schreibt `tools/ordne-level.mjs --schreiben` (bzw.
+  `ordne-wuerfel.mjs`), welche Level in die Geschichte kommen und ihre Titel `tools/geschichte.mjs spiel`. Den Namen
+  nie ändern (Schlüssel des Speicherstands). Die Übungen im Dorf schreibt kein Werkzeug; sie ändert man von Hand.
+- **Levels:** in `LEVELS` (Spiellogik, Daten in `src/daten/level.js`): zuerst das Tutorial (`tutorial: true`; seit PLAN 1a.3 «Tutorial neu» 4 Level
   mit je höchstens vier geführten Schritten `schritte` mit je einem oder zwei kurzen Sätzen im Band unten, Lichtkegel
   und Hand am Element, strikt: nur das markierte Element reagiert; dazu Hinweise nebenbei `nebenbei` zu Kamera und
   Neustart in «Brechung»; geführt nur im Dorf, siehe «Führung» in `CONTEXT.md`. Erstes Licht: Ziel, Spiegel, rund
   gegen eckig, Zurückdrehen; Brechung: Block und Prisma; Farbenlehre: Filter, farbige Lampe, Ring am Kristall;
   Mischung: Mischen am Kristall und Kombinator), danach seit Ticket 04
-  (Noas Geschichte) genau die 240 Level der Geschichte mit ihrem Titel (`titel`, die Reise in `STORY_LEVELS`), in der
+  (Noas Geschichte) genau die 240 Level der Geschichte (ihr Titel in der Übersetzungsschicht, die Reise in
+  `STORY_LEVELS`), in der
   Reihenfolge der Reihe; die übrigen der 538 flachen Level (500, die 15 neuen sehr schweren aus Ticket 01 und die 23
   aus Ticket 09, über `ordne-level.mjs --ausbau` in die Reihe eingefügt) liegen im Vorrat. Die Reihe: 150 Level, seit
   Ticket 15 nach der Schwierigkeit der Beurteilung geordnet (`tools/ordne-level.mjs`): Ohne die KI-Tester wandert kein
@@ -977,7 +1258,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Grad als Text. Die Punkte sind gezeichnet (CSS), nicht aus der Schrift. Die Levelauswahl (Seiten zu 10, Fläche und
   Würfel) ist mit Ticket 04 weggefallen; an ihrer Stelle steht seit Ticket 06 die Übersicht des Grads.
   Wichtig: Der Levelname (`name`) ist der stabile Schlüssel jedes Levels (Speicherstand, Werkzeuge, Protokoll der
-  KI-Tester, Golden-Test); angezeigt wird `titel ?? name`. Gelöste Level speichert das Spiel nach Namen (geprüft in
+  KI-Tester, Golden-Test); angezeigt wird der Titel aus der Übersetzungsschicht, ohne Titel der Name (`levelTitel`).
+  Gelöste Level speichert das Spiel nach Namen (geprüft in
   `tests/levelliste.test.mjs`). Die Namen der 150 wurden einst der Position nach vergeben (bis Ticket 21 in
   `tools/profiles.mjs`; als feste Liste in `tools/beurteilung/heutige-reihenfolge.json`) – nach dem Veröffentlichen
   nicht mehr umbenennen. Entfernte Namen kommen auf die Liste in `tools/levelliste.json` und werden nie wieder

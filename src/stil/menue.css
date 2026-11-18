@@ -1,0 +1,253 @@
+/* Menü der Geschichte (Sternkarte mit Reitern) (Ticket 04 von .scratch/umbau/: aus index.html) */
+/* ---------- Menü der Geschichte (Ticket 05): «Sternkarte mit Reitern» (Ticket 08 von .scratch/kleiner-wagen/) ----------
+   Die vier Grade als Reiter; der gewählte zeigt seinen Kleinen Wagen wie auf einer Sternkarte (createMenu zeichnet
+   sie), darunter sein Knopf und «Von vorn». Alle Klassen beginnen mit «menue-», die Wurzel #menue trägt «menue»
+   (createMenu setzt sie). Über dem Spiel und der Bühne (gleiche Ebene wie #story, danach im Dokument), unter dem
+   Startbildschirm; hinter dem Menü schaut die Kamera in den Himmel.
+   Desktop und Handy quer: Reiter links untereinander, die Karte rechts daneben, der Knopf darunter. Handy hoch: die
+   Reiter oben als Segmente, darunter Karte und Stand, der Knopf ganz unten in Reichweite des Daumens.
+   Die Bedingung für hoch steht gleich in createMenu (HOCH): beide zusammen ändern. */
+.menue {
+  --menue-glow: 170, 180, 255; /* bläulicher Hof wie um den Titel und den Strahl des Startbildschirms */
+  --menue-ink: var(--ink, #e8e6f0);
+  --menue-dim: rgba(232, 230, 240, 0.66); /* etwas heller als --ink-dim: kleine Schrift auf dem Himmel */
+  --menue-linie: rgba(232, 230, 240, 0.3);
+  position: fixed; inset: 0; z-index: var(--menue-z, 7);
+  overflow: hidden;
+  color: var(--menue-ink);
+  font-family: var(--font, "Jost", "Helvetica Neue", "Segoe UI Light", "Segoe UI", system-ui, sans-serif);
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+  user-select: none; -webkit-user-select: none;
+  transition: opacity 0.8s ease;
+}
+.menue[hidden] { display: none; }
+.menue.menue-aus { opacity: 0; pointer-events: none; }
+/* einmal unsichtbar zeichnen (createMenu vorwaermen): fast durchsichtig, aber gezeichnet */
+.menue.menue-aus.menue-vorwaermen { opacity: 0.002; transition: none; }
+.menue *, .menue *::before, .menue *::after { box-sizing: border-box; }
+/* leicht abgedunkelt, zum Rand hin mehr: der Himmel bleibt sichtbar, die Schrift lesbar */
+.menue::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, rgba(3, 3, 8, 0.12), rgba(3, 3, 8, 0.66) 92%);
+}
+:where(.menue) button { /* schwach (:where), damit die Klassen der Knöpfe gelten */
+  font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer;
+  text-align: inherit; -webkit-tap-highlight-color: transparent;
+}
+/* Tastaturfokus: heller und mit Hof (der Rahmen des Spiels, 1 px in --ink-dim, ist auf dem Himmel zu schwach) */
+.menue button:focus-visible {
+  outline: 1.5px solid #fff; outline-offset: 4px;
+  box-shadow: 0 0 20px rgba(var(--menue-glow), 0.55);
+}
+/* zuletzt mit Zeiger oder Finger bedient: kein Rahmen (der Fokus liegt trotzdem dort, die nächste Taste zeigt ihn) */
+.menue.menue-zeiger button:focus-visible { outline: none; box-shadow: none; }
+.menue.menue-zeiger .menue-weiter:focus-visible { box-shadow: 0 0 28px rgba(var(--menue-glow), 0.32), inset 0 0 14px rgba(255, 255, 255, 0.07); }
+.menue-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.menue-inhalt { position: absolute; inset: 0; }
+.menue-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.menue-ico { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.menue-stern { display: inline-block; flex: none; }
+.menue-stern svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+/* Kopf: Titel wie der Startbildschirm, klein */
+.menue-kopf { position: absolute; left: 7%; top: 56px; }
+.menue-titel {
+  margin: 0; font-size: 24px; font-weight: 200; letter-spacing: 0.5em; text-transform: uppercase; color: #fff;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.55), 0 0 60px rgba(160, 170, 255, 0.35);
+}
+.menue-unter { margin: 8px 0 0; font-size: 10px; letter-spacing: 0.5em; text-transform: uppercase; color: var(--menue-dim); }
+
+/* Reiter: Desktop eine Spalte links unter dem Kopf; der gewählte hell mit Strich am Rand */
+.menue-grade {
+  list-style: none; margin: 0; padding: 0;
+  position: absolute; left: 7%; top: 27%; width: 290px;
+  display: flex; flex-direction: column; gap: 22px;
+}
+.menue-grad { position: relative; min-width: 0; }
+.menue-wahl {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 7px; width: 100%;
+  min-height: 44px; padding: 8px 12px 8px 18px; border-left: 2px solid transparent; border-radius: 0 10px 10px 0;
+  color: var(--menue-dim); transition: color 0.25s ease, border-color 0.25s ease, background-color 0.25s ease;
+}
+.menue-wahl:hover { color: var(--menue-ink); background: rgba(255, 255, 255, 0.04); }
+.menue-an .menue-wahl { color: #fff; border-color: #fff; }
+.menue-an .menue-name { text-shadow: 0 0 12px rgba(var(--menue-glow), 0.8); }
+.menue-zeile1 { display: flex; align-items: center; gap: 12px; }
+.menue-pips { display: inline-flex; gap: 4px; }
+.menue-pips i { width: 6px; height: 6px; border: 1px solid currentColor; border-radius: 50%; }
+.menue-pips i.menue-on { background: currentColor; border-color: transparent; } /* volle und leere: Form, nicht Farbe */
+.menue-name { font-size: 16px; letter-spacing: 0.38em; margin-right: -0.38em; text-transform: uppercase; white-space: nowrap; }
+.menue-stand { display: flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: 0.05em; white-space: nowrap; }
+.menue-stand .menue-stern { width: 24px; height: 24px; margin: -5px 0; }
+.menue-zahl { font-variant-numeric: tabular-nums; }
+/* hervorgehoben (direkt nach dem Epilog der nächstschwerere Grad): Name und Punkte hell, der Name atmet */
+.menue-hervor .menue-name, .menue-hervor .menue-pips { color: #fff; }
+.menue-hervor .menue-name { text-shadow: 0 0 12px rgba(var(--menue-glow), 0.9); animation: menue-puls 2.4s ease-in-out infinite; }
+@keyframes menue-puls { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* Sternkarte (SVG, createMenu zeichnet sie bei jeder Grössenänderung und Wahl neu) */
+.menue-karte { position: absolute; left: calc(7% + 330px); right: 4%; top: 9%; bottom: calc(9% + 78px); }
+.menue-sternkarte { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.menue-netz circle, .menue-netz line { fill: none; stroke: rgba(200, 210, 255, 0.07); stroke-width: 1; }
+.menue-netz line { stroke: rgba(200, 210, 255, 0.05); }
+.menue-geist { stroke: rgba(200, 208, 255, 0.28); stroke-dasharray: 3 5; stroke-linecap: round; } /* noch nicht gezogen */
+.menue-linie { stroke: rgba(227, 231, 255, 0.72); stroke-linecap: round; }
+.menue-kern { fill: #fff; opacity: 0.3; }
+.menue-ks.menue-an .menue-kern { opacity: 1; }
+.menue-ks use { opacity: 0.75; } /* der Polarstern, bevor er antwortet */
+.menue-ks.menue-an use { opacity: 1; }
+/* der Stern der Welt, in der das Licht ist: ein feiner Ring, der atmet */
+.menue-ring { fill: none; stroke: #fff; stroke-width: 1; opacity: 0.8; transform-box: fill-box; transform-origin: center; animation: menue-atmen 2.6s ease-in-out infinite; }
+@keyframes menue-atmen { 50% { transform: scale(1.25); } }
+.menue-etikett { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; fill: var(--menue-dim); }
+.menue-etikett .menue-klein { font-size: 10.5px; letter-spacing: 0.08em; text-transform: none; }
+.menue-etikett.menue-an { fill: var(--menue-ink); }
+.menue-etikett.menue-jetzt { fill: #fff; }
+/* der Moment: seit dem letzten Zeigen erwacht (--d: Verzögerung), er blitzt auf, seine Linien ziehen sich, dann
+   wandert der Ring weiter */
+.menue-erwacht { transform-box: fill-box; transform-origin: center; animation: menue-blitz 1.6s ease-out var(--d) both; }
+@keyframes menue-blitz { 0% { opacity: 0.3; transform: scale(0.62); } 18% { opacity: 1; transform: scale(2.1); } }
+.menue-zieht { stroke-dasharray: var(--len) 10000; animation: menue-zieht 0.7s ease var(--d) both; }
+@keyframes menue-zieht { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
+.menue-ring.menue-spaeter { animation: menue-auf 0.5s ease var(--d) both, menue-atmen 2.6s ease-in-out calc(var(--d) + 0.5s) infinite; }
+@keyframes menue-auf { from { opacity: 0; } }
+
+/* Knopf und «Von vorn» unter der Karte */
+.menue-knoepfe {
+  position: absolute; left: calc(7% + 330px); right: 4%; bottom: 9%;
+  display: flex; justify-content: center; align-items: center; gap: 28px;
+}
+/* Knopf (Weiter, Beginnen, Fortsetzen, Übersicht): Pille wie «Weiter» im Feld «Gelöst», heller und mit Hof */
+.menue-weiter {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
+  padding: 13px 34px 12px calc(34px + 0.45em);
+  font-size: 13px; letter-spacing: 0.45em; text-transform: uppercase; text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.72); border-radius: 999px;
+  background: rgba(10, 10, 24, 0.92);
+  box-shadow: 0 0 28px rgba(var(--menue-glow), 0.32), inset 0 0 14px rgba(255, 255, 255, 0.07);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.menue-weiter:hover { border-color: #fff; box-shadow: 0 0 34px rgba(var(--menue-glow), 0.45), inset 0 0 14px rgba(255, 255, 255, 0.1); }
+.menue-weiter:focus-visible { box-shadow: 0 0 28px rgba(var(--menue-glow), 0.6), inset 0 0 14px rgba(255, 255, 255, 0.07); }
+.menue-wohin { font-size: 10px; letter-spacing: 0.22em; text-transform: none; color: var(--menue-dim); }
+.menue-weiter.menue-auf { animation: menue-auf 0.8s ease 0.5s both; }
+/* «Von vorn»: klein und zurückhaltend, mit dem Zeichen von «Level neu starten» */
+.menue-vonvorn {
+  display: inline-flex; align-items: center; gap: 0.7em; min-height: 44px; padding: 8px 12px; border-radius: 999px;
+  font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--menue-dim);
+  transition: color 0.25s ease;
+}
+.menue-vonvorn[hidden] { display: none; }
+.menue-vonvorn .menue-ico { font-size: 14px; }
+.menue-vonvorn:hover { color: var(--menue-ink); }
+/* Sprache (Ticket 07 von .scratch/umbau/): oben rechts, so zurückhaltend wie «Von vorn», mit einem Globus */
+.menue-sprache {
+  position: absolute; top: 40px; right: 4%;
+  display: inline-flex; align-items: center; gap: 0.7em; min-height: 44px; padding: 8px 12px; border-radius: 999px;
+  font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--menue-dim);
+  transition: color 0.25s ease;
+}
+.menue-sprache .menue-ico { font-size: 14px; }
+.menue-sprache:hover { color: var(--menue-ink); }
+.menue-info { display: none; } /* Stand des gewählten Grads unter der Karte: nur hoch (dort fehlt er im Reiter) */
+@media (prefers-reduced-motion: reduce) {
+  .menue-weiter.menue-auf, .menue-hervor .menue-name, .menue-ring, .menue-erwacht, .menue-zieht { animation: none; }
+}
+
+/* Rückfrage vor «Von vorn» */
+.menue-frage {
+  position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: 16px;
+  background: rgba(3, 3, 8, 0.62); transition: opacity 0.3s ease;
+}
+.menue-frage[hidden] { display: none; }
+.menue-frage.menue-aus { opacity: 0; pointer-events: none; }
+.menue-frage-box {
+  width: min(430px, 100%); padding: 30px 26px 24px; text-align: center;
+  border: 1px solid var(--menue-linie); border-radius: 16px; background: rgba(8, 8, 22, 0.94);
+  box-shadow: 0 0 40px rgba(var(--menue-glow), 0.18);
+}
+.menue-frage-titel { margin: 0 0 14px; font-size: 13px; font-weight: 300; letter-spacing: 0.4em; padding-left: 0.4em; text-transform: uppercase; color: #fff; }
+.menue-frage-text { margin: 0 0 24px; font-size: 14px; line-height: 1.7; letter-spacing: 0.03em; color: var(--menue-dim); }
+.menue-frage-knoepfe { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.menue-pille {
+  min-height: 44px; padding: 12px 24px 12px calc(24px + 0.4em);
+  font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase;
+  border: 1px solid var(--menue-linie); border-radius: 999px; background: rgba(3, 3, 8, 0.55);
+  transition: border-color 0.25s ease, background-color 0.25s ease;
+}
+.menue-pille:hover { border-color: var(--menue-dim); background: rgba(40, 40, 60, 0.6); }
+.menue-pille-ja { border-color: rgba(255, 255, 255, 0.72); }
+
+/* ---------- Handy hoch: Reiter oben als Segmente, Karte, Stand, unten der Knopf ---------- */
+@media (max-width: 600px) and (orientation: portrait) {
+  .menue-inhalt {
+    display: flex; flex-direction: column;
+    padding: max(22px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  .menue-kopf { position: static; text-align: center; }
+  .menue-titel { font-size: 19px; padding-left: 0.5em; }
+  .menue-unter { margin-top: 6px; font-size: 8.5px; letter-spacing: 0.4em; padding-left: 0.4em; }
+  .menue-grade { position: static; width: auto; flex-direction: row; gap: 0; margin-top: 18px; }
+  .menue-grad { flex: 1 1 0; }
+  .menue-wahl {
+    align-items: center; text-align: center; gap: 6px; min-height: 48px; padding: 6px 2px 9px;
+    border-left: 0; border-bottom: 2px solid rgba(232, 230, 240, 0.12); border-radius: 0;
+  }
+  .menue-zeile1 { flex-direction: column; gap: 6px; }
+  .menue-name { font-size: 12px; letter-spacing: 0.06em; margin-right: 0; text-transform: none; }
+  .menue-wahl .menue-stand { display: none; }
+  .menue-karte { position: relative; inset: auto; flex: 1 1 auto; min-height: 120px; margin: 6px 0; }
+  .menue-etikett { font-size: 9px; letter-spacing: 0.16em; }
+  .menue-etikett .menue-klein { font-size: 9px; }
+  .menue-info { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+  .menue-info-name { font-size: 16px; letter-spacing: 0.38em; padding-left: 0.38em; text-transform: uppercase; }
+  .menue-fein { font-size: 12px; letter-spacing: 0.05em; color: var(--menue-dim); }
+  .menue-knoepfe { position: static; flex-direction: column-reverse; align-items: stretch; gap: 8px; margin-top: 12px; }
+  .menue-vonvorn { align-self: center; }
+  .menue-sprache { top: max(10px, env(safe-area-inset-top)); right: max(4px, env(safe-area-inset-right)); padding: 8px 10px; font-size: 8.5px; letter-spacing: 0.22em; }
+  .menue-sprache .menue-ico { font-size: 13px; }
+  .menue-frage { place-items: end center; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+  .menue-frage-box { padding: 26px 20px 20px; }
+}
+/* kleine Handys hoch (z. B. 360 × 640): alles enger */
+@media (max-width: 600px) and (orientation: portrait) and (max-height: 700px) {
+  .menue-grade { margin-top: 12px; }
+  .menue-wahl { min-height: 44px; gap: 4px; padding: 4px 2px 6px; }
+  .menue-zeile1 { gap: 4px; }
+  .menue-info { gap: 3px; }
+  .menue-info-name { font-size: 14px; }
+  .menue-fein { font-size: 11px; }
+  .menue-knoepfe { gap: 2px; margin-top: 6px; }
+  .menue-weiter { padding-top: 11px; padding-bottom: 10px; }
+}
+/* sehr schmale Handys hoch (320 px): «Sehr schwer» passt sonst nicht ins Segment */
+@media (max-width: 340px) and (orientation: portrait) {
+  .menue-pips { gap: 3px; }
+  .menue-pips i { width: 5px; height: 5px; }
+  .menue-name { font-size: 11px; letter-spacing: 0.02em; }
+}
+
+/* ---------- Handy quer: wie Desktop, enger; Knopf unten rechts ---------- */
+@media (orientation: landscape) and (max-height: 500px) {
+  .menue-kopf { left: max(20px, env(safe-area-inset-left)); top: 14px; display: flex; align-items: baseline; gap: 16px; }
+  .menue-titel { font-size: 16px; }
+  .menue-unter { margin: 0; font-size: 8px; letter-spacing: 0.35em; }
+  .menue-grade { left: max(14px, env(safe-area-inset-left)); top: 48px; width: 232px; gap: 4px; }
+  .menue-wahl { gap: 3px; padding: 4px 8px 4px 14px; }
+  .menue-zeile1 { gap: 10px; }
+  .menue-name { font-size: 13px; letter-spacing: 0.3em; margin-right: -0.3em; }
+  .menue-stand { font-size: 11.5px; }
+  .menue-stand .menue-stern { width: 20px; height: 20px; }
+  .menue-karte { left: calc(max(14px, env(safe-area-inset-left)) + 244px); right: max(10px, env(safe-area-inset-right)); top: 30px; bottom: 64px; }
+  .menue-etikett { font-size: 9px; letter-spacing: 0.16em; }
+  .menue-etikett .menue-klein { font-size: 9px; }
+  .menue-knoepfe { left: auto; right: max(18px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); gap: 14px; }
+  .menue-vonvorn { order: -1; font-size: 8.5px; letter-spacing: 0.22em; }
+  .menue-sprache { top: 2px; right: max(10px, env(safe-area-inset-right)); font-size: 8.5px; letter-spacing: 0.22em; }
+  .menue-weiter { gap: 4px; padding: 8px 20px 7px calc(20px + 0.45em); font-size: 11px; }
+  .menue-wohin { font-size: 9px; }
+  .menue-frage-box { padding: 20px 22px 18px; }
+  .menue-frage-titel { margin-bottom: 10px; }
+  .menue-frage-text { margin-bottom: 16px; font-size: 13px; line-height: 1.6; }
+}

@@ -1,10 +1,9 @@
 // Vorrat der Würfel-Level (Spec .scratch/noa-geschichte/, «Daten»): Level, die nicht im Spiel stehen, aber jederzeit
-// zurückkommen können. Je Level sein Block aus LEVELS_3D in index.html, Zeile für Zeile wie dort (Lösung und Herkunft
-// im Kommentar, Name, Würfel, Grad, Elemente, Lösung), darüber sein Platz im Spiel beim Ablegen. Geschrieben von
-// tools/vorrat.mjs (ablegen, zurueckholen, liste); Werkzeuge und Tests lesen ihn über tools/lader.mjs. Nur über das
-// Werkzeug ändern.
+// zurückkommen können. Je Level sein Block aus WUERFEL in src/daten/level.js, Zeile für Zeile wie dort (Lösung und
+// Herkunft im Kommentar, Name, Würfel, Grad, Elemente, Lösung), darüber sein Platz im Spiel beim Ablegen. Geschrieben
+// von tools/vorrat.mjs (ablegen, zurueckholen, liste; die Level stehen zwischen «const VORRAT_WUERFEL = [» und «];»);
+// Werkzeuge und Tests lesen ihn über tools/lader.mjs. Nur über das Werkzeug ändern.
 const VORRAT_WUERFEL = [
-  /* VORRAT:BEGIN */
   // Platz im Spiel: am Anfang
   {
     // Lösung: Spiegel (3,0,4) Achse z rot 3 · Spiegel (3,1,4) Achse z rot 3 ·
@@ -7979,5 +7978,4 @@ const VORRAT_WUERFEL = [
     ],
     solution: { '3,4,4': 2, '3,3,2': 5, '1,4,6': 4, '4,2,4': 2, '3,0,2': 3, '4,4,2': 4, '2,1,1': 3, '0,0,2': 3, '0,0,6': 1, '2,4,2': 3, '0,4,2': 3, '0,3,2': 1, '0,4,5': 2, '0,3,0': 3 },
   },
-  /* VORRAT:END */
 ];

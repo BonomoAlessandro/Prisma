@@ -1,9 +1,9 @@
 // Vorrat der flachen Level (Spec .scratch/noa-geschichte/, «Daten»): Level, die nicht im Spiel stehen, aber jederzeit
-// zurückkommen können. Je Level sein Block aus LEVELS in index.html, Zeile für Zeile wie dort (Lösung und Herkunft im
-// Kommentar, Name, Grad, Elemente, Lösung), darüber sein Platz im Spiel beim Ablegen. Geschrieben von tools/vorrat.mjs
-// (ablegen, zurueckholen, liste); Werkzeuge und Tests lesen ihn über tools/lader.mjs. Nur über das Werkzeug ändern.
+// zurückkommen können. Je Level sein Block aus FLACH in src/daten/level.js, Zeile für Zeile wie dort (Lösung und
+// Herkunft im Kommentar, Name, Grad, Elemente, Lösung), darüber sein Platz im Spiel beim Ablegen. Geschrieben von
+// tools/vorrat.mjs (ablegen, zurueckholen, liste; die Level stehen zwischen «const VORRAT_FLACH = [» und «];»);
+// Werkzeuge und Tests lesen ihn über tools/lader.mjs. Nur über das Werkzeug ändern.
 const VORRAT_FLACH = [
-  /* VORRAT:BEGIN */
   // Platz im Spiel: am Anfang
   {
     // Lösung: Prisma (5,5) rot 5 · Spiegel (5,3) rot 1
@@ -7450,5 +7450,4 @@ const VORRAT_FLACH = [
     ],
     solution: { '5,3': 3, '5,4': 1, '6,4': 1, '2,3': 7, '3,4': 3, '6,2': 5, '5,5': 7, '3,3': 1, '2,5': 5, '1,4': 1 },
   },
-  /* VORRAT:END */
 ];

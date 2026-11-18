@@ -1,0 +1,12 @@
+/* Stil des Spiels (Ticket 04 von .scratch/umbau/, bis dahin <style> in index.html), in dieser Reihenfolge wie vorher.
+   index.html bindet nur diese Datei ein; Vite fügt die Teile beim Build zu einer Datei unter assets/ zusammen und
+   vite.config.mjs setzt ihren <link> an die Stelle dieses <link> zurück (vor das Skript des Massstabs, das die
+   Medienabfragen der Blätter umrechnet). */
+@import "./grund.css";
+@import "./oberflaeche.css";
+@import "./start.css";
+@import "./geschichte.css";
+@import "./menue.css";
+@import "./uebersicht.css";
+@import "./leistung.css";
+@import "./seite.css";

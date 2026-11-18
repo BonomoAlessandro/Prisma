@@ -2,8 +2,8 @@
 // tools/ordne-level.mjs für die flachen Level. Es beurteilt die Würfel-Level im Spiel und die Kandidaten
 // (beurteilung/parallel.mjs), rechnet nach den Regeln in wuerfelliste.mjs (eine Reihenfolge ohne Bestand, Grade nach
 // der Schwelle, Korrekturen der KI-Tester aus den Läufen wuerfel-…, Häufungsregel wie im Ausbau) und berichtet; mit
-// --schreiben trägt es Reihenfolge und Grade in Spiel und Vorrat ein (index.html zwischen WUERFEL:BEGIN und
-// WUERFEL:END, tools/vorrat/wuerfel.js).
+// --schreiben trägt es Reihenfolge und Grade in Spiel und Vorrat ein (src/daten/level.js im Bereich WUERFEL,
+// tools/vorrat/wuerfel.js).
 // - Kreisschluss wie im flachen Feld: Der Grad geht in die Beurteilung ein (Füllteil und Zerfall ab „mittel“). Darum
 //   rechnet es bis zum Fixpunkt: zuerst mit dem Grad aus den Leveldaten (bei einem Kandidaten dem seines Auftrags),
 //   dann mit den Graden der Reihenfolge, bis sie sich nicht mehr ändern.
@@ -39,7 +39,7 @@ import { beurteileAlle } from './beurteilung/parallel.mjs';
 import { gradVon } from './beurteilung/grad.mjs';
 import { aehnlichkeit, AEHNLICH_AB } from './aehnlichkeit.mjs';
 import { kandidatName, levelCode } from './leveldaten.mjs';
-import { ARTEN, INDEX, inGanzerFolge, lese } from './vorrat.mjs';
+import { ARTEN, DATEN, inGanzerFolge, lese, spielBereich } from './vorrat.mjs';
 import {
   HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, fallendeSeiten, ladeLevelliste, zaehlendeWuerfelUrteile,
 } from './levelliste.mjs';
@@ -139,11 +139,11 @@ if (schreiben) {
     console.error(`\nNicht geschrieben: ${fehler.join('; ')}.`);
     process.exit(1);
   }
-  // zuerst der Vorrat, dann index.html, wie beim Ablegen (vorrat.mjs)
+  // zuerst der Vorrat, dann src/daten/level.js, wie beim Ablegen (vorrat.mjs)
   const t = inGanzerFolge(lese(), 'wuerfel', ordneWuerfel, kandidaten.map(k => k.level.name));
   writeFileSync(ARTEN.wuerfel.datei, t.wuerfel);
-  writeFileSync(INDEX, t.spiel);
-  console.log('\nindex.html und tools/vorrat/wuerfel.js geschrieben.');
+  writeFileSync(DATEN, t.spiel);
+  console.log('\nsrc/daten/level.js und tools/vorrat/wuerfel.js geschrieben.');
 }
 
 /** Hat das Level genau eine Lösung, die notierte (Stellungen bis auf die Periode des Elements)? */
@@ -177,28 +177,24 @@ function ladeKandidaten(datei) {
 }
 
 /**
- * Ordnet die Würfel-Level in index.html (html: der Text mit allen Würfel-Leveln, inGanzerFolge in vorrat.mjs)
- * zwischen WUERFEL:BEGIN und WUERFEL:END nach der Reihenfolge und setzt je Level
- * das Feld grad hinter dim und size (und height). Jedes Level steht dort als Block von „  {“ bis „  },“; sein Text bleibt sonst
- * unverändert. Die Kandidaten kommen dazu (levelCode in leveldaten.mjs, mit Herkunft im Kommentar). Rückgabe: der neue
- * Text.
+ * Ordnet die Würfel-Level in src/daten/level.js (html: der Text mit allen Würfel-Leveln, inGanzerFolge in vorrat.mjs)
+ * in ihrem Bereich WUERFEL (spielBereich in vorrat.mjs) nach der Reihenfolge und setzt je Level das Feld grad hinter dim
+ * und size (und height). Jedes Level steht dort als Block von „  {“ bis „  },“; sein Text bleibt sonst unverändert. Die
+ * Kandidaten kommen dazu (levelCode in leveldaten.mjs, mit Herkunft im Kommentar). Rückgabe: der neue Text.
  */
 function ordneWuerfel(html) {
-  const nl = html.includes('\r\n') ? '\r\n' : '\n';
-  const a = html.indexOf('/* WUERFEL:BEGIN */'), e = html.indexOf('/* WUERFEL:END */');
-  if (a < 0 || e < a) throw new Error('index.html: Markierungen WUERFEL:BEGIN/END fehlen');
-  const von = html.indexOf(nl, a) + nl.length, bis = html.lastIndexOf(nl, e) + nl.length;
+  const { von, bis, nl, zeilen } = spielBereich(html, 'wuerfel');
   // mit Titel wie bei levelCode (Spec .scratch/noa-geschichte/), wenn ein Würfel-Level einen bekommt
   const NAMENSZEILE = /^( {4}name: '([^']+)', dim: 3, size: \d+(?:, height: \d+)?(?:, titel: '(?:[^'\\]|\\.)*')?)(?:, grad: '[a-z ]+')?,$/;
   const bloecke = new Map();
   let block = null;
-  for (const zeile of html.slice(von, bis).split(nl).slice(0, -1)) {
+  for (const zeile of zeilen) {
     if (zeile === '  {') block = [zeile];
-    else if (!block) throw new Error(`index.html: Zeile ausserhalb eines Würfel-Levels: ${zeile}`);
+    else if (!block) throw new Error(`src/daten/level.js: Zeile ausserhalb eines Würfel-Levels: ${zeile}`);
     else block.push(zeile);
     if (zeile === '  },') {
       const m = block.map(z => z.match(NAMENSZEILE)).find(Boolean);
-      if (!m) throw new Error(`index.html: Würfel-Level ohne Namenszeile: ${block.slice(0, 3).join(' ')}`);
+      if (!m) throw new Error(`src/daten/level.js: Würfel-Level ohne Namenszeile: ${block.slice(0, 3).join(' ')}`);
       bloecke.set(m[2], block);
       block = null;
     }
@@ -214,7 +210,7 @@ function ordneWuerfel(html) {
     const kommentar = [`${herkunft}Würfel „${r.grad[levels.indexOf(k.level)]}“`];
     bloecke.set(k.level.name, levelCode(k.level, kommentar).split('\n'));
   }
-  if (bloecke.size !== n) throw new Error(`index.html: ${bloecke.size} Würfel-Level, erwartet ${n}`);
+  if (bloecke.size !== n) throw new Error(`src/daten/level.js: ${bloecke.size} Würfel-Level, erwartet ${n}`);
   const text = folge.map(i => bloecke.get(levels[i].name).map(z => z.replace(NAMENSZEILE, `$1, grad: '${r.grad[i]}',`))
     .join(nl)).join(nl) + nl;
   return html.slice(0, von) + text + html.slice(bis);

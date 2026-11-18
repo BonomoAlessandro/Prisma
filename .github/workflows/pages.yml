@@ -1,0 +1,59 @@
+# Browser-Fassung auf GitHub Pages (Ticket 09 von .scratch/umbau/, PLAN 4.1): baut das Spiel bei jedem Push auf main
+# (und von Hand: Actions → «Pages» → «Run workflow») und veröffentlicht dist/ unter
+# https://bonomoalessandro.github.io/Prisma/. Vorher die Node-Tests ohne Chrome; scheitert einer oder der Build, bleibt
+# der bisherige Stand online. Die Proben mit Chrome und der Bildvergleich laufen nur lokal (tools/leise.sh, README
+# Abschnitt Tests). Im Repo muss unter Settings → Pages als Source «GitHub Actions» stehen.
+# Actions fest auf eine Hauptversion (geprüft am 18.11.2026 an den Releases); der Test «Pages: Workflow» in
+# tests/logic.test.mjs hält das fest.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# nur eine Veröffentlichung zugleich; eine laufende wird nicht abgebrochen
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  bauen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # ganze Geschichte (Vorgabe wäre nur der letzte Commit): wuerfelliste prüft, dass jeder «Stand» in der Herkunft
+      # der Würfel-Level ein Commit ist (git cat-file)
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # die schnellen Node-Tests ohne Chrome aus tests/alle.mjs (lokal zusammen gut 2 min). Nur lokal: geschichte (12 min),
+      # beurteilung, levelliste, generator (je 1–2 min auf allen Kernen; Level und Werkzeuge, nicht der Build) und leise
+      # (prüft die Sperre von tools/leise.sh, nur unter Windows)
+      - run: node tests/alle.mjs golden logic hall speicher testschnittstelle texte vorrat wuerfelliste ki-tester typecheck
+      - run: npm run build
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  veroeffentlichen:
+    needs: bauen
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - id: pages
+        uses: actions/deploy-pages@v5

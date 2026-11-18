@@ -68,54 +68,48 @@
 // Bild und jede Lücke über 100 ms der ganzen Sitzung mit dem Zustand im Bild davor (bewegt sich etwas?).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { startChrome, emulate, evaluate, sleep } from '../tools/chrome.mjs';
 import { requireQuiet } from '../tools/ki-tester/shots.mjs';
+import { spielServer } from '../tools/spielserver.mjs';
+import { sprachen } from '../tools/texte.mjs';
+import { titelVon, uebersetzer } from '../src/texte/uebersetzung.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(root, 'tests', 'output', 'geschichte');
 const GRADE = ['leicht', 'mittel', 'schwer', 'sehr schwer'];
-const GRAD_TEXT = { leicht: 'Leicht', mittel: 'Mittel', schwer: 'Schwer', 'sehr schwer': 'Sehr schwer' };
-const WELTEN = ['Der Bergwald', 'Das Meer', 'Die Wüste', 'Der Vulkan', 'Die Planeten', 'Die Sterne'];
-const WELT_MENUE = ['Bergwald', 'Meer', 'Wüste', 'Vulkan', 'Planeten', 'Sterne']; // so nennt sie das Menü
 const STATIONEN = ['wald', 'meer', 'wueste', 'vulkan', 'planeten', 'sterne'];
+// Sprache der Probe (Ticket 08 von .scratch/umbau/): --sprache en lässt Chrome Englisch melden (--lang=en-US), das Spiel
+// wählt es; die Texte, die die Probe erwartet, kommen aus der Sprachdatei (T wie t im Spiel, TITEL wie levelTitel).
+// Ohne --sprache Deutsch, mit genau den Texten von früher.
+const SPRACHE = process.argv.includes('--sprache') ? process.argv[process.argv.indexOf('--sprache') + 1] : 'de';
+const SPRACHEN = sprachen();
+const GERAET_SPRACHE = { de: 'de', en: 'en-US' }[SPRACHE];
+if (!SPRACHEN[SPRACHE] || !GERAET_SPRACHE) {
+  console.error(`Unbekannte Sprache: ${SPRACHE} (${Object.keys(SPRACHEN).join(', ')})`);
+  process.exit(1);
+}
+/** Text zum Schlüssel in der Sprache der Probe; touch: Gerät mit Finger (Vorgabe: Maus). */
+const T = uebersetzer(SPRACHEN, SPRACHE, false);
+/** Titel eines Levels (Name) in der Sprache der Probe. */
+const TITEL = (name) => titelVon(SPRACHEN, SPRACHE, name);
+const GRAD_TEXT = { leicht: T('grad.leicht'), mittel: T('grad.mittel'), schwer: T('grad.schwer'),
+  'sehr schwer': T('grad.sehrSchwer') };
+const WELTEN = STATIONEN.map((k) => T(`geschichte.kapitel.${k}.titel`)); // «Der Bergwald» …
+const WELT_MENUE = STATIONEN.map((k) => T(`welt.${k}`)); // so nennt sie das Menü («Bergwald» …)
+/** Die ersten drei Wörter eines Satzes (wo die Probe nur den Anfang prüft). */
+const anfang = (satz) => satz.split(' ').slice(0, 3).join(' ');
+/** Kicker eines Einstiegs oder einer Reise: «Kapitel n · Der Bergwald». */
+const KAPITEL = (w) => T('geschichte.kapitelKicker', { n: w + 1, titel: WELTEN[w] });
 // Texte der Geschichte vom Kleinen Wagen (Spec .scratch/kleiner-wagen/, «Texte»; Ticket 03): so sieht sie der Spieler
-const PROLOG_SAETZE = [
-  'Hoch in den Bergen liegt ein kleines Dorf. Aus den Kaminen steigt Rauch, und über den Dächern funkeln die '
-    + 'Sterne.',
-  'Jeden Abend klettert Noa auf den Hügel hinter den Häusern und sucht den Polarstern. Er sitzt ganz vorn an '
-    + 'der Deichsel des Kleinen Wagens.',
-  'Heute hat Noa die Taschenlampe mitgenommen. Klick. Der Polarstern soll ein Zeichen bekommen.',
-  'Aber das Licht kommt nicht weit. Die Sterne des Wagens schlafen, und ohne sie verliert es sich im Dunkeln.',
-  'Da blinkt etwas am Waldrand. Ein Schwarm Glühwürmchen fliegt heran und fängt das Licht ein.',
-  'Jeder Stern im Wagen gehört zu einem Ort und wacht erst auf, wenn dort Licht ankommt. Hilf den '
-    + 'Glühwürmchen, das Licht von Ort zu Ort zu bringen, bis es beim Polarstern ankommt.'];
+// (seit Ticket 08 aus der Sprachdatei, src/texte/<sprache>.json)
+const PROLOG_SAETZE = [1, 2, 3, 4, 5, 6].map((n) => T(`geschichte.prolog.${n}`));
 /** Untertitel bei der Ankunft in einer Welt (Einstieg und Reise), je Welt. */
-const ANKUNFT = [
-  'Die Glühwürmchen fliegen mit Noas Licht tief in den Bergwald. Irgendwo über den Tannen schläft der erste '
-    + 'Stern.',
-  'Über dem Wald ist der erste Stern aufgewacht. Er zeigt zum Meer, und die Glühwürmchen fliegen mit dem '
-    + 'Licht über die Hügel bis an den Strand.',
-  'Jetzt leuchtet auch der zweite Stern. Der Wind nimmt das Licht mit, weit übers Wasser bis dorthin, wo die '
-    + 'Wüste anfängt.',
-  'Über den Dünen funkelt der dritte Stern. Ein Sandwirbel trägt das Licht weiter bis an einen Krater, in dem '
-    + 'Feuer brennt.',
-  'Mit dem vierten Stern ist die Schale des Wagens vollständig. Da bricht der Vulkan aus und schleudert das '
-    + 'Licht hoch über die Wolken.',
-  'Fünf Sterne leuchten schon, nur einer schläft noch. Ein Komet nimmt das Licht mit, weit hinaus zu den '
-    + 'Sternen.'];
+const ANKUNFT = STATIONEN.map((k) => T(`geschichte.kapitel.${k}.reise`));
 /** «Gelöst» nach dem letzten Level jeder Welt: Meldung und Knopf. */
-const WELT_GELOEST = [['Der Wald leuchtet', 'Weiter zum Meer'], ['Das Meer leuchtet', 'Weiter in die Wüste'],
-  ['Die Wüste leuchtet', 'Weiter zum Vulkan'], ['Der Vulkan glüht', 'Hinauf in den Himmel'],
-  ['Die Planeten leuchten', 'Weiter zu den Sternen'], ['Der Wagen ist wach', 'Hinaufschauen']];
-const FINALE_SAETZE = [
-  'Der letzte Stern wacht auf. Jetzt leuchtet der ganze Kleine Wagen.',
-  'Das Licht wandert die Deichsel entlang bis zum Polarstern.',
-  'Der Polarstern hat Noas Zeichen gesehen.'];
-const EPILOG_SAETZE = [
-  'In dieser Nacht bleibt Noa noch lange auf dem Hügel sitzen und schaut hinauf.',
-  'Da blinkt der Polarstern. Einmal, zweimal, dreimal.',
-  'Noa lacht und blinkt mit der Taschenlampe zurück. Über dem Dorf leuchten jetzt alle sieben Sterne.'];
+const WELT_GELOEST = STATIONEN.map((k) => [T(`geschichte.kapitel.${k}.fertig`), T(`geschichte.kapitel.${k}.weiter`)]);
+const FINALE_SAETZE = [1, 2, 3].map((n) => T(`geschichte.finale.${n}`));
+const EPILOG_SAETZE = [1, 2, 3].map((n) => T(`geschichte.epilog.${n}`));
 // Massstab für die Zeilen: die längsten Sätze vor dem Kleinen Wagen, auf der Bühne (der alte Prolog 2) und im
 // Untertitel über der Welt (der alte Einstieg ins Dorf, vor den Texten vom 13.11.2026). Kein neuer Satz braucht mehr
 // Zeilen als sie.
@@ -155,7 +149,8 @@ if ([...grade, finaleGrad].some(g => g && !GRADE.includes(g)) || !(welten >= 1 &
   || args.includes('--messwerte') && !messwerte || args.includes('--vorher') && !vorherDatei) {
   console.error('Aufruf: node tests/geschichte-probe.mjs [--handy [--groesse 360x640] | --quer] [--grad leicht,…] '
     + '[--welten 1–5 | --ganz] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf] [--dorf-raender] '
-    + '[--wagen] [--fall] [--dpr n] [--messwerte <datei.json>] [--vorher <datei.json>]');
+    + '[--wagen] [--fall] [--dpr n] [--messwerte <datei.json>] [--vorher <datei.json>] '
+    + `[${'--sprache'} de oder en]`); // so liest testschnittstelle.test.mjs es nicht als Code der Seite
   process.exit(1);
 }
 requireQuiet();
@@ -167,8 +162,9 @@ const view = groesse ? { name: `handy-${groesse[1]}x${groesse[2]}`, width: +groe
     : { name: 'desktop', width: 1440, height: 900, dpr: 1, phone: false };
 // andere Pixeldichte: ein Handy quer gilt dann ausdrücklich als mobil (Meta-Viewport, Massstab der Seite)
 if (dpr !== null) Object.assign(view, { name: `${view.name}-dpr${String(dpr).replace('.', '')}`, dpr, mobile: true });
-const PAGE = pathToFileURL(join(root, 'index.html')).href + '?noadapt&nointro';
-const PAGE_START = pathToFileURL(join(root, 'index.html')).href + '?noadapt'; // mit Startbildschirm
+const spiel = await spielServer(); // dist/ über http; der Server endet mit dem Lauf (process.exit)
+const PAGE = spiel.seite('noadapt&nointro');
+const PAGE_START = spiel.seite('noadapt'); // mit Startbildschirm
 const fehler = [];
 const pruefe = (ok, text) => { if (!ok) { fehler.push(text); console.log(`  FEHLER ${text}`); } };
 const bildzeiten = []; // je Übergang: Name, längste Lücke, Lücken über 50 und 100 ms
@@ -176,7 +172,7 @@ const bildzeiten = []; // je Übergang: Name, längste Lücke, Lücken über 50 
 // Zeitrahmen: eine Anfrage, auf die Chrome nicht antwortet, bricht nach FRIST_MS ab; der ganze Lauf nach GESAMT_MS
 // (sonst hielte ein hängender Lauf die Sperre von leise.sh)
 const FRIST_MS = 30000, GESAMT_MS = 14 * (ganz ? grade.length : 1) * 60000;
-const chrome = await startChrome({ ...view, gpu: true });
+const chrome = await startChrome({ ...view, gpu: true, sprache: GERAET_SPRACHE });
 const { logs, close } = chrome;
 setTimeout(async () => {
   console.error(`\nZeitrahmen von ${GESAMT_MS / 60000} min überschritten: Abbruch`);
@@ -234,7 +230,7 @@ async function halt(was, { station = null, warten = 0, name = null } = {}) {
     const tap = await ev(`(() => { const t = document.querySelector('#story .caption .tap');
       return { text: t.textContent,
         sichtbar: getComputedStyle(t).visibility === 'visible' && t.getClientRects().length > 0 }; })()`);
-    pruefe(tap.text === (view.phone ? 'Tippen' : 'Klicken') && tap.sichtbar, `${was}: beim Halt keine Aufforderung `
+    pruefe(tap.text === T('geschichte.tippen', { touch: view.phone }) && tap.sichtbar, `${was}: beim Halt keine Aufforderung `
       + JSON.stringify(tap));
     if (station !== null) await pruefeLeiste(station, `${was} (Halt)`);
     if (name) await bild(name);
@@ -831,12 +827,14 @@ async function angebot(was, wahl, { mitTaste = false, name = null } = {}) {
     text: document.querySelector('#story .scene .line.on')?.textContent ?? '',
     knoepfe: [...document.querySelectorAll('${ANGEBOT}')].map((b) => b.textContent).join(),
     fokus: document.activeElement?.textContent ?? null })`);
-  pruefe(a.kicker === 'Im Dorf' && a.text.startsWith('Die Glühwürmchen wollen') && a.knoepfe === 'Üben,Gleich los'
-    && a.fokus === 'Üben', `${was}: Angebot ${JSON.stringify(a)}`);
+  const ueben = T('geschichte.dorf.ueben'), los = T('geschichte.dorf.los');
+  pruefe(a.kicker === T('geschichte.dorf.titel') && a.text.startsWith(anfang(T('geschichte.dorf.angebot')))
+    && a.knoepfe === `${ueben},${los}` && a.fokus === ueben, `${was}: Angebot ${JSON.stringify(a)}`);
+  const knopf = wahl === 'Üben' ? ueben : los; // wahl: «Üben» oder «Gleich los» (wie im Deutschen)
   if (name) { await sleep(1800); await bild(name); }
   if (mitTaste) {
     if (wahl === 'Gleich los') await taste('Tab');
-    pruefe(await ev('document.activeElement?.textContent') === wahl, `${was}: Fokus vor Enter nicht auf ${wahl}`);
+    pruefe(await ev('document.activeElement?.textContent') === knopf, `${was}: Fokus vor Enter nicht auf ${knopf}`);
     await taste('Enter');
   } else await tippe(`${ANGEBOT}:nth-child(${wahl === 'Üben' ? 1 : 2})`, wahl);
   await until(`document.querySelectorAll('${ANGEBOT}').length === 0`, `${was}: ${wahl} gewählt`, 5);
@@ -881,11 +879,12 @@ async function kopfzeile(g, platz) {
   const z = await ev(`(() => { const grad = document.getElementById('hud-grad');
     return { ziele: document.getElementById('hud-ziele').textContent, grad: grad.hidden ? null : grad.textContent,
       sub: document.getElementById('hud-sub').textContent }; })()`);
-  const name = await ev(`(() => { const l = LEVELS[${D}.game.levelIndex]; return l.titel ?? l.name; })()`);
-  pruefe(titel === `${WELTEN[w]} – ${name}`, `${g} ${platz + 1}: Titel «${titel}»`);
+  const name = await ev(`levelTitel(LEVELS[${D}.game.levelIndex])`);
+  pruefe(titel === T('kopf.titel', { kapitel: WELTEN[w], titel: name }), `${g} ${platz + 1}: Titel «${titel}»`);
   // der Grad hinter den Zielen, keine Unterzeile (Kapitel, Level und Bedienung seit dem 09.11.2026 nicht mehr); den
   // Platz prüft der Stand der Geschichte
-  pruefe(/^Ziele \d+ \/ \d+$/.test(z.ziele) && z.grad === GRAD_TEXT[g] && z.sub === '',
+  pruefe(new RegExp('^' + T('kopf.ziele', { n: '\\d+', N: '\\d+' }) + '$').test(z.ziele) && z.grad === GRAD_TEXT[g]
+    && z.sub === '',
     `${g} ${platz + 1}: Ziele und Grad ${JSON.stringify(z)}`);
   const stand = await ev(`(() => { const s = ${D}.story; return { step: s.step, c: s.steps[s.step].c,
     k: s.steps.filter(x => x.c === s.steps[s.step].c).indexOf(s.steps[s.step]) }; })()`);
@@ -913,7 +912,7 @@ async function durchgang(g, erster) {
   await until(`${storyMode} === 'caption'`, `${g}: Einstieg`, 60);
   await sleep(1800);
   await bild(`${slug(g)}-einstieg`);
-  pruefe((await ev("document.querySelector('#story .caption .kicker').textContent")) === 'Kapitel 1 · Der Bergwald',
+  pruefe((await ev("document.querySelector('#story .caption .kicker').textContent")) === KAPITEL(0),
     `${g}: Einstieg in den Bergwald`);
   await pruefeSatz(SATZ_UNTERTITEL, ANKUNFT[0], `${g}: Einstieg in den Bergwald`);
   await pruefeLeiste(1, `${g}: Einstieg in den Bergwald`, { licht: false });
@@ -922,7 +921,7 @@ async function durchgang(g, erster) {
   for (let w = 0; w < welten; w++) {
     for (let k = 0; k < 10; k++) await level(g, w * 10 + k, { bilder: k === 0 });
     await until(`${storyMode} === 'caption' && document.querySelector('#story .caption .kicker').textContent === `
-      + `'Kapitel ${w + 2} · ${WELTEN[w + 1]}'`, `${g}: Reise in Welt ${w + 2}`, 60);
+      + JSON.stringify(KAPITEL(w + 1)), `${g}: Reise in Welt ${w + 2}`, 60);
     await pruefeSatz(SATZ_UNTERTITEL, ANKUNFT[w + 1], `${g}: Reise in Welt ${w + 2}`);
     // «Menü» und «Neu starten» wirken auf der Reise nicht: Die Knöpfe sind weg (Ticket 08)
     pruefe(await ev("document.getElementById('controls').inert"), `${g}: Knöpfe auf der Reise in Welt ${w + 2}`);
@@ -948,7 +947,7 @@ async function durchgang(g, erster) {
   const fokus = await ev('document.activeElement?.dataset.menueFokus ?? null');
   pruefe(fokus === 'weiter', `${g}: Fokus nach dem Neuladen auf ${fokus}`);
   const wohin = await ev("document.querySelector('#menue .menue-wohin').textContent");
-  pruefe(wohin === `${GRAD_TEXT[g]} · ${WELT_MENUE[welten]} ${welten * 10} / 60`, `${g}: Weiter «${wohin}»`);
+  pruefe(wohin === T('menue.wohin.begonnen', { grad: GRAD_TEXT[g], welt: WELT_MENUE[welten], n: welten * 10, N: 60 }), `${g}: Weiter «${wohin}»`);
   await tippe('#menue .menue-weiter', 'Weiter');
   await sofortZu(`${g}: Weiter`);
   let einstieg = false;
@@ -1003,7 +1002,7 @@ async function finale(g) {
   pruefe(s?.geschafft === true && s.geloest.length === 60, `${g}: Stand nach dem Finale ${JSON.stringify(s)}`);
   const knopf = await ev("[...document.querySelectorAll('#story .scene .actions button')].map(b => b.textContent)"
     + '.join()');
-  pruefe(knopf === 'Zum Menü', `${g}: Knöpfe am Ende «${knopf}»`);
+  pruefe(knopf === T('geschichte.zumMenue'), `${g}: Knöpfe am Ende «${knopf}»`);
   // «Zum Menü» ohne Neuladen
   await ev('window.__ohneNeuladen = true');
   await messe();
@@ -1023,7 +1022,7 @@ async function finale(g) {
   pruefe(JSON.stringify(menuStand.geschafft) === JSON.stringify([g]), `${g}: geschafft im Menü ${menuStand.geschafft}`);
   pruefe(JSON.stringify(menuStand.hervor) === JSON.stringify(naechster ? [naechster] : []),
     `${g}: hervorgehoben ${menuStand.hervor} statt ${naechster}`);
-  pruefe(menuStand.weiter === `${GRAD_TEXT[anderer]} · Vulkan 33 / 60` && menuStand.welten === 6,
+  pruefe(menuStand.weiter === T('menue.wohin.begonnen', { grad: GRAD_TEXT[anderer], welt: WELT_MENUE[3], n: 33, N: 60 }) && menuStand.welten === 6,
     `${g}: «Weiter» nach dem Epilog ${menuStand.weiter}, ${menuStand.welten} Zeichen der Welten`);
   pruefe(menuStand.fokus === 'weiter', `${g}: Fokus nach dem Epilog auf ${menuStand.fokus}`);
   pruefe(menuStand.kamera === 1, `${g}: Kamera hinter dem Menü nicht im Himmel (${menuStand.kamera})`);
@@ -1068,7 +1067,7 @@ async function ganzerDurchgang(g, erster) {
   await messe({ abKlick: true });
   await angebot(g, 'Gleich los');
   await until(`${storyMode} === 'caption'`, `${g}: Einstieg`, 60);
-  pruefe((await ev("document.querySelector('#story .caption .kicker').textContent")) === 'Kapitel 1 · Der Bergwald',
+  pruefe((await ev("document.querySelector('#story .caption .kicker').textContent")) === KAPITEL(0),
     `${g}: Einstieg in den Bergwald`);
   await pruefeSatz(SATZ_UNTERTITEL, ANKUNFT[0], `${g}: Einstieg in den Bergwald`);
   await pruefeLeiste(1, `${g}: Einstieg in den Bergwald`, { licht: false });
@@ -1084,7 +1083,7 @@ async function ganzerDurchgang(g, erster) {
     }
     if (w === 5) break;
     await until(`${storyMode} === 'caption' && document.querySelector('#story .caption .kicker').textContent === `
-      + `'Kapitel ${w + 2} · ${WELTEN[w + 1]}'`, `${g}: Reise in Welt ${w + 2}`, 60);
+      + JSON.stringify(KAPITEL(w + 1)), `${g}: Reise in Welt ${w + 2}`, 60);
     await pruefeSatz(SATZ_UNTERTITEL, ANKUNFT[w + 1], `${g}: Reise in Welt ${w + 2}`);
     pruefe(await ev("document.getElementById('controls').inert"), `${g}: Knöpfe auf der Reise in Welt ${w + 2}`);
     await sleep(2500);
@@ -1115,7 +1114,7 @@ async function ganzerDurchgang(g, erster) {
   pruefe(s?.geschafft === true && s.geloest.length === 60, `${g}: Stand nach dem Finale ${JSON.stringify(s)}`);
   const knopf = await ev("[...document.querySelectorAll('#story .scene .actions button')].map(b => b.textContent)"
     + '.join()');
-  pruefe(knopf === 'Zum Menü', `${g}: Knöpfe am Ende «${knopf}»`);
+  pruefe(knopf === T('geschichte.zumMenue'), `${g}: Knöpfe am Ende «${knopf}»`);
   await ev('window.__ohneNeuladen = true');
   await messe({ abKlick: true });
   await tippe('#story .scene .actions button', 'Zum Menü');
@@ -1141,7 +1140,7 @@ async function neuladenMitten(g) {
   const fokus = await ev('document.activeElement?.dataset.menueFokus ?? null');
   pruefe(fokus === 'weiter', `${g}: Fokus nach dem Neuladen auf ${fokus}`);
   const wohin = await ev("document.querySelector('#menue .menue-wohin').textContent");
-  pruefe(wohin === `${GRAD_TEXT[g]} · Wüste 25 / 60`, `${g}: Weiter nach dem Neuladen «${wohin}»`);
+  pruefe(wohin === T('menue.wohin.begonnen', { grad: GRAD_TEXT[g], welt: WELT_MENUE[2], n: 25, N: 60 }), `${g}: Weiter nach dem Neuladen «${wohin}»`);
   await sleep(1500);
   await bild(`${slug(g)}-neuladen-menue`);
   await messe({ abKlick: true });
@@ -1178,9 +1177,10 @@ async function menueAblauf() {
     hud: document.getElementById('hud').classList.contains('hidden'),
     knoepfe: document.getElementById('controls').inert,
     vonvorn: [...document.querySelectorAll('#menue .menue-vonvorn')].map((b) => b.dataset.menueFokus).join() }; })()`);
-  pruefe(start.leicht === 'Meer·12 / 60' && start.mittel === 'Wüste·23 / 60' && start.schwer === 'Bergwald·4 / 60'
-    && start.sehr === 'Geschafft', `Stand im Menü ${JSON.stringify(start)}`);
-  pruefe(start.weiter === 'Mittel · Wüste 23 / 60' && start.fokus === 'weiter',
+  pruefe(start.leicht === `${WELT_MENUE[1]}·12 / 60` && start.mittel === `${WELT_MENUE[2]}·23 / 60`
+    && start.schwer === `${WELT_MENUE[0]}·4 / 60` && start.sehr === T('menue.geschafft'),
+  `Stand im Menü ${JSON.stringify(start)}`);
+  pruefe(start.weiter === T('menue.wohin.begonnen', { grad: GRAD_TEXT.mittel, welt: WELT_MENUE[2], n: 23, N: 60 }) && start.fokus === 'weiter',
     `Weiter im Menü ${JSON.stringify(start)}`);
   pruefe(start.kamera === 1 && start.hud && start.knoepfe, `hinter dem Menü ${JSON.stringify(start)}`);
   pruefe(start.vonvorn === 'vonvorn:leicht,vonvorn:mittel,vonvorn:schwer,vonvorn:sehr schwer',
@@ -1188,7 +1188,8 @@ async function menueAblauf() {
   await pruefeImBild('#menue', 'Menü');
   // der Wagen je Grad auf der Sternkarte (Ticket 08 von .scratch/kleiner-wagen/): mitten im Durchgang (Leicht im Meer,
   // Mittel in der Wüste, Schwer im Bergwald) und geschafft; nicht begonnen nach «Von vorn» (unten)
-  const wagenSoll = { leicht: [1, 0, 'Meer'], schwer: [0, 0, 'Bergwald'], 'sehr schwer': [7, 7, null], mittel: [2, 1, 'Wüste'] };
+  const wagenSoll = { leicht: [1, 0, WELT_MENUE[1]], schwer: [0, 0, WELT_MENUE[0]], 'sehr schwer': [7, 7, null],
+    mittel: [2, 1, WELT_MENUE[2]] };
   for (const [g, [wach, linien, jetzt]] of Object.entries(wagenSoll)) {
     await tippe(karte(g), `Reiter ${g}`);
     await sleep(300);
@@ -1197,7 +1198,8 @@ async function menueAblauf() {
       && w.welten === 6, `Wagen im Menü, ${g}: ${JSON.stringify(w)}`);
     if (g !== 'mittel') await bild(`menue-wagen-${slug(g)}`);
   }
-  pruefe(await ev("document.querySelector('#menue .menue-was').textContent") === 'Weiter', 'Knopf bei Mittel: nicht «Weiter»');
+  pruefe(await ev("document.querySelector('#menue .menue-was').textContent") === T('menue.aktion.weiter'),
+    'Knopf bei Mittel: nicht «Weiter»');
 
   // «Weiter»: dieselbe Welt (ihr Himmel ist schon da), ohne Einstieg
   await messe();
@@ -1233,7 +1235,7 @@ async function menueAblauf() {
     const pfeil = await ev(`({ fokus: document.activeElement?.dataset.menueFokus,
       gewaehlt: document.querySelector('#menue .menue-grad.menue-an')?.dataset.grad,
       knopf: document.querySelector('#menue .menue-wohin').textContent })`);
-    pruefe(pfeil.fokus === 'wahl:leicht' && pfeil.gewaehlt === 'leicht' && pfeil.knopf === 'Leicht · Meer 12 / 60',
+    pruefe(pfeil.fokus === 'wahl:leicht' && pfeil.gewaehlt === 'leicht' && pfeil.knopf === T('menue.wohin.begonnen', { grad: GRAD_TEXT.leicht, welt: WELT_MENUE[1], n: 12, N: 60 }),
       `Pfeil ab im Menü ${JSON.stringify(pfeil)}`);
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'r', code: 'KeyR', windowsVirtualKeyCode: 82 });
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'r', code: 'KeyR', windowsVirtualKeyCode: 82 });
@@ -1313,8 +1315,9 @@ async function menueAblauf() {
     weiter: document.querySelector('#menue .menue-grad.menue-zuletzt')?.dataset.grad ?? null,
     welten: document.querySelectorAll('#menue .menue-welt').length })`);
   // der Reiter Schwer bleibt gewählt; «Weiter» gehört jetzt Mittel (zuletzt gespielt unter den begonnenen)
-  pruefe(vonvorn.schwer === null && vonvorn.mittel && vonvorn.leicht && vonvorn.karte === 'noch nicht begonnen'
-    && vonvorn.offen && vonvorn.fokus === 'wahl:schwer' && vonvorn.knopf === 'Schwer · noch nicht begonnen'
+  pruefe(vonvorn.schwer === null && vonvorn.mittel && vonvorn.leicht && vonvorn.karte === T('menue.neu')
+    && vonvorn.offen && vonvorn.fokus === 'wahl:schwer'
+    && vonvorn.knopf === T('menue.wohin.neu', { grad: GRAD_TEXT.schwer })
     && vonvorn.weiter === 'mittel' && vonvorn.welten === 6, `Von vorn ${JSON.stringify(vonvorn)}`);
   const neuW = await menueWagen();
   pruefe(neuW.gewaehlt === 'schwer' && neuW.wach === 0 && neuW.linien === 0 && neuW.ring === 0 && neuW.jetzt === null,
@@ -1436,7 +1439,7 @@ async function uebersichtAblauf() {
   pruefe(u.geloest === 13 && u.offen === 1 && u.gesperrt === 46 && JSON.stringify(u.aktuell) === '[1,3]'
     && JSON.stringify(u.fokus) === '[1,3]' && u.kopf.includes('13 / 60') && !u.geschafft,
   `Übersicht aus dem Spiel ${JSON.stringify(u)}`);
-  pruefe(u.modus === 'seiten' && u.seite.startsWith('Meer: 3 von 10'),
+  pruefe(u.modus === 'seiten' && u.seite.startsWith(T('uebersicht.aria.reihe', { welt: WELT_MENUE[1], n: 3, N: 10 })),
     `Übersicht: Darstellung ${JSON.stringify(u)}`);
   // Himmel (Ticket 08): Stern des Bergwalds wach, noch keine Linie, 13 Level gelöst, eines offen, sechs Haufen
   const himmel = await uebHimmel();
@@ -1470,7 +1473,7 @@ async function uebersichtAblauf() {
   if (view.phone) { // Wischen auf den Kacheln: zur vorigen Welt (Bergwald)
     await wische(170);
     u = await uebStand();
-    pruefe(u.seite.startsWith('Bergwald: 10 von 10'), `Wischen nach rechts: Seite «${u.seite}»`);
+    pruefe(u.seite.startsWith(T('uebersicht.aria.reihe', { welt: WELT_MENUE[0], n: 10, N: 10 })), `Wischen nach rechts: Seite «${u.seite}»`);
   } else {
     await taste('ArrowLeft');
     pruefe(JSON.stringify((await uebStand()).fokus) === '[1,2]', 'Pfeil links in der Übersicht');
@@ -1520,8 +1523,8 @@ async function uebersichtAblauf() {
   await sleep(700);
   let f = await geloestFeld();
   let b = (await besteWerte('mittel'))?.[m[0][0]];
-  pruefe(f.msg === 'Gelöst' && f.best === 'Neue Bestzeit · Weniger Drehungen' && f.zahlen === 2 && f.sichtbar
-    && f.knopf === 'Weiter' && b.zeit < 999 && b.drehungen < 99, `neue Bestmarke ${JSON.stringify({ f, b })}`);
+  pruefe(f.msg === T('geloest.kurz') && f.best === `${T('geloest.neueBestzeit')} · ${T('geloest.wenigerDrehungen')}`
+    && f.zahlen === 2 && f.sichtbar && f.knopf === T('geloest.weiter') && b.zeit < 999 && b.drehungen < 99, `neue Bestmarke ${JSON.stringify({ f, b })}`);
   await bild('uebersicht-neue-bestzeit');
 
   // das letzte Level des Bergwalds wiederholen (gespeichert 0 s und 1 Drehung: keine Meldung), «Weiter» ins Meer
@@ -1535,7 +1538,7 @@ async function uebersichtAblauf() {
   await until('window.__prisma.solvedPanel()', 'Bergwald 10 gelöst', 30);
   await sleep(700);
   f = await geloestFeld();
-  pruefe(f.msg === 'Der Wald leuchtet' && f.knopf === 'Weiter zum Meer' && f.best === '' && f.zahlen === 0,
+  pruefe(f.msg === WELT_GELOEST[0][0] && f.knopf === WELT_GELOEST[0][1] && f.best === '' && f.zahlen === 0,
     `Bergwald 10 wiederholt ${JSON.stringify(f)}`);
   await messe();
   await tippe('#btn-next', 'Weiter zum Meer');
@@ -1599,7 +1602,7 @@ async function uebersichtAblauf() {
   const aktion = await ev(`(() => { const a = document.querySelector('#menue .menue-weiter .menue-was'),
     r = a.getBoundingClientRect(); return { text: a.textContent, sichtbar: r.width > 0 && r.right <= innerWidth
       && r.bottom <= innerHeight && getComputedStyle(a).display !== 'none' }; })()`);
-  pruefe(aktion.text === 'Übersicht' && aktion.sichtbar, `Knopf beim Reiter Leicht ${JSON.stringify(aktion)}`);
+  pruefe(aktion.text === T('menue.aktion.uebersicht') && aktion.sichtbar, `Knopf beim Reiter Leicht ${JSON.stringify(aktion)}`);
   await bild('uebersicht-menue');
   await messe();
   await waehle('leicht', 'Karte Leicht');
@@ -1609,7 +1612,7 @@ async function uebersichtAblauf() {
   await bild('uebersicht-aus-dem-menue');
   u = await uebStand();
   pruefe(u.geloest === 60 && u.offen === 0 && u.gesperrt === 0 && u.geschafft && u.aktuell === null
-    && u.kopf.includes('Geschafft') && u.kopf.includes('49:30'), `Übersicht Leicht ${JSON.stringify(u)}`);
+    && u.kopf.includes(T('uebersicht.geschafft')) && u.kopf.includes('49:30'), `Übersicht Leicht ${JSON.stringify(u)}`);
   const himmelL = await uebHimmel();
   pruefe(himmelL.wach === 7 && himmelL.linien === 7 && himmelL.level === 60 && himmelL.geloest === 60 && himmelL.offen === 0
     && himmelL.imHimmel, `Himmel der Übersicht, Leicht geschafft ${JSON.stringify(himmelL)}`);
@@ -1623,7 +1626,7 @@ async function uebersichtAblauf() {
     const s2 = (await uebStand()).seite;
     await wische(-170);
     const s3 = (await uebStand()).seite;
-    pruefe(s1.startsWith('Sterne') && s2.startsWith('Planeten') && s3.startsWith('Sterne'),
+    pruefe(s1.startsWith(WELT_MENUE[5]) && s2.startsWith(WELT_MENUE[4]) && s3.startsWith(WELT_MENUE[5]),
       `Blättern: ${s1} → ${s2} → ${s3}`);
     await bild('uebersicht-sterne');
   }
@@ -1657,7 +1660,7 @@ async function uebersichtAblauf() {
   await until('window.__prisma.solvedPanel()', 'Sterne 10 gelöst', 30);
   await sleep(700);
   f = await geloestFeld();
-  pruefe(f.msg === 'Der Wagen ist wach' && f.knopf === 'Zur Übersicht',
+  pruefe(f.msg === WELT_GELOEST[5][0] && f.knopf === T('geloest.zurUebersicht'),
     `letztes Level im Wiederholen ${JSON.stringify(f)}`);
   await bild('uebersicht-zur-uebersicht');
   await messe();
@@ -1667,7 +1670,7 @@ async function uebersichtAblauf() {
   await sleep(800);
   await ende('letztes Level → Übersicht');
   u = await uebStand();
-  pruefe(JSON.stringify(u.aktuell) === '[5,9]' && u.geschafft && (!view.phone || u.seite.startsWith('Sterne')),
+  pruefe(JSON.stringify(u.aktuell) === '[5,9]' && u.geschafft && (!view.phone || u.seite.startsWith(WELT_MENUE[5])),
     `Übersicht nach dem letzten Level ${JSON.stringify(u)}`);
   await bild('uebersicht-nach-dem-letzten');
   await uebersichtZu();
@@ -1676,7 +1679,7 @@ async function uebersichtAblauf() {
   f = await geloestFeld();
   const sl = await stand('leicht'), fokus = await ev('document.activeElement?.id ?? null');
   // gelöst: der Fokus auf «Weiter» (hier «Zur Übersicht»), damit Enter weiterführt
-  pruefe(await ev('window.__prisma.solvedPanel()') && f.knopf === 'Zur Übersicht' && sl?.geschafft
+  pruefe(await ev('window.__prisma.solvedPanel()') && f.knopf === T('geloest.zurUebersicht') && sl?.geschafft
     && await ev("localStorage.getItem('prisma.noa.zuletzt')") === 'mittel' && (view.phone || fokus === 'btn-next'),
   `zurück im letzten Level ${JSON.stringify({ f, sl, fokus })}`);
 
@@ -1695,7 +1698,7 @@ async function uebersichtAblauf() {
     return { stand: localStorage.getItem('prisma.noa.leicht'), karte: document.querySelector('${karte('leicht')}'
       + ' .menue-stand').textContent, werte: lv.filter((x) => x.bestzeit !== null || x.drehungen !== null).length,
       geloest: lv.filter((x) => x.geloest).length }; })()`);
-  pruefe(vv.stand === null && vv.karte === 'noch nicht begonnen' && vv.werte === 0 && vv.geloest === 0
+  pruefe(vv.stand === null && vv.karte === T('menue.neu') && vv.werte === 0 && vv.geloest === 0
     && JSON.stringify(await besteWerte('leicht')) === JSON.stringify(bestVorher),
   `«Von vorn» Leicht ${JSON.stringify(vv)}`);
 
@@ -1713,7 +1716,7 @@ async function uebersichtAblauf() {
   await until('window.__prisma.solvedPanel()', 'Bergwald 10 gelöst', 30);
   await tippe('#btn-next', 'Weiter zum Meer');
   await until(`${storyMode} === 'caption' && document.querySelector('#story .caption .kicker').textContent === `
-    + "'Kapitel 2 · Das Meer'", 'Reise ins Meer nach dem Wiederholen', 60);
+    + JSON.stringify(KAPITEL(1)), 'Reise ins Meer nach dem Wiederholen', 60);
   await until(`window.__prisma.playing() && ${D}.story.step === 10 && !${D}.story.running`, 'Schwer, Meer 1', 60);
   pruefe(await ev(`${D}.story.replay`) === false && (await stand('schwer'))?.platz === 10, 'nach der Reise: Stand');
   await ev(`${D}.loese()`);
@@ -1865,7 +1868,7 @@ async function gefuehrt(g) {
   await until(`${D}.fuehrung.los && ${D}.fuehrung.level?.name === 'Erstes Licht'`, `${was}: Führung läuft`, 10);
   await sleep(300);
   const [ZIEL, VORN, FEST, HINTEN] = ['5,4', '2,4', '2,1', '5,1'];
-  const texte = await ev(`LEVELS[0].schritte.map((s) => geraeteText(s.text, ${view.phone}))`);
+  const texte = await ev(`LEVELS[0].schritte.map((s) => t(s.text, { touch: ${view.phone} }))`);
   const schritt1 = async (wann) => {
     const f = await fuehrungIn([ZIEL]);
     pruefe(f.schritt === 0 && f.satz === texte[0] && f.knopf && !f.hand && f.dunkel && f.kegel.length === 1
@@ -1893,7 +1896,7 @@ async function gefuehrt(g) {
   await ev(`LEVELS[0].nebenbei = ['kamera', 'neustart']`);
   try {
     await neustart('nach dem Neustart');
-    const [kamera, neu] = await ev(`[NEBENBEI.kamera.text, NEBENBEI.neustart.text].map((t) => t[${view.phone ? 0 : 1}])`);
+    const [kamera, neu] = await ev(`[NEBENBEI.kamera.text, NEBENBEI.neustart.text].map((k) => t(k, { touch: ${view.phone} }))`);
     let n = await neben();
     pruefe(n === `${kamera} ${neu}`, `${was}: Hinweise nebenbei «${n}»`);
     const f = await fuehrungIn([]);
@@ -1987,7 +1990,7 @@ async function schrittIst(n, k, was) {
     `${was}: Führung läuft`, 15);
   await eingeblendet(k, `${was}: Schritt ${k + 1} eingeblendet`);
   await sleep(300);
-  const s = await ev(`(({ text, bei, weiter }) => ({ text: geraeteText(text, ${view.phone}),
+  const s = await ev(`(({ text, bei, weiter }) => ({ text: t(text, { touch: ${view.phone} }),
     zellen: [].concat(bei ?? []).length, erklaerung: weiter === 'erklaerung' }))(LEVELS[${n}].schritte[${k}])`);
   const f = await fuehrungIn([]);
   pruefe(f.schritt === k && !f.fertig && f.satz === s.text && f.knopf === s.erklaerung && f.kegel.length === s.zellen,
@@ -2022,8 +2025,8 @@ async function schritteSpielen(g, n) {
   await until(`${D}.fuehrung.los && ${D}.fuehrung.level === LEVELS[${n}] && ${D}.flow.state === 'play'`,
     `${was}: Führung läuft`, 10);
   const { schritte, nebenbei, drehbar, loesung } = await ev(`({ schritte: LEVELS[${n}].schritte.map((s) => ({ ...s,
-    text: geraeteText(s.text, ${view.phone}) })), nebenbei: (LEVELS[${n}].nebenbei ?? [])
-    .map((k) => NEBENBEI[k].text[${view.phone ? 0 : 1}]).join(' '), loesung: LEVELS[${n}].solution,
+    text: t(s.text, { touch: ${view.phone} }) })), nebenbei: (LEVELS[${n}].nebenbei ?? [])
+    .map((k) => t(NEBENBEI[k].text, { touch: ${view.phone} })).join(' '), loesung: LEVELS[${n}].solution,
     drehbar: ${D}.game.board.elements.filter((e) => isRotatable(e)).map((e) => e.x + ',' + e.z) })`);
   const handArt = (s) => (s.weiter === 'erklaerung' || (s.weiter === 'strahl' && !s.trifft) ? null
     : s.richtung === -1 ? (view.phone ? 'halten' : 'rechtsklick') : 'tippen');
@@ -2111,16 +2114,16 @@ async function uebung(g, n, { bilder = false, weiter = true, replay = false, fue
     sub: document.getElementById('hud-sub').textContent,
     grad: document.getElementById('hud-grad').hidden ? null : document.getElementById('hud-grad').textContent,
     hinweis: document.querySelector('#band:not(.aus) .band-satz')?.textContent ?? null,
-    erster: geraeteText(LEVELS[${n}].schritte[0].text, ${view.phone}), index: ${D}.game.levelIndex,
+    erster: t(LEVELS[${n}].schritte[0].text, { touch: ${view.phone} }), index: ${D}.game.levelIndex,
     uebersicht: !document.getElementById('btn-overview').hidden,
     skip: !document.getElementById('btn-skip').classList.contains('hidden') })`);
-  pruefe(k.titel === `Im Dorf – ${uebungen[n]}` && k.index === n, `${g}, Übung ${n + 1}: Titel «${k.titel}»`);
-  pruefe(k.grad === GRAD_TEXT[g] && k.sub === `Übung ${n + 1} / ${uebungen.length}` && k.hinweis === k.erster,
+  pruefe(k.titel === T('kopf.titel', { kapitel: T('geschichte.dorf.titel'), titel: TITEL(uebungen[n]) }) && k.index === n, `${g}, Übung ${n + 1}: Titel «${k.titel}»`);
+  pruefe(k.grad === GRAD_TEXT[g] && k.sub === T('kopf.uebung', { n: n + 1, N: uebungen.length }) && k.hinweis === k.erster,
     `${g}, Übung ${n + 1}: Unterzeile «${k.sub}», erster Schritt «${k.erster}»`);
   await brettDerWelt(`${g}, Übung ${n + 1}`);
   // «Dorf überspringen»: nicht beim Wiederholen nach dem Kapitel, nach einem Einstieg erst nach einer Pause
   const skipText = !replay ? await warteSkip(true) : null;
-  pruefe(k.uebersicht && (replay ? !k.skip : skipText === 'Dorf überspringen'),
+  pruefe(k.uebersicht && (replay ? !k.skip : skipText === T('geschichte.dorfUeberspringen')),
     `${g}, Übung ${n + 1}: Knöpfe Übersicht ${k.uebersicht}, Überspringen ${k.skip} «${skipText}»`);
   if (bilder) { await sleep(2200); await bild(`dorf-${slug(g)}-uebung-${n + 1}`); }
   if (fuehren === 'erstes') await gefuehrt(g); // geführt, wie ein Spieler bis zur Lösung
@@ -2128,7 +2131,8 @@ async function uebung(g, n, { bilder = false, weiter = true, replay = false, fue
   else await ev(`${D}.loese()`);
   await until('window.__prisma.solvedPanel()', `${g}: Übung ${n + 1} gelöst`, 30);
   const f = await geloestFeld();
-  const erwartet = n < uebungen.length - 1 ? 'Gelöst/Weiter' : `Das Dorf leuchtet/${replay ? 'Zur Übersicht' : 'In den Bergwald'}`;
+  const erwartet = n < uebungen.length - 1 ? `${T('geloest.kurz')}/${T('geloest.weiter')}`
+    : `${T('geschichte.dorf.fertig')}/${replay ? T('geloest.zurUebersicht') : T('geschichte.dorf.weiter')}`;
   pruefe(`${f.msg}/${f.knopf}` === erwartet, `${g}, Übung ${n + 1}: «Gelöst» ${f.msg}/${f.knopf}`);
   if (!replay) {
     const ueber = await skipUeberdeckt();
@@ -2177,7 +2181,7 @@ async function einstiegWeg(g, was, moment, { esc = false, sky } = {}) {
   const s = await stand(g), skip = await warteSkip(moment === 'dorf');
   // danach: im Dorf «Dorf überspringen» (nach der Pause), in einer Welt keines
   pruefe((await ev(storyMode)) === false && s.gesehen.includes(moment)
-    && skip === (moment === 'dorf' ? 'Dorf überspringen' : null),
+    && skip === (moment === 'dorf' ? T('geschichte.dorfUeberspringen') : null),
     `${g}: ${was} übersprungen: Untertitel ${await ev(storyMode)}, gesehen ${s.gesehen}, Überspringen ${skip}`);
   const grad = drehung(log);
   pruefe(grad <= 5, `${g}: ${was} übersprungen: Kamera dreht ${grad.toFixed(1)}° in einem Bild`);
@@ -2228,7 +2232,7 @@ async function dorfAblauf() {
   await angebot('leicht', 'Üben', { name: 'dorf-angebot', mitTaste: !view.phone });
   await messe();
   await until(`${storyMode} === 'caption'`, 'Leicht: Einstieg ins Dorf', 30);
-  pruefe(await kicker() === 'Im Dorf · Erstes Licht' && await ev(`${D}.skyTheme.current`) === 'village',
+  pruefe(await kicker() === T('geschichte.dorf.einstiegKicker') && await ev(`${D}.skyTheme.current`) === 'village',
     `Leicht: Einstieg ins Dorf «${await kicker()}», Himmel ${await ev(`${D}.skyTheme.current`)}`);
   await sleep(1500);
   await bild('dorf-einstieg');
@@ -2274,7 +2278,7 @@ async function dorfAblauf() {
   await geste();
   const wohin = await ev("document.querySelector('#menue .menue-wohin').textContent");
   const karteStand = await ev(`document.querySelector('${karte('leicht')} .menue-stand').textContent`);
-  pruefe(wohin === 'Leicht · Dorf 0 / 60', `Leicht nach dem Neuladen: Weiter «${wohin}», Karte «${karteStand}»`);
+  pruefe(wohin === T('menue.wohin.begonnen', { grad: GRAD_TEXT.leicht, welt: T('welt.dorf'), n: 0, N: 60 }), `Leicht nach dem Neuladen: Weiter «${wohin}», Karte «${karteStand}»`);
   pruefe(await ev(`${D}.skyTheme.current`) === 'village', 'Leicht: Himmel hinter dem Menü nicht der des Dorfs');
   await messe();
   await tippe('#menue .menue-weiter', 'Weiter');
@@ -2311,7 +2315,7 @@ async function dorfAblauf() {
   const dorfReihe = await ev(`(() => { const r = document.querySelector('${UEB} .ueb-welt[data-reihe="0"]');
     return { kacheln: r?.querySelectorAll('.ueb-kachel').length ?? 0, frei: r?.querySelectorAll('.ueb-frei').length,
       offen: [...(r?.querySelectorAll('.ueb-kachel') ?? [])].findIndex((k) => k.classList.contains('ueb-offen')),
-      name: r?.textContent.includes('Im Dorf') }; })()`);
+      name: r?.textContent.includes(${JSON.stringify(T('geschichte.dorf.titel'))}) }; })()`);
   pruefe(dorfReihe.kacheln === 4 && dorfReihe.name && dorfReihe.offen === 2 && u.geloest === 2 && u.offen === 2
     && JSON.stringify(u.aktuell) === '[0,0]', `Leicht: Übersicht im Dorf ${JSON.stringify({ ...u, dorfReihe })}`);
   await sleep(700);
@@ -2335,7 +2339,7 @@ async function dorfAblauf() {
   await until(`${storyMode} === 'caption' && ${D}.story.waitTap !== null`, 'Leicht: Ende des Dorfs', 20);
   const ende1 = await ev("document.querySelector('#story .caption .text').textContent");
   s = await stand('leicht');
-  pruefe(await kicker() === 'Im Dorf' && ende1.startsWith('Jetzt hat Noa') && s.dorf?.ende === 'uebersprungen'
+  pruefe(await kicker() === T('geschichte.dorf.titel') && ende1.startsWith(anfang(T('geschichte.dorf.ende'))) && s.dorf?.ende === 'uebersprungen'
     && !(await skipSichtbar()), `Leicht: Ende des Dorfs «${ende1}», ${JSON.stringify(s.dorf)}`);
   await sleep(900);
   await bild('dorf-ende');
@@ -2343,7 +2347,7 @@ async function dorfAblauf() {
   await messe();
   await tippe('#story .caption .text', 'Untertitel');
   await until(`${storyMode} === 'caption' && document.querySelector('#story .caption .kicker').textContent === `
-    + "'Kapitel 1 · Der Bergwald'", 'Leicht: Einstieg in den Bergwald', 30);
+    + JSON.stringify(KAPITEL(0)), 'Leicht: Einstieg in den Bergwald', 30);
   pruefe(await skipSichtbar(), 'Leicht: «Überspringen» fehlt im Einstieg in den Bergwald');
   await sleep(1200);
   await bild('dorf-wald');
@@ -2526,11 +2530,11 @@ async function dorfRaender() {
   await until(`${uebOffen} && !${D}.story.tweens.length`, 'b: Übersicht', 10);
   await zurDorfReihe(1);
   await ev(`window.__dorfSatz = false; (function schau() { if (document.querySelector('#story .caption .kicker')
-    .textContent === 'Im Dorf' && ${storyMode} === 'caption') window.__dorfSatz = true;
+    .textContent === ${JSON.stringify(T('geschichte.dorf.titel'))} && ${storyMode} === 'caption') window.__dorfSatz = true;
     if (!window.__prisma.playing() || ${D}.story.inDorf) requestAnimationFrame(schau); })(); true`);
   await tippeKachel(1, 0, 'Kachel Bergwald 1');
   await until(`${storyMode} === 'caption' && document.querySelector('#story .caption .kicker').textContent === `
-    + "'Kapitel 1 · Der Bergwald'", 'b: Einstieg in den Bergwald', 30);
+    + JSON.stringify(KAPITEL(0)), 'b: Einstieg in den Bergwald', 30);
   await until(`window.__prisma.playing() && !${D}.story.running && ${D}.story.step === 0`, 'b: Bergwald 1', 40);
   s = await stand('leicht');
   pruefe(s.dorf?.ende === 'uebersprungen' && s.gesehen.includes('wald') && !(await ev('window.__dorfSatz')),
@@ -2556,7 +2560,7 @@ async function dorfRaender() {
     if (await ev(`${storyMode} === 'scene'`)) buehne = true;
     await sleep(100);
   }
-  pruefe(!buehne && await kicker() === 'Im Dorf · Erstes Licht', `c: nach dem Neuladen «${await kicker()}», Bühne ${buehne}`);
+  pruefe(!buehne && await kicker() === T('geschichte.dorf.einstiegKicker'), `c: nach dem Neuladen «${await kicker()}», Bühne ${buehne}`);
   await uebung('schwer', 0, { weiter: false });
 
   // e) «Überspringen», während die Übung nach «Weiter» versinkt

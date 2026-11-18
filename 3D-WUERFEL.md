@@ -42,7 +42,8 @@ senkrecht dazu genau wie ein 2D-Element: `rot` bzw. `dir` zählen dort in 45°-S
 - Ebenenbasis `AXES` (u, a, v) ist rechtshändig. Die Darstellung dreht die vorhandenen 2D-Modelle mit
   `makeBasis(u, a, v)` in ihre Ebene (lokal y = Drehachse) – es gibt **keine neuen 3D-Modelle**.
 
-Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
+Level-Format (`LEVELS_3D` der Spiellogik `src/logik.js`; die Level selbst stehen seit Ticket 06 des Umbaus in
+`src/daten/level.js` unter `WUERFEL`, bis dahin in `src/logik.js`, bis Ticket 03 im LOGIC-Block):
 
 ```js
 { name, dim: 3, size: 7, hint,
@@ -52,7 +53,7 @@ Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
 
 ## Wo was im Code steht (index.html)
 
-- **Logik (LOGIC-Block):** `AXES`, `DIRS3` (die 18 Richtungen, die ersten acht wie `DIRS`), die Tabellen der
+- **Logik (`src/logik.js`):** `AXES`, `DIRS3` (die 18 Richtungen, die ersten acht wie `DIRS`), die Tabellen der
   Drehebene (`PLANE_K`, `PLANE_A`, `FROM_PLANE`), `planeDir`, `planeIndex`, `reflect3`, `mirrorFrontNormal3`,
   `refractInPrism3`, `createBoard3`. Flache Level und Würfel laufen durch denselben Durchlauf `tracePass` (ADR 0003,
   Ticket 27): Ein flaches Level ist ein Würfel mit einer Ebene (y = 0, Drehachse y). Spiegel und Prisma rechnen in
@@ -60,7 +61,7 @@ Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
   (`createBoard` ruft bei `dim === 3` `createBoard3`); `tracePass` unterscheidet nur Drehachse und Ausgabe.
   Segmente/Ereignisse im Würfel haben zusätzlich `y0/y1` bzw. `y`, Normalen sind `[nx, ny, nz]`; die flachen bleiben
   ohne y und bitgleich (`tests/golden.mjs`).
-- **Levelliste:** `LEVELS` im LOGIC-Block enthält nur die 2D-Level (Tests, Golden-Test, Werkzeuge der Levelliste
+- **Levelliste:** `LEVELS` in `src/logik.js` enthält nur die 2D-Level (Tests, Golden-Test, Werkzeuge der Levelliste
   wie `tools/ordne-level.mjs`).
   Im Spiel hängt `LEVELS.push(...LEVELS_3D)` sie hinten an (`CUBE_START` = erster Würfel-Index).
   Seit Noas Geschichte (ADR 0005, Ticket 04) liegen alle Würfel-Level im Vorrat (`tools/vorrat/wuerfel.js`) und

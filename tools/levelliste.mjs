@@ -534,7 +534,7 @@ export function fallendeSeiten(folge, werte) {
  * ausbauLaeufe: die Läufe, aus denen ein Level des Ausbaus sein Urteil hat. Die Würfel-Level (wuerfelliste.mjs) rechnen
  * so: ohne Bestand, jedes Level wie eines des Ausbaus, mit den Läufen wuerfel-….
  * gleichstand: je Index ein Text, der bei gleichem Wert im Ausbau entscheidet (fuegeEin); ohne (null) die Reihenfolge
- * der Eingabe. Die Würfel-Level geben den Abdruck, damit die Folge nicht von der Reihenfolge in index.html abhängt.
+ * der Eingabe. Die Würfel-Level geben den Abdruck, damit die Folge nicht von der Reihenfolge in src/daten/level.js abhängt.
  * obenAuch: Namen von Leveln unter „mittel“, für die HAUPT_KERNIDEE_JE_10_OBEN trotzdem gilt (GRENZ_DULDUNG in
  * wuerfelliste.mjs).
  */

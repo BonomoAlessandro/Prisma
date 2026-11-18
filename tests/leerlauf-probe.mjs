@@ -10,26 +10,26 @@
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/leerlauf-probe.mjs [--fenster] [--handy]
 //           [--drossel 4] [--sky forest] [--seite <index.html>] [--still]
 //   --fenster: echtes Fenster (Messwerte; sonst headless, nur Regression); --handy: 393 × 873, Pixeldichte 2,75, Touch;
-//   --seite: eine andere index.html (etwa der Stand vorher als Kopie); --still: mit ?t=12 (Zeit steht) nur prüfen,
+//   --seite: eine andere index.html (etwa der Stand vorher als Kopie, ungebaut aus ihrem Ordner; sonst dist/ über
+//   http, tools/spielserver.mjs); --still: mit ?t=12 (Zeit steht) nur prüfen,
 //   dass Menü und Level nach kurzer Zeit nichts mehr zeichnen und Eingaben die Schleife wecken. Etwa 1 min.
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join } from 'node:path';
 import { startChrome, emulate, evaluate, sleep } from '../tools/chrome.mjs';
 import { requireQuiet } from '../tools/ki-tester/shots.mjs';
+import { root, seiteAus, spielServer } from '../tools/spielserver.mjs';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const wert = (name, vorgabe = null) => { const i = args.indexOf(name); return i < 0 ? vorgabe : args[i + 1]; };
 const handy = args.includes('--handy'), fenster = args.includes('--fenster'), still = args.includes('--still');
 const drossel = Number(wert('--drossel', 1)), sky = wert('--sky', 'forest');
-const seite = resolve(wert('--seite', join(root, 'index.html')));
+const spiel = await spielServer(wert('--seite') ? seiteAus(wert('--seite')) : {}); // endet mit process.exit
 requireQuiet();
 
 const view = handy ? { width: 393, height: 873, dpr: 2.75, phone: true } : { width: 1440, height: 900, dpr: 1, phone: false };
 const name = `leerlauf-${fenster ? 'fenster' : 'headless'}-${handy ? 'handy' : 'desktop'}${drossel > 1 ? `-drossel${drossel}` : ''}`
   + `${still ? '-still' : ''}-${sky}`;
-const PAGE = pathToFileURL(seite).href + `?perf&nointro&sky=${sky}${still ? '&t=12' : ''}`;
+const PAGE = spiel.seite(`perf&nointro&sky=${sky}${still ? '&t=12' : ''}`);
 const fehler = [];
 const pruefe = (ok, text) => { if (!ok) { fehler.push(text); console.log(`  FEHLER ${text}`); } };
 
@@ -112,7 +112,7 @@ const LIES = `(() => {
   return JSON.stringify(out);
 })()`;
 
-const ergebnis = { name, seite, sky };
+const ergebnis = { name, seite: wert('--seite') ?? 'dist/', sky };
 try {
   if (handy) {
     await emulate(send, view);

@@ -1,23 +1,34 @@
-// Testet die reine Spiellogik aus index.html (Bereich zwischen LOGIC:BEGIN und LOGIC:END).
+// Testet die reine Spiellogik (das Modul src/logik.js, bis Ticket 03 von .scratch/umbau/ der Bereich LOGIC in
+// index.html) und Teile der Seite. Was er aus der Seite liest, liest er aus index.html und allen Modulen unter src/
+// (spielQuelltext in tools/seitenmodule.mjs, seit Ticket 04 ist das Spiel Module), also aus dem Code, der im Spiel
+// läuft. Im Block «Module» prüft er die Form der Module.
 // Die Level, an denen sie die Strahlregel und den Löser prüft (Lösung, Eindeutigkeit, Würfel, Vergleiche), kommen aus
 // Spiel und Vorrat (ALLE im gemeinsamen Lader tools/lader.mjs, Spec .scratch/noa-geschichte/); das Tutorial aus dem
 // Spiel.
+// Im Block «Offline» baut er das Spiel einmal (wie npm run build, in einen eigenen Ordner) und prüft den Build und den
+// Dev-Server (Ticket 02 von .scratch/umbau/; braucht npm install).
 // Aufruf: node tests/logic.test.mjs
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 import { loadSkies, checkSkies, layerTypes, boardTypes, codeSkies, orphans, runCode } from '../tools/sky-schema.mjs';
+import { baue } from '../tools/spielserver.mjs';
+import { module, spielQuelltext, zerlege } from '../tools/seitenmodule.mjs';
+import * as L from '../src/logik.js';
+import { REISE as REISE_DATEN, UEBUNGEN as UEBUNGEN_DATEN } from '../src/daten/level.js';
+import { sprachen } from '../tools/texte.mjs';
+import { uebersetzer } from '../src/texte/uebersetzung.js';
 
-const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
-const begin = html.indexOf('/* LOGIC:BEGIN');
-const end = html.indexOf('/* LOGIC:END');
-assert.ok(begin > 0 && end > begin, 'LOGIC-Marker nicht gefunden');
-const code = html.slice(begin, end);
-const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, LEVELS_3D, AXES, MIRROR_HALF_HEIGHT, planeDir, reflect3, refractInPrism3, mirrorFrontNormal3, pickTapped, mod8, SCHRITTE_MAX, SCHRITT_WEITER, SCHRITT_PLATZHALTER, NEBENBEI, geraeteText, schrittErfuellt, schrittGeste, strahlTrifft, schrittErlaubt, RUHE_NACH_MS, RUHE_MIN_FPS, RUHE_FPS, ruhetaktAus, ruhtJetzt, bildrate, bildrateGrund };')();
+/** Deutsche Texte der Übersetzungsschicht (Schritte der Führung sind seit Ticket 07 Schlüssel). */
+const deutsch = uebersetzer(sprachen(), 'de');
+
+const quelle = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
+const html = spielQuelltext(); // index.html und alle Module, der Code des Spiels
 
 let passed = 0;
 function test(name, fn) {
@@ -616,31 +627,24 @@ test('Tutorial: führt alle Elementarten ein', () => {
   for (const k of ['mirror', 'mirror:fest', 'blocker', 'prism', 'filter', 'combiner']) assert.ok(kinds.has(k), k);
   assert.ok(L.LEVELS.slice(0, L.TUTORIAL_COUNT).some(l => l.elements.some(e => e.type === 'source' && e.color && e.color !== 'white')), 'farbige Quelle');
 });
-test('Tutorial-Schritte: nur bekannte Platzhalter', () => {
-  // die Befehlsform aus SCHRITT_PLATZHALTER
-  const schritt = new RegExp(Object.keys(L.SCHRITT_PLATZHALTER).map(p => p.replace(/[{}]/g, '\\$&')).join('|'), 'g');
+// seit Ticket 07 von .scratch/umbau/ ist der Satz ein Schlüssel der Übersetzungsschicht; Platzhalter, Länge und Zahl
+// der Sätze prüft tests/texte.test.mjs je Sprache
+test('Tutorial-Schritte: jeder Satz ist ein Schlüssel der deutschen Texte', () => {
   for (const l of L.LEVELS.filter(q => q.tutorial)) {
-    for (const t of l.schritte.map(s => s.text.replace(schritt, ''))) assert.deepEqual(t.match(/[{}]/g), null, `${l.name}: «${t}»`);
+    for (const s of l.schritte) assert.ok(s.text.startsWith('fuehrung.schritt.') && deutsch(s.text) !== s.text, `${l.name}: ${s.text}`);
   }
 });
 
 console.log('Führung im Dorf (Schritte)');
 {
   const gefuehrt = L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(l => l.schritte);
-  const wort = (t) => t.split(/\s+/).filter(Boolean).length;
   const am = (l, z) => l.elements.find(e => `${e.x},${e.z}` === z);
   test('Schritte: alle Übungen geführt', () => assert.equal(gefuehrt.length, L.TUTORIAL_COUNT));
-  // seit 13.11.2026 (Wunsch des Nutzers, natürlichere Texte) ein oder zwei kurze Sätze statt genau einem
-  // seit .scratch/tutorial-neu/ höchstens vier (bisher drei)
-  test('Schritte: höchstens vier, je ein oder zwei kurze Sätze, auf beiden Geräten', () => {
+  // seit .scratch/tutorial-neu/ höchstens vier (bisher drei); Länge und Sätze je Sprache: tests/texte.test.mjs
+  test('Schritte: höchstens vier', () => {
     assert.equal(L.SCHRITTE_MAX, 4);
     for (const l of gefuehrt) {
       assert.ok(l.schritte.length >= 1 && l.schritte.length <= L.SCHRITTE_MAX, `${l.name}: ${l.schritte.length} Schritte`);
-      for (const s of l.schritte) for (const touch of [true, false]) {
-        const t = L.geraeteText(s.text, touch);
-        assert.ok(wort(t) >= 3 && wort(t) <= 18 && t.length <= 105, `${l.name}: «${t}» (${wort(t)} Wörter)`);
-        assert.ok(/[.!?]$/.test(t) && (t.match(/[.!?] \S/g) ?? []).length <= 1, `${l.name}: höchstens zwei Sätze «${t}»`);
-      }
     }
   });
   test('Schritte: was weiterschaltet ist bekannt, das Element dazu steht auf dem Brett', () => {
@@ -695,7 +699,7 @@ console.log('Führung im Dorf (Schritte)');
     assert.equal(am(e, es[0].bei).type, 'target');
     assert.ok(am(e, es[1].bei).type === 'mirror' && L.isRotatable(am(e, es[1].bei)) && es[1].trifft === es[2].bei);
     assert.ok(am(e, es[2].bei).type === 'mirror' && am(e, es[2].bei).fixed, 'fester Spiegel zum Antippen');
-    assert.ok(/eckig/.test(es[2].text) && /[Ee]ckige.*runde/.test(es[3].text), 'rund gegen eckig');
+    assert.ok(/eckig/.test(deutsch(es[2].text)) && /[Ee]ckige.*runde/.test(deutsch(es[3].text)), 'rund gegen eckig');
     assert.equal(L.mod8(am(e, es[3].bei).rot - 1) % 4, e.solution[es[3].bei] % 4, 'eine Stufe zu weit');
     assert.deepEqual(Object.keys(e.solution).sort(), [es[1].bei, es[3].bei].sort(), 'genau die beiden runden Spiegel');
     // Brechung: der Block (Erklärung, zu Beginn fällt das Licht auf ihn), den Spiegel drehen, bis das Licht das Prisma
@@ -864,15 +868,8 @@ console.log('Führung im Dorf (Schritte)');
       const n = l.nebenbei ?? [];
       assert.ok(n.every(k => k in L.NEBENBEI) && new Set(n).size === n.length, `${l.name}: ${n}`);
     }
-    for (const [k, { text }] of Object.entries(L.NEBENBEI)) {
-      for (const t of text) assert.ok(wort(t) <= 16 && !/[{}]/.test(t), `${k}: «${t}»`);
-    }
-  });
-  test('Text je Gerät: Befehlsform für Schritte', () => {
-    assert.equal(L.geraeteText('{Tippe} den Spiegel an.', true), 'Tippe den Spiegel an.');
-    assert.equal(L.geraeteText('{Tippe} den Spiegel an.', false), 'Klicke den Spiegel an.');
-    assert.equal(L.geraeteText('{Drücke lang} auf den Spiegel.', true), 'Drücke lang auf den Spiegel.');
-    assert.equal(L.geraeteText('{Drücke lang} auf den Spiegel.', false), 'Rechtsklicke auf den Spiegel.');
+    // der Satz: ein Schlüssel der Übersetzungsschicht (Länge je Sprache: tests/texte.test.mjs)
+    for (const [k, { text }] of Object.entries(L.NEBENBEI)) assert.ok(deutsch(text) !== text, `${k}: ${text}`);
   });
   test('Was weiterschaltet: Erklärung nur «Weiter», antippen auch fest, drehen mit Richtung, Strahl', () => {
     const l = L.LEVELS.find(q => q.name === 'Erstes Licht'), b = L.createBoard(l);
@@ -1250,39 +1247,333 @@ console.log('Bildrate (Ruhe-Bildrate, ?ruhetakt)');
   });
 }
 
+console.log('Module (Tickets 03 und 04 von .scratch/umbau/)');
+{
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const { parseAst } = await import('vite');
+  const lies = (p) => readFileSync(join(root, p), 'utf8');
+  test('index.html: nur das Gerüst, das Spiel ein Modul (src/main.ts), keine Marken und kein Code mehr', () => {
+    const skripte = [...quelle.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
+    assert.deepEqual(skripte.filter((s) => /type="module"/.test(s[1])).map((s) => s[1].trim()),
+      ['type="module" src="src/main.ts"']);
+    // ausser three.js und dem Register nur die zwei kleinen Skripte im Kopf (Manifest/Service Worker, Massstab)
+    const eingebettet = skripte.filter((s) => !/\bsrc=/.test(s[1]));
+    assert.equal(eingebettet.length, 2);
+    assert.ok(eingebettet.every((s) => s[2].split('\n').length < 80), 'ein Skript in index.html ist gross geworden');
+    assert.ok(!/<style\b/.test(quelle) && !/MODUL src\//.test(quelle), '<style> oder Marken übrig');
+    assert.ok(!/LOGIC:BEGIN|LOGIC:END|HALL:BEGIN|HALL:END/.test(html), 'alte Bereiche');
+  });
+  test('src/seite/: jedes Modul importiert zuerst das vorherige, src/main.ts das letzte (Reihenfolge beim Laden)', () => {
+    // die Reihenfolge der Teile aus src/main.ts rückwärts: je erste import-Zeile
+    const erstes = (p) => {
+      const m = lies(p).match(/^import (?:\{[^}]*\} from )?'(\.[^']+)';/m);
+      return m ? posix.join(posix.dirname(p), m[1]) : null;
+    };
+    const kette = [];
+    for (let p = erstes('src/main.ts'); p?.startsWith('src/seite/') && !kette.includes(p); p = erstes(p)) kette.unshift(p);
+    // alle Teile ausser den zwei Hilfen, die jeder Teil importieren darf
+    const hilfen = ['src/seite/aufgabe.ts', 'src/seite/testschnittstelle.ts'];
+    const teile = module('src/seite').filter((p) => !hilfen.includes(p));
+    assert.deepEqual([...kette].sort(), teile, 'nicht alle Teile in der Kette');
+    assert.equal(kette[0], 'src/seite/konfiguration.ts');
+    for (const h of hilfen) assert.ok(!/^import /m.test(lies(h)), `${h} importiert etwas (darf nur importiert werden)`);
+  });
+  const feste = ['src/zufall.js', 'src/logik.js', 'src/hall.js', 'src/daten/level.js'];
+  for (const pfad of feste) {
+    test(`${pfad}: der export-Block nennt genau die Deklarationen auf oberster Ebene`, () => {
+      const text = readFileSync(join(root, pfad), 'utf8');
+      const deklariert = parseAst(text).body.flatMap((n) => (n.type === 'VariableDeclaration'
+        ? n.declarations.map((d) => d.id.name)
+        : ['FunctionDeclaration', 'ClassDeclaration'].includes(n.type) ? [n.id.name] : []));
+      assert.deepEqual([...zerlege(text, pfad).namen].sort(), deklariert.sort());
+    });
+  }
+  test('src/logik.js: der Import liefert dieselben Namen wie die Seite (export-Block)', () => {
+    const text = readFileSync(join(root, 'src/logik.js'), 'utf8');
+    assert.deepEqual(Object.keys(L).sort(), [...zerlege(text, 'logik').namen].sort());
+  });
+  test('zerlege: anderes import oder export, kein export-Block: Fehler; import-Zeilen und export-Block', () => {
+    assert.throws(() => zerlege('const a = 1;\nexport const b = 2;\nexport { a };\n', 'x'), /export const b/);
+    assert.throws(() => zerlege('const a = 1;\n', 'x'), /export-Block/);
+    assert.throws(() => zerlege("const a = 1;\nimport b from './b.js';\nexport { a };\n", 'x'), /import b/);
+    assert.deepEqual(zerlege("import { a } from './a.js';\nconst b = a;\nexport { b };\n", 'x'),
+      { importe: [{ namen: ['a'], von: 'src/a.js' }], code: 'const b = a;', namen: ['b'] });
+    // seit Ticket 06: ein Kommentarblock davor (der Kopf der Logik) und die Leveldaten unter daten/
+    assert.deepEqual(zerlege("/* Kopf\n   mehr */\nimport { a, c } from './daten/level.js';\nconst b = a;\nexport { b };\n",
+      'x'), { importe: [{ namen: ['a', 'c'], von: 'src/daten/level.js' }], code: '/* Kopf\n   mehr */\nconst b = a;',
+      namen: ['b'] });
+    assert.throws(() => zerlege("const z = 0;\nimport { a } from './daten/level.js';\nexport { z };\n", 'x'), /import/);
+  });
+  test('src/logik.js: die Level und die Reise kommen aus src/daten/level.js (Ticket 06), keine Markierungen', () => {
+    const text = readFileSync(join(root, 'src/logik.js'), 'utf8');
+    assert.deepEqual(zerlege(text, 'src/logik.js').importe,
+      [{ namen: ['FLACH', 'REISE', 'UEBUNGEN', 'WUERFEL'], von: 'src/daten/level.js' }]);
+    assert.deepEqual(spielQuelltext().match(/(LEVELS|WUERFEL|GESCHICHTE|VORRAT):(BEGIN|END) \*\//g), null, 'Markierung im Code');
+    assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT), [...UEBUNGEN_DATEN]);
+    assert.equal(L.STORY_LEVELS, REISE_DATEN);
+  });
+  test('src/daten/level.js: nur Daten (kein import, je Name ein const mit Literalen, kein Code; Review 06)', () => {
+    // erlaubt: Felder und Listen aus Zahlen, Texten, true/false, auch negativ; dazu das Gerüst und der export-Block
+    const ERLAUBT = new Set(['Program', 'VariableDeclaration', 'VariableDeclarator', 'Identifier', 'ArrayExpression',
+      'ObjectExpression', 'Property', 'Literal', 'UnaryExpression', 'ExportNamedDeclaration', 'ExportSpecifier']);
+    const fremd = (text) => {
+      const gefunden = new Set();
+      const geh = (n) => {
+        if (Array.isArray(n)) { n.forEach(geh); return; }
+        if (!n || typeof n !== 'object' || typeof n.type !== 'string') return;
+        if (!ERLAUBT.has(n.type) || (n.type === 'VariableDeclaration' && n.kind !== 'const')
+          || (n.type === 'Property' && (n.computed || n.method || n.kind !== 'init'))
+          || (n.type === 'UnaryExpression' && n.operator !== '-')) gefunden.add(n.type);
+        for (const [k, v] of Object.entries(n)) if (k !== 'type') geh(v);
+      };
+      geh(parseAst(text));
+      return [...gefunden];
+    };
+    const text = readFileSync(join(root, 'src/daten/level.js'), 'utf8');
+    assert.deepEqual(zerlege(text, 'src/daten/level.js').importe, []);
+    assert.deepEqual(fremd(text), []);
+    // Gegenproben: Code in den Daten fällt auf
+    for (const [code, art] of [['const A = [f()];', 'CallExpression'], ['let A = [];', 'VariableDeclaration'],
+      ['const A = { b: () => 1 };', 'ArrowFunctionExpression'], ['const A = [...B];', 'SpreadElement']]) {
+      assert.ok(fremd(`${code}\nexport { A };\n`).includes(art), code);
+    }
+  });
+}
+
 console.log('Offline');
 {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-  // sw.js so ausführen, wie der Browser es tut (mit dem Register der Skyboxen per importScripts), dann die Listen lesen
+  // Seit Ticket 02 von .scratch/umbau/ entstehen die Listen von sw.js beim Build: einmal bauen (wie npm run build, in
+  // einen eigenen Ordner), dann das erzeugte sw.js so ausführen, wie der Browser es tut, und die Listen lesen
+  const aus = mkdtempSync(join(tmpdir(), 'prisma-bau-'));
+  process.on('exit', () => rmSync(aus, { recursive: true, force: true }));
+  baue(aus);
+  const distHtml = readFileSync(join(aus, 'index.html'), 'utf8');
   const sw = vm.createContext({ URL, location: new URL('http://prisma.test/sw.js'), addEventListener() {} });
   sw.self = sw;
-  sw.importScripts = (...files) => files.forEach((f) => vm.runInContext(readFileSync(join(root, f), 'utf8'), sw));
-  vm.runInContext(readFileSync(join(root, 'sw.js'), 'utf8'), sw);
+  vm.runInContext(readFileSync(join(aus, 'sw.js'), 'utf8'), sw);
   const { swFiles, swLazy } = vm.runInContext('({ swFiles: FILES, swLazy: LAZY })', sw);
   const skies = loadSkies(root);
-  // alles, was die Seite lädt: <script src>, <link href> (auch das per Skript eingefügte Manifest), CSS url(),
-  // dazu die Icons aus dem Manifest
+  const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).appVersion;
+  // alles, was die gebaute Seite lädt: <script src>, <link href> (auch das per Skript eingefügte Manifest), CSS url()
+  // in der Seite und in den Stilen (seit Ticket 04 eine Datei unter assets/, url() relativ zu ihr), dazu die Icons aus
+  // dem Manifest
+  const urls = (text, ordner = '') => [...text.matchAll(/url\(\s*["']?([^"')]+)/g)].map(m => m[1])
+    .filter(u => !u.startsWith('#') && !u.startsWith('data:')).map((u) => posix.join(ordner, u));
+  const stile = [...distHtml.matchAll(/<link rel="stylesheet"[^>]*?\bhref="\.\/([^"]+\.css)"/g)].map(m => m[1]);
   const refs = new Set([
-    ...[...html.matchAll(/<(?:script|link)\b[^>]*?\b(?:src|href)="([^"]+)"/g)].map(m => m[1]),
-    ...[...html.matchAll(/url\(\s*["']?([^"')]+)/g)].map(m => m[1]).filter(u => !u.startsWith('#') && !u.startsWith('data:')),
-    ...JSON.parse(readFileSync(join(root, 'manifest.webmanifest'), 'utf8')).icons.map(i => i.src),
-  ]);
+    ...[...distHtml.matchAll(/<(?:script|link)\b[^>]*?\b(?:src|href)="([^"]+)"/g)].map(m => m[1]),
+    ...urls(distHtml),
+    ...stile.flatMap((s) => urls(readFileSync(join(aus, s), 'utf8'), posix.dirname(s))),
+    ...JSON.parse(readFileSync(join(aus, 'manifest.webmanifest'), 'utf8')).icons.map(i => i.src),
+  ].map((r) => r.replace(/^\.\//, '')));
   // existiert genau so geschrieben? (Windows ignoriert Gross-/Kleinschreibung, der Webserver nicht)
-  const existsExactly = (path) => path.split('/').every((part, i, parts) => {
-    const dir = join(root, ...parts.slice(0, i));
+  const existsExactly = (path, ordner = aus) => path.split('/').every((part, i, parts) => {
+    const dir = join(ordner, ...parts.slice(0, i));
     return existsSync(dir) && readdirSync(dir).includes(part);
   });
+  const imBau = (unter = '') => readdirSync(join(aus, unter), { withFileTypes: true })
+    .flatMap((e) => (e.isDirectory() ? imBau(`${unter}${e.name}/`) : [`${unter}${e.name}`]));
   test('Offline: index.html lädt nichts von fremden Servern (keine http(s)-Adresse, auch nicht per Skript)', () => {
     assert.deepEqual(html.match(/https?:\/\/\S*/g) ?? [], []);
   });
-  test('Offline: sw.js speichert alles, was index.html und das Manifest laden', () => {
-    assert.ok(swFiles.length > 0, 'Liste FILES in sw.js nicht gefunden');
+  test('Offline: sw.js (Build) speichert alles, was index.html und das Manifest laden', () => {
+    assert.ok(swFiles.length > 0, 'Liste FILES im gebauten sw.js leer');
     assert.deepEqual([...refs].filter(r => !swFiles.includes(r)), []);
   });
-  test('Offline: jede Datei aus sw.js existiert genau so geschrieben, keine doppelt', () => {
+  test('Offline: jede Datei aus sw.js existiert im Build genau so geschrieben, keine doppelt', () => {
     const all = [...swFiles, ...swLazy];
     assert.deepEqual(all.filter(f => !existsExactly(f)), []);
     assert.deepEqual(all.filter((f, i) => all.indexOf(f) !== i), []);
+  });
+  test('Offline: sw.js kennt jede Datei des Builds (ausser sich selbst, den Lizenztexten und den Source-Maps), Hash-Namen nur unter assets/', () => {
+    const all = new Set([...swFiles, ...swLazy]);
+    assert.deepEqual(imBau().filter((f) => !all.has(f) && !/^sw\.js$|(^|\/)(LICENSE|[^/]*\.txt)$|\.map$/.test(f)), []);
+    assert.deepEqual([...all].filter((f) => f.endsWith('.map')), [], 'Source-Maps im Speicher');
+    assert.ok(imBau().includes('vendor/three-0.147.0/LICENSE') && imBau().includes('vendor/jost/OFL.txt'), 'Lizenztexte fehlen im Build');
+    assert.deepEqual(imBau().filter((f) => f.startsWith('assets/') && !/-[\w-]{8}\.\w+(\.map)?$/.test(f)), []);
+  });
+  test('Offline: sw.js nimmt auch unbekannte Dateien unter assets/ und vendor/ in den Speicher (eine neuere Seite unter dem alten Service Worker), andere nicht', () => {
+    const key = (p) => vm.runInContext(`cacheKey(${JSON.stringify(`http://prisma.test/${p}`)})`, sw);
+    assert.equal(key('assets/neu-AbCd1234.js?x'), 'http://prisma.test/assets/neu-AbCd1234.js');
+    assert.equal(key('vendor/three-0.148.0/three.min.js'), 'http://prisma.test/vendor/three-0.148.0/three.min.js');
+    assert.equal(key('?noadapt'), 'http://prisma.test/index.html');
+    assert.equal(key('fremd.js'), null);
+    assert.ok(vm.runInContext("fixed('http://prisma.test/assets/neu-AbCd1234.js') && !fixed('http://prisma.test/index.html')", sw));
+  });
+  test('Build: statische Dateien (vendor/, icons/, Skyboxen, Manifest, Icon) Byte für Byte wie in der Quelle', () => {
+    const anders = [...swFiles, ...swLazy].filter((f) => f !== 'index.html' && !f.startsWith('assets/'))
+      .filter((f) => !existsExactly(f, root) || !readFileSync(join(aus, f)).equals(readFileSync(join(root, f))));
+    assert.deepEqual(anders, []);
+  });
+  const skripte = [...distHtml.matchAll(/<script type="module" crossorigin src="\.\/(assets\/index-[\w-]+\.js)"><\/script>/g)]
+    .map((m) => m[1]);
+  test('Build: index.html wie die Quelle bis auf vite-ignore, den Stil und das Spiel unter assets/', () => {
+    const schrift = [...refs].find((r) => /^assets\/jost-latin-[\w-]+\.woff2$/.test(r));
+    assert.ok(schrift, 'Schrift Jost nicht unter assets/');
+    assert.equal(stile.length, 1, 'Stil nicht genau eine Datei');
+    assert.match(stile[0], /^assets\/index-[\w-]+\.css$/);
+    assert.equal(skripte.length, 1, 'Spiel nicht genau ein Modul unter assets/');
+    // der Stil an seiner Stelle in der Quelle (vor dem Skript des Massstabs, vite.config.mjs: stilZurueck), das Modul
+    // im Kopf (Vite; ein Modul läuft ohnehin erst nach dem Lesen der Seite)
+    const zeilen = (t) => t.replaceAll('\r\n', '\n');
+    const erwartet = zeilen(quelle).replaceAll(' vite-ignore>', ' >')
+      .replace('<link rel="stylesheet" href="src/stil/index.css">', `<link rel="stylesheet" crossorigin href="./${stile[0]}">`)
+      .replace('<script type="module" src="src/main.ts"></script>\n', '')
+      .replace('</head>', `  <script type="module" crossorigin src="./${skripte[0]}"></script>\n</head>`);
+    assert.ok(zeilen(distHtml) === erwartet, 'index.html im Build weicht ab');
+    assert.ok(!/vite-ignore|src="src\/main\.ts"|__APP_VERSION__/.test(distHtml), 'Build: vite-ignore oder Quelle übrig');
+  });
+  test('Build: das Spiel ein verkleinertes Modul mit Source-Map (auf die Module unter src/), APP_VERSION und Worker', () => {
+    const js = readFileSync(join(aus, skripte[0]), 'utf8');
+    assert.ok(js.includes(`'${version}'`) || js.includes(`"${version}"`) || js.includes(`\`${version}\``), 'APP_VERSION fehlt');
+    assert.ok(!js.includes('__APP_VERSION__'), 'Platzhalter der Version übrig');
+    const groesse = module().reduce((s, p) => s + readFileSync(join(root, p)).length, 0);
+    assert.ok(js.length < 0.75 * groesse, `nicht verkleinert (${js.length} Bytes, Module ${groesse})`);
+    // Namen verkürzt (mangle, seit Ticket 05 wieder an): Kein Worker kommt mehr aus einem Blob mit dem Text von
+    // Funktionen des Spiels, alle sind eigene Module (Hall seit Ticket 03, Skyboxen und Bretter seit Ticket 05): je eine
+    // Datei unter assets/, im Speicher des Service Workers, das Spiel nennt sie
+    assert.ok(!/text\/javascript/.test(js) && !/\.name\}\(data\)/.test(js), 'Worker aus einem Blob');
+    assert.ok(!/function boardTextures\(specs,/.test(js), 'nicht umbenannt (mangle aus?)');
+    for (const name of ['hall-worker', 'himmelbild-worker', 'brettdaten-worker']) {
+      const worker = imBau().filter((f) => new RegExp(`^assets/${name}-[\\w-]+\\.js$`).test(f));
+      assert.equal(worker.length, 1, `${name} nicht genau einmal unter assets/`);
+      assert.ok(js.includes(posix.basename(worker[0])), `Pfad von ${name} fehlt im Spiel`);
+      assert.ok(swFiles.includes(worker[0]), `${name} nicht in FILES`);
+    }
+    assert.ok(js.trimEnd().endsWith(`//# sourceMappingURL=${posix.basename(skripte[0])}.map`), 'Verweis auf die Source-Map');
+    const karte = JSON.parse(readFileSync(join(aus, `${skripte[0]}.map`), 'utf8'));
+    // Pfade relativ zum Ausgabeordner (hier ein temporärer Ordner); src/main.ts hat keinen eigenen Code
+    const quellen = karte.sources.map((s) => s.replaceAll('\\', '/'));
+    for (const m of ['src/logik.js', ...module('src/seite')]) {
+      assert.ok(quellen.some((q) => q.endsWith(`/${m}`)), `${m} fehlt in der Source-Map`);
+    }
+  });
+  test('Build: der Stil enthält die Teile aus src/stil/ in der Reihenfolge von index.css, sonst nichts', () => {
+    const quelleStil = readFileSync(join(root, 'src/stil/index.css'), 'utf8');
+    const teile = [...quelleStil.matchAll(/^@import "\.\/([\w-]+\.css)";/gm)].map((m) => m[1]);
+    assert.ok(teile.length >= 2, 'index.css ohne @import');
+    const norm = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/url\([^)]*jost[^)]*\)/g, 'url(JOST)')
+      .replace(/\s+/g, ' ').trim();
+    const zusammen = teile.map((t) => readFileSync(join(root, 'src/stil', t), 'utf8')).join('\n');
+    assert.equal(norm(readFileSync(join(aus, stile[0]), 'utf8')), norm(zusammen));
+  });
+  test('Build: der Worker des Halls, ein ES-Modul ohne import, bitgleich (an der Prüfsumme, auch verkleinert)', () => {
+    // verkleinert wird etwa Math.pow(…, 3.2) zu ** 3.2: nach ECMAScript dieselbe Operation (Number::exponentiate);
+    // die Prüfsumme zeigt, dass die Werte gleich bleiben
+    const datei = imBau().find((f) => /^assets\/hall-worker-[\w-]+\.js$/.test(f));
+    const w = readFileSync(join(aus, datei), 'utf8');
+    assert.ok(swFiles.includes(datei), 'Worker nicht in FILES');
+    assert.ok(!/^\s*import\b/m.test(w) && !/\bimport\s*\(/.test(w), 'Worker lädt weitere Module');
+    // so ausgeführt, wie ihn die Seite benutzt: Abtastrate hin, [links, rechts] zurück, bitgleich (tests/hall.test.mjs)
+    const ctx = vm.createContext({ Float32Array, Math, close() { ctx.zu = true; } });
+    ctx.postMessage = (daten, uebertragen) => { ctx.antwort = { daten, uebertragen }; };
+    vm.runInContext(w, ctx);
+    ctx.onmessage({ data: 48000 });
+    const { daten, uebertragen } = ctx.antwort, h = createHash('sha256');
+    for (const d of daten) h.update(new Uint8Array(d.buffer));
+    assert.equal(h.digest('hex'), 'ba341507dc2e45d5cd5c13451af52e0266a4c566c0c6b4e15908557beab439dd');
+    assert.deepEqual(uebertragen, daten.map((d) => d.buffer));
+    assert.ok(ctx.zu, 'Worker schliesst sich nicht');
+  });
+  // GitHub Pages (Ticket 09 von .scratch/umbau/): dieselbe Ausgabe unter dem Unterpfad /Prisma/ und unter /
+  test('Pages: alle Pfade relativ (Seite, Stil, Manifest), Service Worker und Manifest mit dem Bereich des Ordners', () => {
+    const absolut = [...distHtml.matchAll(/\b(?:src|href)="(\/[^"]*)"/g)].map((m) => m[1]);
+    assert.deepEqual(absolut, [], 'index.html im Build mit absoluten Pfaden');
+    assert.deepEqual(stile.flatMap((s) => urls(readFileSync(join(aus, s), 'utf8'))).filter((u) => u.startsWith('/')), []);
+    const manifest = JSON.parse(readFileSync(join(aus, 'manifest.webmanifest'), 'utf8'));
+    assert.equal(manifest.scope, './');
+    assert.equal(manifest.start_url, 'index.html');
+    assert.deepEqual(manifest.icons.map((i) => i.src).filter((s) => s.startsWith('/') || /^https?:/.test(s)), []);
+    assert.match(quelle, /navigator\.serviceWorker\.register\('sw\.js'/, 'sw.js nicht relativ registriert');
+    // sw.js unter /Prisma/ ausgeführt: die Seite und ihre Dateien, nichts ausserhalb des Ordners
+    const g = 'https://bonomoalessandro.github.io';
+    const unter = vm.createContext({ URL, location: new URL(`${g}/Prisma/sw.js`), addEventListener() {} });
+    unter.self = unter;
+    vm.runInContext(readFileSync(join(aus, 'sw.js'), 'utf8'), unter);
+    const key = (u) => vm.runInContext(`cacheKey(${JSON.stringify(u)})`, unter);
+    assert.equal(key(`${g}/Prisma/?noadapt`), `${g}/Prisma/index.html`);
+    assert.equal(key(`${g}/Prisma/index.html`), `${g}/Prisma/index.html`);
+    assert.equal(key(`${g}/Prisma/${skripte[0]}`), `${g}/Prisma/${skripte[0]}`);
+    assert.equal(key(`${g}/Prisma/datenschutz.html`), `${g}/Prisma/datenschutz.html`);
+    assert.equal(key(`${g}/index.html`), null);
+    assert.equal(key(`${g}/anderes/assets/x-AbCd1234.js`), null);
+  });
+  test('Pages: Service Worker erst nach load und nach der Enthüllung (src/main.ts, Ereignis prisma-ruhig, Review 04)', () => {
+    const kopf = quelle.slice(0, quelle.indexOf('</head>'));
+    assert.match(kopf, /Promise\.all\(\['load', 'prisma-ruhig'\]\.map\(/, 'Registrierung wartet nicht auf beide');
+    assert.ok(!/addEventListener\('load', \(\) => navigator\.serviceWorker/.test(kopf), 'noch die alte Registrierung bei load');
+    const main = readFileSync(join(root, 'src/main.ts'), 'utf8').replace(/^\s*\/\/.*$/gm, '').split(/\r?\n/)
+      .map((z) => z.trim()).filter(Boolean);
+    assert.deepEqual(main, ["import './seite/schleife.js';", "import { introCalm } from './seite/oberflaeche/ui.js';",
+      "introCalm.then(() => dispatchEvent(new Event('prisma-ruhig')));"], 'src/main.ts: nach den Teilen genau das Ereignis');
+    const js = readFileSync(join(aus, skripte[0]), 'utf8').replace(/\/\/# sourceMappingURL=\S+\s*$/, '').trimEnd();
+    assert.match(js.slice(-160), /\.then\(\(\) => dispatchEvent\(new Event\([`"']prisma-ruhig[`"']\)\)\);?$|\.then\(\(\)=>dispatchEvent\(new Event\([`"']prisma-ruhig[`"']\)\)\);?$/,
+      'Ereignis nicht am Ende des Spiels im Build');
+  });
+  test('Pages: Datenschutzerklärung (PLAN 4.9) im Build und im Speicher, Deutsch und Englisch, lädt nichts', () => {
+    assert.ok(readFileSync(join(aus, 'datenschutz.html')).equals(readFileSync(join(root, 'datenschutz.html'))), 'nicht wie die Quelle');
+    const text = readFileSync(join(aus, 'datenschutz.html'), 'utf8');
+    assert.ok(swFiles.includes('datenschutz.html'), 'datenschutz.html nicht in FILES');
+    assert.match(text, /<section id="de" lang="de">/);
+    assert.match(text, /<section id="en" lang="en">/);
+    assert.ok(!/<script\b/i.test(text), 'Skript in der Datenschutzerklärung');
+    // laden darf sie nur das Icon daneben; Adressen draussen nur als Verweis (<a href>)
+    const geladen = [...text.matchAll(/<(?!a\b)\w+\b[^>]*?\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]);
+    assert.deepEqual(geladen, ['favicon.svg']);
+    assert.deepEqual(text.match(/url\(|@import/g) ?? [], []);
+  });
+  test('Pages: Workflow nur bei Push auf main und von Hand, Tests, Build, offizielle Actions mit fester Hauptversion', () => {
+    const wf = readFileSync(join(root, '.github/workflows/pages.yml'), 'utf8').replaceAll('\r\n', '\n');
+    assert.match(wf, /^on:\n {2}push:\n {4}branches: \[main\]\n {2}workflow_dispatch:/m);
+    assert.ok(!/pull_request|schedule:/.test(wf), 'weitere Auslöser');
+    const uses = [...wf.matchAll(/uses: ([\w/-]+)@(\S+)/g)];
+    assert.deepEqual(uses.map((u) => u[1]).sort(), ['actions/checkout', 'actions/configure-pages', 'actions/deploy-pages',
+      'actions/setup-node', 'actions/upload-pages-artifact']);
+    assert.deepEqual(uses.filter((u) => !/^v\d+$/.test(u[2])).map((u) => u[0]), [], 'Version nicht fest auf eine Hauptversion');
+    assert.match(wf, /run: npm ci$/m);
+    assert.match(wf, /run: npm run build$/m);
+    assert.match(wf, /path: dist$/m);
+    // die Tests: nur Namen aus tests/alle.mjs, nicht leise (nur unter Windows)
+    const namen = wf.match(/run: node tests\/alle\.mjs ([\w -]+)$/m)?.[1].trim().split(/\s+/) ?? [];
+    const alle = [...readFileSync(join(root, 'tests/alle.mjs'), 'utf8').replaceAll('\r\n', '\n').matchAll(/^\s+'?([\w-]+)'?: '[\w.-]+\.mjs',$/gm)].map((m) => m[1]);
+    assert.ok(alle.length > 10 && namen.length >= 5, 'keine Tests im Workflow');
+    assert.deepEqual(namen.filter((n) => !alle.includes(n)), [], 'unbekannte Tests im Workflow');
+    assert.ok(!namen.includes('leise'), 'leise läuft nur unter Windows');
+    // wuerfelliste sucht die Commits der Herkunft («Stand …») in der Geschichte: checkout holt sonst nur einen Commit
+    if (namen.includes('wuerfelliste')) {
+      assert.match(wf, /uses: actions\/checkout@v\d+\n {8}with:\n {10}fetch-depth: 0$/m, 'checkout ohne fetch-depth: 0');
+    }
+  });
+  // Dev-Server (npm run dev): Version eingesetzt, kein Service Worker, vendor/ und backgrounds/ roh
+  const { createServer } = await import('vite');
+  const dev = await createServer({ root, configFile: join(root, 'vite.config.mjs'), logLevel: 'silent',
+    server: { port: 0, hmr: false } });
+  await dev.listen();
+  const devUrl = dev.resolvedUrls.local[0], holen = async (p) => (await fetch(devUrl + p)).text();
+  const devHtml = await holen(''), devSw = await holen('sw.js'), devWorker = await holen('src/hall-worker.ts');
+  const devKonfig = await holen('src/seite/konfiguration.ts'), devMain = await holen('src/main.ts');
+  const devSpiel = await holen((module('src/seite').find((p) => /^import \{[^}]*\bhallImpulse\b/m.test(readFileSync(join(root, p), 'utf8')))));
+  const roh = {};
+  for (const f of ['vendor/three-0.147.0/three.min.js', 'backgrounds/skies.js']) {
+    roh[f] = Buffer.from(await (await fetch(devUrl + f, { headers: { 'sec-fetch-dest': 'script' } })).arrayBuffer());
+  }
+  await dev.close();
+  test('Dev-Server: Version eingesetzt, PRISMA_DEV vor der Registrierung, sw.js meldet sich nur ab', () => {
+    assert.ok(devKonfig.includes(version) && !devKonfig.includes('__APP_VERSION__'), 'APP_VERSION fehlt');
+    const flag = devHtml.indexOf('window.PRISMA_DEV = true'), reg = devHtml.indexOf('navigator.serviceWorker.register');
+    assert.ok(flag > 0 && reg > flag, 'PRISMA_DEV fehlt oder steht nach der Registrierung');
+    assert.match(devHtml, /'serviceWorker' in navigator && !window\.PRISMA_DEV\)/);
+    assert.ok(devSw.includes('unregister()') && !devSw.includes('FILES'), 'sw.js im Dev-Server ist nicht der, der sich abmeldet');
+  });
+  test('Dev-Server: die Module einzeln (src/main.ts von Vite übersetzt), der Worker des Halls aus src/hall-worker.ts', () => {
+    assert.match(devHtml, /<script type="module" src="\/?src\/main\.ts"><\/script>/);
+    assert.ok(/^import .*seite\//m.test(devMain), 'src/main.ts lädt die Teile nicht');
+    assert.ok(/new Worker\(new URL\([^)]*hall-worker\.ts[^)]*\)/.test(devSpiel), 'Pfad des Workers');
+    assert.ok(/^import .*hall\.js/m.test(devWorker) && !/: MessageEvent/.test(devWorker), 'Worker nicht übersetzt');
+  });
+  test('Dev-Server: vendor/ und backgrounds/ Byte für Byte wie die Quelle (ohne Source-Map)', () => {
+    for (const [f, b] of Object.entries(roh)) assert.ok(b.equals(readFileSync(join(root, f))), f);
   });
   test('Skyboxen: Register backgrounds/skies.js gültig, Teile vorhanden, Budget eingehalten (tools/sky-schema.mjs)', () => {
     assert.ok(skies.length > 0, 'keine Skybox im Register');
@@ -1426,10 +1717,14 @@ console.log('Offline');
     fehler({ rise: undefined }, 'rise', 'fehlende Farbe');
     fehler({ lava: [1, 0.4, 0.1] }, 'Wert lava unbekannt', 'unbekannter Wert');
   });
-  test('Version: APP_VERSION in sw.js und index.html gleich (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
-    const seite = html.match(/^const APP_VERSION = '([^']+)';$/m)?.[1];
-    assert.ok(seite, 'APP_VERSION in index.html nicht gefunden');
-    assert.equal(vm.runInContext('APP_VERSION', sw), seite);
+  test('Version: APP_VERSION nur in package.json (appVersion), der Build setzt sie im Spiel (src/seite/konfiguration.ts) und in sw.js ein (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
+    assert.ok(typeof version === 'string' && version.length > 0, 'appVersion in package.json fehlt');
+    assert.equal(html.split('__APP_VERSION__').length - 1, 1, 'Platzhalter im Spiel nicht genau einmal');
+    assert.match(readFileSync(join(root, 'src/seite/konfiguration.ts'), 'utf8'), /^const APP_VERSION = '__APP_VERSION__';$/m,
+      'Platzhalter in src/seite/konfiguration.ts (Quelle) fehlt');
+    assert.match(readFileSync(join(root, 'sw.js'), 'utf8'), /^const APP_VERSION = '__APP_VERSION__';$/m, 'Platzhalter in sw.js (Quelle) fehlt');
+    assert.ok(readFileSync(join(aus, skripte[0]), 'utf8').includes(version), 'Version fehlt im gebauten Spiel');
+    assert.equal(vm.runInContext('APP_VERSION', sw), version);
   });
   test('Skyboxen: sw.js nennt den Stand des Registers (pack.mjs; ein neues Register löst so in jedem Browser ein Update aus)', () => {
     const registry = readFileSync(join(root, 'backgrounds', 'skies.js'));

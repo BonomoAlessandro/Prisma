@@ -1,5 +1,5 @@
 // Tests des Vorrats und des gemeinsamen Laders (Spec .scratch/noa-geschichte/, «Daten» und «Tests»; Ticket 02):
-// Ablegen und Zurückholen sind verlustfrei (index.html und der Vorrat byte-gleich nach hin und zurück, auch in Teilen,
+// Ablegen und Zurückholen sind verlustfrei (src/daten/level.js und Vorrat byte-gleich nach hin und zurück, auch in Teilen,
 // in anderer Gruppierung und Reihenfolge, über mehrere Schritte, für alle Level und mit CRLF im Vorrat), die Folge nach
 // dem Zurückholen (einfuegen) an erfundenen Fällen, das Format des Vorrats (der Block wie im Spiel, der Platz darüber,
 // Leveldaten wie im Spiel, Titel), die Auswahl nach Art und Grad und die Fehler; dazu der Lader auf dem Stand der
@@ -19,9 +19,11 @@ import { L } from '../tools/solver.mjs';
 import { GRADE } from '../tools/beurteilung/index.mjs';
 import { levelCode } from '../tools/leveldaten.mjs';
 import {
-  ARTEN, ablegen, auswahl, einfuegen, inGanzerFolge, inhalt, lese, leveldaten, mitAllen, namenImSpiel, zurueckholen,
+  ARTEN, ablegen, auswahl, bereich, einfuegen, inGanzerFolge, inhalt, lese, leveldaten, mitAllen, namenImSpiel,
+  spielBereich, zurueckholen,
 } from '../tools/vorrat.mjs';
 import { ALLE, VORRAT, alleText, ort } from '../tools/lader.mjs';
+import { ausText } from '../tools/seitenmodule.mjs';
 
 let passed = 0;
 function test(name, fn) {
@@ -30,15 +32,15 @@ function test(name, fn) {
 }
 process.on('exit', () => console.log(`\n${passed} Tests bestanden.`));
 
-// Die Texte, auf denen gerechnet wird: index.html und ein leerer Vorrat (die Dateien ohne ihre Level), damit die Tests
-// nicht davon abhängen, was gerade im Vorrat liegt
+// Die Texte, auf denen gerechnet wird: die Leveldaten src/daten/level.js (bis Ticket 06 von .scratch/umbau/
+// src/logik.js) mit allen Leveln, ein leerer Vorrat (die Dateien ohne ihre Level), damit die Tests nicht davon abhängen,
+// was gerade im Vorrat liegt
 const DATEIEN = lese();
 const T = { spiel: mitAllen(DATEIEN), flach: null, wuerfel: null };
 for (const art of Object.keys(ARTEN)) {
-  // ein Vorrat ohne Level: die Datei, zwischen den Markierungen geleert
-  const text = DATEIEN[art], nl = text.includes('\r\n') ? '\r\n' : '\n';
-  const a = text.indexOf('/* VORRAT:BEGIN */'), e = text.indexOf('/* VORRAT:END */');
-  T[art] = text.slice(0, text.indexOf(nl, a) + nl.length) + text.slice(text.lastIndexOf(nl, e) + nl.length);
+  // ein Vorrat ohne Level: die Datei, ihr Bereich geleert
+  const text = DATEIEN[art], b = bereich(text, ARTEN[art].vorrat);
+  T[art] = text.slice(0, b.von) + text.slice(b.bis);
 }
 const FLACH = namenImSpiel(T.spiel, 'flach'), WUERFEL = namenImSpiel(T.spiel, 'wuerfel');
 /** Gleich wie T, Text für Text. */
@@ -58,7 +60,8 @@ const WAHL = [FLACH[0], FLACH[1], FLACH[2], FLACH[100], FLACH[101], FLACH[102], 
 const A = ablegen(T, WAHL);
 
 console.log('Ablegen und Zurückholen');
-test('Hin und zurück: index.html und Vorrat byte-gleich (am Anfang, in der Mitte, am Ende, flach und im Würfel)', () => {
+test('Hin und zurück: src/daten/level.js und Vorrat byte-gleich (am Anfang, in der Mitte, am Ende, flach, im Würfel)',
+  () => {
   assert.deepEqual(A.abgelegt,
     { flach: WAHL.filter(x => FLACH.includes(x)), wuerfel: WAHL.filter(x => WUERFEL.includes(x)) });
   assert.deepEqual(namenImSpiel(A.spiel, 'flach'), FLACH.filter(x => !WAHL.includes(x)));
@@ -130,7 +133,7 @@ test('Alle flachen und alle Würfel-Level abgelegt (wie im Umbau) und zurück: b
   // nur ein Teil zurück, dann der Rest
   gleich(zurueckholen(zurueckholen(r, FLACH.filter((_, k) => k % 7 === 3)), null), 'in zwei Teilen');
 });
-test('Zeilenenden: ein Vorrat mit CRLF bleibt CRLF, mit LF bleibt LF, index.html gleich, byte-gleich zurück', () => {
+test('Zeilenenden: ein Vorrat mit CRLF bleibt CRLF, mit LF bleibt LF, src/daten/level.js gleich, byte-gleich zurück', () => {
   const lf = (s) => s.replaceAll('\r\n', '\n'), crlf = (s) => lf(s).replaceAll('\n', '\r\n');
   const mit = (f) => ({ ...T, flach: f(T.flach), wuerfel: f(T.wuerfel) });
   const [r, s] = [ablegen(mit(crlf), WAHL), ablegen(mit(lf), WAHL)];
@@ -144,15 +147,13 @@ test('Zeilenenden: ein Vorrat mit CRLF bleibt CRLF, mit LF bleibt LF, index.html
 
 console.log('Die ganze Folge ändern (inGanzerFolge, Ticket 08)');
 /**
- * Ändert die Blöcke einer Art in index.html (zwischen ihren Markierungen) wie ordne-level.mjs und ordne-wuerfel.mjs:
+ * Ändert die Blöcke einer Art in src/daten/level.js (in ihrem Bereich) wie ordne-level.mjs und ordne-wuerfel.mjs:
  * f bekommt die Blöcke als Zeilenlisten und gibt die neuen zurück.
  */
 const bloeckeAendern = (art, f) => (html) => {
-  const nl = html.includes('\r\n') ? '\r\n' : '\n';
-  const a = html.indexOf(ARTEN[art].anfang), e = html.indexOf(ARTEN[art].ende);
-  const von = html.indexOf(nl, a) + nl.length, bis = html.lastIndexOf(nl, e) + nl.length;
+  const { von, bis, nl, zeilen } = spielBereich(html, art);
   const bloecke = [];
-  for (const z of html.slice(von, bis).split(nl).slice(0, -1)) {
+  for (const z of zeilen) {
     if (z === '  {') bloecke.push([z]);
     else bloecke.at(-1).push(z);
   }
@@ -214,7 +215,7 @@ test('Je Level die Zeile mit seinem Platz, dann sein Block Zeile für Zeile wie 
     }
     assert.deepEqual(leveldaten(A[art], art), eintraege.map(e => spiel.find(l => l.name === e.name)),
       `${art}: Leveldaten`);
-    // die Datei bleibt JavaScript wie index.html
+    // die Datei bleibt JavaScript wie src/daten/level.js
     assert.equal(new Function(`${A[art]}\nreturn ${art === 'flach' ? 'VORRAT_FLACH' : 'VORRAT_WUERFEL'};`)().length,
       eintraege.length);
   }
@@ -226,9 +227,9 @@ test('Titel: levelCode schreibt ihn hinter Name und Würfel, Vorrat und Spiel le
     new RegExp(`\\n {4}name: '${flach.name}', titel: 'Moosbett', grad: '${flach.grad}',\\n`));
   assert.match(levelCode(wuerfel), /\n {4}name: '[^']+', dim: 3, size: 7, height: 5, titel: 'Noa\\'s Turm', grad: '/);
   // in den Zeilenenden der Datei (CRLF in einem Windows-Checkout mit core.autocrlf), wie vorrat.mjs selbst schreibt
-  const nl = T.wuerfel.includes('\r\n') ? '\r\n' : '\n';
-  const text = T.wuerfel.replace('  /* VORRAT:END */', ['  // Platz im Spiel: am Anfang', levelCode(wuerfel),
-    '  /* VORRAT:END */'].join('\n').replace(/\n/g, nl));
+  const b = bereich(T.wuerfel, ARTEN.wuerfel.vorrat);
+  const text = T.wuerfel.slice(0, b.bis) + ['  // Platz im Spiel: am Anfang', levelCode(wuerfel), ''].join('\n')
+    .replace(/\n/g, b.nl) + T.wuerfel.slice(b.bis);
   assert.deepEqual(inhalt(text, 'wuerfel').map(e => [e.name, e.titel, e.grad]),
     [[wuerfel.name, "Noa's Turm", wuerfel.grad]]);
   assert.deepEqual(leveldaten(text, 'wuerfel'), [wuerfel]);
@@ -275,11 +276,9 @@ test('Fehler: Tutorial, unbekannt, schon im Vorrat, nicht im Vorrat, im Spiel un
 
 console.log('Lader und Dateien');
 test('Lader: jedes Level aus Spiel und Vorrat genau einmal, wie nach dem Zurückholen aller, die im Spiel aus L', () => {
-  const h = alleText();
-  const voll = new Function(`${h.slice(h.indexOf('/* LOGIC:BEGIN'), h.indexOf('/* LOGIC:END'))}
-    return { LEVELS, TUTORIAL_COUNT, LEVELS_3D };`)();
-  assert.deepEqual(ALLE.LEVELS, voll.LEVELS);
-  assert.deepEqual(ALLE.LEVELS_3D, voll.LEVELS_3D);
+  const voll = ausText(alleText(), 'src/daten/level.js mit allen Leveln');
+  assert.deepEqual(ALLE.LEVELS, [...voll.UEBUNGEN, ...voll.FLACH]);
+  assert.deepEqual(ALLE.LEVELS_3D, voll.WUERFEL);
   assert.equal(ALLE.TUTORIAL_COUNT, L.TUTORIAL_COUNT);
   for (const [alle, spiel, vorrat] of [[ALLE.LEVELS, L.LEVELS, VORRAT.flach],
     [ALLE.LEVELS_3D, L.LEVELS_3D, VORRAT.wuerfel]]) {

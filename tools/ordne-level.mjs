@@ -2,13 +2,13 @@
 // und Austausch“, „Beurteilung“ und „Entscheide zu den Tests“, Nahtstelle 3; seit Noas Geschichte ADR 0005): das
 // Werkzeug, aus dem Reihenfolge, Grade, Duldungsliste und Prüfliste entstehen und mit dem neue Level in die Reihe
 // kommen (--ausbau). Es beurteilt die Level (beurteilung/parallel.mjs), rechnet nach den Regeln in levelliste.mjs und
-// berichtet; mit --schreiben trägt es das Ergebnis in index.html, den Vorrat und levelliste.json ein.
+// berichtet; mit --schreiben trägt es das Ergebnis in src/daten/level.js, den Vorrat und levelliste.json ein.
 // Die Reihe ist seit Noas Geschichte nicht mehr der Ablauf des Spiels (das Spiel folgt STORY_LEVELS), aber weiter die
 // Folge aller flachen Level: Referenz der KI-Tester (Platz und Grad), Platz eines Levels im Vorrat und Massstab der
 // Grade; ein neues Level bekommt in ihr seinen Platz und Grad (ADR 0005, „Folgen“).
 // - Reihenfolge: nach der Schwierigkeit, Verschiebungen bis MAX_WANDERN Plätze, weiter wandernde Level bleiben an ihrem
 //   heutigen Platz (Prüfliste für Ticket 16). Gerechnet wird immer von der heutigen Reihenfolge aus
-//   (beurteilung/heutige-reihenfolge.mjs), nicht von der in index.html; ein zweiter Lauf ändert darum nichts.
+//   (beurteilung/heutige-reihenfolge.mjs), nicht von der in src/daten/level.js; ein zweiter Lauf ändert darum nichts.
 // - Urteile der KI-Tester (Ticket 16): die zählenden Einträge des Protokolls (Ablauf 2, Läufe pruefung-…; zu neuen
 //   Leveln ersatz-… und ausbau-…). Ein Level der Prüfliste kommt auf den Platz der Formel, wenn beide zustimmen, sonst
 //   bleibt es; dazu die eigenen Korrekturen und die Ablehnungen (reihenfolge in levelliste.mjs). Der Bericht zeigt je
@@ -72,7 +72,7 @@ import { HEUTIGE_REIHENFOLGE } from './beurteilung/heutige-reihenfolge.mjs';
 import { rangkorrelation } from './beurteilung/schwierigkeit-eichung.mjs';
 import { MAX_SHIFT, provisionalGradeOf, loadAnchors } from './ki-tester/protocol.mjs';
 import { kandidatName, levelCode } from './leveldaten.mjs';
-import { ARTEN, INDEX, inGanzerFolge, lese } from './vorrat.mjs';
+import { ARTEN, DATEN, inGanzerFolge, lese, spielBereich } from './vorrat.mjs';
 import {
   DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, MAX_WANDERN, alleUrteile, ausbauNamen,
   ergaenzungBegruendet, festePlaetze, imSpiel, ladeLevelliste, maxEntzerren, obenIn, reihenfolge, stark,
@@ -457,7 +457,7 @@ const listenGleich = bisher && ['duldung', 'pruefliste', 'prueflisteErledigt']
   && JSON.stringify(bisher.prueflisteFormel) === JSON.stringify(prueflisteFormel)
   && JSON.stringify(bisher.behalten ?? []) === JSON.stringify(behalten)
   && !ausbauDazu.length;
-console.log(`\nindex.html: Reihenfolge und Grade ${imSpielGleich ? 'stimmen' : 'weichen ab'}; levelliste.json: `
+console.log(`\nsrc/daten/level.js: Reihenfolge und Grade ${imSpielGleich ? 'stimmen' : 'weichen ab'}; levelliste.json: `
   + `${!bisher ? 'fehlt' : listenGleich ? 'Duldungsliste und Prüfliste stimmen' : 'weicht ab'}`);
 // Mit dem Ausbau nur, wenn jedes neue Level einen Namen und ein zählendes Urteil hat, das es nicht ablehnt (Lehnen
 // beide KI-Tester ab, kommt ein anderer Kandidat)
@@ -487,11 +487,11 @@ if (schreiben && (ordnung.offen.length || zuWeit.length)) {
   let wohin = '';
   if (!imSpielGleich) {
     // in Spiel und Vorrat (Ticket 08): die ganze Folge geordnet, neue Level in den Vorrat; zuerst der Vorrat, dann
-    // index.html, wie beim Ablegen (vorrat.mjs)
+    // src/daten/level.js, wie beim Ablegen (vorrat.mjs)
     const r = inGanzerFolge(lese(), 'flach', ordneLevels, ausbauDazu.map(a => a.level.name));
     writeFileSync(ARTEN.flach.datei, r.flach);
-    writeFileSync(INDEX, r.spiel);
-    wohin = 'index.html, tools/vorrat/flach.js und ';
+    writeFileSync(DATEN, r.spiel);
+    wohin = 'src/daten/level.js, tools/vorrat/flach.js und ';
   }
   const urspruenglich = Object.fromEntries(Object.keys(GRUENDE).map(grund => [grund,
     bisher ? [...new Set([...bisherIn(grund), ...ergaenzt[grund]])] : listen.duldung[grund]]));
@@ -565,28 +565,25 @@ function ladeAusbau(datei) {
 }
 
 /**
- * Ordnet die Level in index.html (html: der Text mit allen flachen Leveln, inGanzerFolge in vorrat.mjs) zwischen den
- * Markierungen LEVELS:BEGIN und LEVELS:END nach der neuen Reihenfolge und setzt je Level das Feld grad hinter den Namen
- * (statt der alten Markierung difficulty). Jedes Level steht dort als Block von „  {“ bis „  },“; der Text eines Blocks
- * bleibt sonst unverändert. Die Level des Ausbaus kommen dazu (levelCode in leveldaten.mjs, mit Herkunft im Kommentar).
- * Rückgabe: der neue Text.
+ * Ordnet die Level in src/daten/level.js (html: der Text mit allen flachen Leveln, inGanzerFolge in vorrat.mjs) in
+ * ihrem Bereich FLACH (spielBereich in vorrat.mjs) nach der neuen Reihenfolge und setzt je Level das Feld grad hinter
+ * den Namen (statt der alten Markierung difficulty). Jedes Level steht dort als Block von „  {“ bis „  },“; der Text
+ * eines Blocks bleibt sonst unverändert. Die Level des Ausbaus kommen dazu (levelCode in leveldaten.mjs, mit Herkunft
+ * im Kommentar). Rückgabe: der neue Text.
  */
 function ordneLevels(html) {
-  const nl = html.includes('\r\n') ? '\r\n' : '\n';
-  const a = html.indexOf('/* LEVELS:BEGIN */'), e = html.indexOf('/* LEVELS:END */');
-  if (a < 0 || e < a) throw new Error('index.html: Markierungen LEVELS:BEGIN/END fehlen');
-  const von = html.indexOf(nl, a) + nl.length, bis = html.lastIndexOf(nl, e) + nl.length;
+  const { von, bis, nl, zeilen } = spielBereich(html, 'flach');
   // mit Titel wie bei levelCode (Spec .scratch/noa-geschichte/), wenn ein Level einen hat
   const NAMENSZEILE = /^( {4}name: '([^']+)'(?:, titel: '(?:[^'\\]|\\.)*')?)(?:, difficulty: '[a-z ]+')?(?:, grad: '[a-z ]+')?,$/;
   const bloecke = new Map();
   let block = null;
-  for (const zeile of html.slice(von, bis).split(nl).slice(0, -1)) {
+  for (const zeile of zeilen) {
     if (zeile === '  {') block = [zeile];
-    else if (!block) throw new Error(`index.html: Zeile ausserhalb eines Levels: ${zeile}`);
+    else if (!block) throw new Error(`src/daten/level.js: Zeile ausserhalb eines Levels: ${zeile}`);
     else block.push(zeile);
     if (zeile === '  },') {
       const m = block.map(z => z.match(NAMENSZEILE)).find(Boolean);
-      if (!m) throw new Error(`index.html: Level ohne Namenszeile: ${block.slice(0, 3).join(' ')}`);
+      if (!m) throw new Error(`src/daten/level.js: Level ohne Namenszeile: ${block.slice(0, 3).join(' ')}`);
       bloecke.set(m[2], block);
       block = null;
     }
@@ -599,10 +596,10 @@ function ordneLevels(html) {
     const kommentar = [`${herkunft}Ausbau „${grad[levels.indexOf(a.level)]}“`];
     bloecke.set(a.level.name, levelCode(a.level, kommentar).split('\n'));
   }
-  if (bloecke.size !== n) throw new Error(`index.html: ${bloecke.size} Level zwischen den Markierungen, erwartet ${n}`);
+  if (bloecke.size !== n) throw new Error(`src/daten/level.js: ${bloecke.size} Level in FLACH, erwartet ${n}`);
   const text = folge.map((i) => {
     const neu = bloecke.get(levels[i].name);
-    if (!neu) throw new Error(`index.html: Level „${levels[i].name}“ fehlt`);
+    if (!neu) throw new Error(`src/daten/level.js: Level „${levels[i].name}“ fehlt`);
     return neu.map(z => z.replace(NAMENSZEILE, `$1, grad: '${grad[i]}',`)).join(nl);
   }).join(nl) + nl;
   return html.slice(0, von) + text + html.slice(bis);

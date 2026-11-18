@@ -52,19 +52,19 @@ export function loadSkies(root) {
   return existsSync(file) ? runCode(readFileSync(file, 'utf8'), file).PRISMA_SKIES ?? [] : [];
 }
 
-/** Ebenentypen, die index.html kennt (Schlüssel von SKY_LAYERS) */
+/** Ebenentypen, die das Spiel kennt (Schlüssel von SKY_LAYERS); html: der Code des Spiels (seitenmodule.mjs: spielQuelltext) */
 export function layerTypes(html) {
   const m = html.match(/^const SKY_LAYERS = \{([^}]*)\};/m);
   return m ? m[1].split(',').map((s) => s.trim()).filter(Boolean) : [];
 }
 
-/** Arten von Brettern, die index.html kennt (Schlüssel von BOARD_TYPES) */
+/** Arten von Brettern, die das Spiel kennt (Schlüssel von BOARD_TYPES) */
 export function boardTypes(html) {
   const m = html.match(/^const BOARD_TYPES = \{([^}]*)\};/m);
   return m ? m[1].split(',').map((s) => s.trim()).filter(Boolean) : [];
 }
 
-/** Hintergründe aus dem Code (SKY_ENTRIES in index.html): ihre id und order darf keine Skybox haben */
+/** Hintergründe aus dem Code (SKY_ENTRIES in src/seite/himmel/skybox.js): ihre id und order darf keine Skybox haben */
 export function codeSkies(html) {
   const block = html.match(/^const SKY_ENTRIES = [\s\S]*?^\}\)\(\);/m)?.[0] ?? '';
   return [...block.matchAll(/\{ id: '([a-z0-9-]+)', name: '[^']*', order: (\d+)/g)].map((m) => ({ id: m[1], order: +m[2] }));

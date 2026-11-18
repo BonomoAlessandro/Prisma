@@ -9,7 +9,7 @@
 //         node tests/golden.mjs --write    schreibt tests/golden.json neu (nur bei bewusster Änderung des Verhaltens
 //                                          oder wenn Level dazukommen oder wegfallen)
 //
-// Je Level festgehalten (Logik aus index.html, Bereich LOGIC:BEGIN … LOGIC:END, geladen über tools/solver.mjs):
+// Je Level festgehalten (Logik aus dem Modul src/logik.js, geladen über tools/solver.mjs):
 //   start, solved: traceBeams(createBoard(level)) in der Startstellung und mit level.solution angewendet –
 //                  segments, events, hits (Map → nach Id sortierte Einträge), mixes (ebenso), satisfied
 //                  (sortiert), solved, truncated.
@@ -38,6 +38,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { L, setRot, keyOf, solve } from '../tools/solver.mjs';
 import { ALLE as SPIEL_UND_VORRAT, VORRAT } from '../tools/lader.mjs';
+import { LOGIK, zerlege } from '../tools/seitenmodule.mjs';
+import * as LEVELDATEN from '../src/daten/level.js';
 
 const { LEVELS, TUTORIAL_COUNT, LEVELS_3D } = SPIEL_UND_VORRAT;
 
@@ -166,11 +168,14 @@ report(!golden.some(g => 'score' in g), 'Referenz ohne alte Wertung (score, bis 
 // das auffallen (die Logik ruft dafür reflectOnMirror auf). Auf der Kopie eines Eintrags mit Löserdaten darf eine
 // Abweichung von 1e-12 in einer Normalen nicht auffallen; jede der Änderungen in `detect` dagegen schon.
 {
-  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  const bent = new Function(html.slice(html.indexOf('/* LOGIC:BEGIN'), html.indexOf('/* LOGIC:END')) + `
+  // eine eigene Kopie der Logik (wie die Seite sie einsetzt), in der reflectOnMirror umgelenkt wird; die Leveldaten,
+  // die sie importiert (seit Ticket 06 von .scratch/umbau/), als Parameter
+  const { importe, code } = zerlege(readFileSync(LOGIK, 'utf8'), 'src/logik.js');
+  const namen = importe.flatMap((i) => i.namen);
+  const bent = new Function(...namen, code + `
     const reflect = reflectOnMirror;
     reflectOnMirror = (dir, rot) => { const d = reflect(dir, rot); return dir === 0 && d === 2 ? 6 : d; };
-    return { createBoard, traceBeams, isRotatable };`)();
+    return { createBoard, traceBeams, isRotatable };`)(...namen.map((n) => LEVELDATEN[n]));
   const caught = ALLE.filter(level => gold(level)
     && compare([gold(level)], [{ ...gold(level), ...traces(bent, level) }]).length).length;
   report(caught > 0, `Gegenprobe: ein Spiegel, der nach Norden statt nach Süden lenkt, fällt auf (in ${caught} Leveln)`);

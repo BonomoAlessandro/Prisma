@@ -9,13 +9,13 @@
 // sie die Anker jeder Würfel-Version enthält. Was die Form einer Version braucht (zwei Anker, erfundene Einträge,
 // Gegenproben), prüft er fest mit W1; was die aktuelle betrifft, mit WUERFEL_VERSION und loadAnchorsWuerfel().
 // Die Reihenfolge im Spiel und die der Würfel sind seit dem Vorrat (Spec .scratch/noa-geschichte/, Ticket 02) die aus
-// Spiel und Vorrat (ALLE im gemeinsamen Lader tools/lader.mjs, wie protocol.mjs sie liest); die Seite für die Bilder
-// von prepare.mjs hat alle Level daraus (alleText).
+// Spiel und Vorrat (ALLE im gemeinsamen Lader tools/lader.mjs, wie protocol.mjs sie liest); die Leveldaten der
+// Seite für die Bilder von prepare.mjs haben alle Level daraus (alleText).
 // Aufruf: node tests/ki-tester.test.mjs [protokoll]   (Vorgabe tools/ki-tester/protocol.jsonl; mit einer Kopie, in der
 //         ein Eintrag verfälscht ist, muss der Test rot werden)
 import { copyFileSync, mkdtempSync, readFileSync, rmSync, appendFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
@@ -24,7 +24,9 @@ import { ALLE, alleText } from '../tools/lader.mjs';
 import * as protocol from '../tools/ki-tester/protocol.mjs';
 import { fieldText } from '../tools/ki-tester/field.mjs';
 import { ladeLevelliste } from '../tools/levelliste.mjs';
-import { kandidatName, seiteMitLeveln, seiteMitWuerfeln } from '../tools/leveldaten.mjs';
+import { datenMitLeveln, datenMitWuerfeln, kandidatName } from '../tools/leveldaten.mjs';
+import { LEVELDATEN, ausText, zerlege } from '../tools/seitenmodule.mjs';
+import { spielBereich } from '../tools/vorrat.mjs';
 import { AUFZUG, KERN } from './wuerfel-handgebaut.mjs';
 
 const {
@@ -426,20 +428,21 @@ const kandidatAus = (l) => ({ name: '', grad: l.grad, solution: l.solution,
   elements: l.elements.map(e => (e.type === 'combiner' && !e.fixed ? { ...e, dir: ((e.dir ?? 0) + 1) % 8 }
     : ['mirror', 'prism'].includes(e.type) && !e.fixed ? { ...e, rot: ((e.rot ?? 0) + 1) % 8 } : e)) });
 const HAUPT = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT), KANDIDATEN = [HAUPT[2], HAUPT[5]].map(kandidatAus);
-test('Seite mit Kandidaten: index.html mit <base> und den Kandidaten am Ende von LEVELS, sonst gleich', () => {
-  const html = readFileSync(join(root, 'index.html'), 'utf8'), basis = pathToFileURL(root).href + '/';
-  const seite = seiteMitLeveln(html, KANDIDATEN, basis);
-  const kopf = html.indexOf('<head>') + '<head>'.length;
-  assert.match(seite.slice(kopf), new RegExp(`^\\r?\\n<base href="${basis.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}">`));
-  const logik = (h) => new Function(`${h.slice(h.indexOf('/* LOGIC:BEGIN'), h.indexOf('/* LOGIC:END'))}
-    return LEVELS;`)();
-  const vorher = logik(html), nachher = logik(seite);
-  assert.equal(nachher.length, vorher.length + 2);
-  assert.deepEqual(nachher.slice(0, vorher.length), vorher);
-  assert.deepEqual(nachher.slice(-2), KANDIDATEN);
-  // Ausser <base> und den zwei Blöcken vor LEVELS:END ist die Seite index.html
-  const ohne = seite.replace(/\r?\n<base href="[^"]+">/, ''), ende = html.indexOf('  /* LEVELS:END */');
-  assert.ok(ohne.startsWith(html.slice(0, ende)) && ohne.endsWith(html.slice(ende)), 'sonst gleich');
+test('Leveldaten mit Kandidaten: src/daten/level.js mit den Kandidaten am Ende von FLACH, sonst gleich; Seite damit',
+  () => {
+  const text = readFileSync(LEVELDATEN, 'utf8');
+  const daten = datenMitLeveln(text, KANDIDATEN);
+  const vorher = ausText(text, 'src/daten/level.js'), nachher = ausText(daten, 'Kandidaten');
+  assert.equal(nachher.FLACH.length, vorher.FLACH.length + 2);
+  assert.deepEqual(nachher.FLACH.slice(0, vorher.FLACH.length), vorher.FLACH);
+  assert.deepEqual(nachher.FLACH.slice(-2), KANDIDATEN);
+  assert.deepEqual([nachher.UEBUNGEN, nachher.WUERFEL, nachher.REISE], [vorher.UEBUNGEN, vorher.WUERFEL, vorher.REISE]);
+  // Ausser den zwei Blöcken am Ende von FLACH ist sie src/daten/level.js
+  const ende = spielBereich(text, 'flach').bis;
+  assert.ok(daten.startsWith(text.slice(0, ende)) && daten.endsWith(text.slice(ende)), 'sonst gleich');
+  // die Seite (shots.mjs): ein Build mit diesen Leveldaten statt src/daten/level.js (spielServer mit daten,
+  // vite.config.mjs PRISMA_LEVELDATEN); dafür haben sie dieselbe Form und dieselben Namen
+  assert.deepEqual(zerlege(daten, 'Kandidaten').namen, zerlege(text, 'src/daten/level.js').namen);
 });
 test('prepare.mjs --kandidaten: Name „Kandidat <Abdruck>“, Referenz am Platz der Formel, Feld und Seite aus den Daten',
   () => {
@@ -462,12 +465,12 @@ test('prepare.mjs --kandidaten: Name „Kandidat <Abdruck>“, Referenz am Platz
         assert.deepEqual(l.referenz, reference(12 + k));
         assert.equal(readFileSync(join(dir, 'eingabe', `${l.id}.md`), 'utf8'), fieldText(level, l.id));
       }
-      // Die Seite für die Bilder liegt ausserhalb von eingabe/ und hat die Kandidaten in der Reihenfolge der Kennungen
+      // Die Leveldaten der Seite für die Bilder liegen ausserhalb von eingabe/ und haben die Kandidaten in der
+      // Reihenfolge der Kennungen
       const ids = lj.level.map(x => x.id).sort();
-      const seite = readFileSync(join(dir, 'seite', 'index.html'), 'utf8');
-      assert.equal(seite, seiteMitLeveln(alleText(),
-        ids.map(id => KANDIDATEN.find(lv => kandidatName(lv) === lj.level.find(x => x.id === id).name)),
-        pathToFileURL(root).href + '/'));
+      const seite = readFileSync(join(dir, 'seite', 'level.js'), 'utf8');
+      assert.equal(seite, datenMitLeveln(alleText(),
+        ids.map(id => KANDIDATEN.find(lv => kandidatName(lv) === lj.level.find(x => x.id === id).name))));
       assert.ok(!readFileSync(join(dir, 'auftrag-A.md'), 'utf8').includes('Kandidat'), 'Name im Auftrag');
       // Ein Kandidat mit einem anderen Grad als dem seines Platzes wird abgewiesen
       rmSync(dir, { recursive: true, force: true });
@@ -786,19 +789,15 @@ test('Würfel: Ein flacher Eintrag in einem Lauf wuerfel-… ist ungültig, die 
 });
 
 console.log('Würfel: Kandidaten (Vorschau, Seite)');
-test('Seite mit Würfel-Kandidaten: <base> und die Kandidaten am Ende von LEVELS_3D, sonst wie index.html', () => {
-  const html = readFileSync(join(root, 'index.html'), 'utf8'), basis = pathToFileURL(root).href + '/';
+test('Leveldaten mit Würfel-Kandidaten: die Kandidaten am Ende von WUERFEL, sonst wie src/daten/level.js', () => {
+  const text = readFileSync(LEVELDATEN, 'utf8');
   const neu = WUERFEL_KANDIDATEN.map(x => x.level);
-  const seite = seiteMitWuerfeln(html, neu, basis);
-  const logik = (h) => new Function(`${h.slice(h.indexOf('/* LOGIC:BEGIN'), h.indexOf('/* LOGIC:END'))}
-    return { LEVELS, LEVELS_3D };`)();
-  const vorher = logik(html), nachher = logik(seite);
-  assert.deepEqual(nachher.LEVELS, vorher.LEVELS, 'flache Level unverändert');
-  assert.deepEqual(nachher.LEVELS_3D, [...vorher.LEVELS_3D, ...neu]);
-  const ohne = seite.replace(/\r?\n<base href="[^"]+">/, '');
-  const nl = html.includes('\r\n') ? '\r\n' : '\n';
-  const ende = html.indexOf(`${nl}];`, html.indexOf('const LEVELS_3D = [')) + nl.length;
-  assert.ok(ohne.startsWith(html.slice(0, ende)) && ohne.endsWith(html.slice(ende)), 'sonst gleich');
+  const daten = datenMitWuerfeln(text, neu);
+  const vorher = ausText(text, 'src/daten/level.js'), nachher = ausText(daten, 'Kandidaten');
+  assert.deepEqual([nachher.UEBUNGEN, nachher.FLACH], [vorher.UEBUNGEN, vorher.FLACH], 'flache Level unverändert');
+  assert.deepEqual(nachher.WUERFEL, [...vorher.WUERFEL, ...neu]);
+  const ende = spielBereich(text, 'wuerfel').bis;
+  assert.ok(daten.startsWith(text.slice(0, ende)) && daten.endsWith(text.slice(ende)), 'sonst gleich');
 });
 test('prepare.mjs wuerfel-… --kandidaten <Würfel-Vorschau>: Plätze, Grade, Referenz und Anker in der Vorschau',
   () => {
@@ -838,13 +837,13 @@ test('prepare.mjs wuerfel-… --kandidaten <Würfel-Vorschau>: Plätze, Grade, R
         schemaOf(WUERFEL_VERSION));
       const auftrag = readFileSync(join(dir, 'auftrag-B.md'), 'utf8');
       assert.ok(auftrag.includes('## Das Spiel im Würfel') && !auftrag.includes('Kandidat'), 'Auftrag');
-      // Die Seite für die Bilder: die Kandidaten unter ihrem Namen am Ende von LEVELS_3D, nach Kennung
+      // Die Leveldaten der Seite für die Bilder: die Kandidaten unter ihrem Namen am Ende von WUERFEL, nach Kennung
       const ids = lj.level.filter(l => l.kandidat).map(l => l.id).sort();
-      const seite = readFileSync(join(dir, 'seite', 'index.html'), 'utf8');
-      assert.equal(seite, seiteMitWuerfeln(alleText(), ids.map((id) => {
+      const seite = readFileSync(join(dir, 'seite', 'level.js'), 'utf8');
+      assert.equal(seite, datenMitWuerfeln(alleText(), ids.map((id) => {
         const name = lj.level.find(l => l.id === id).name;
         return { ...WUERFEL_KANDIDATEN.find(x => x.kandidat === name).level, name };
-      }), pathToFileURL(root).href + '/'));
+      })));
       // Abgewiesen: Würfel-Vorschau in einem flachen Lauf, flache Liste in einem Würfel-Lauf, falscher Grad
       rmSync(dir, { recursive: true, force: true });
       const flach = run(`test-flach-${process.pid}`);

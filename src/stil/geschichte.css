@@ -1,0 +1,212 @@
+/* Noas Geschichte: Untertitel, Bühne für Prolog und Epilog, «Überspringen», Ladezeichen (Ticket 04 von .scratch/umbau/: aus index.html) */
+/* ---------- Noas Geschichte: Untertitel, Bühne für Prolog und Epilog (das Menü folgt weiter unten) ---------- */
+/* Startbildschirm deckend: die Welt, in der es weitergeht, lädt dahinter und zeigt sich erst nach dem Start */
+#intro { background: radial-gradient(ellipse at 50% 55%, #0e0c1e, #030308 70%); }
+#story {
+  position: fixed; inset: 0; z-index: 7;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 24px 16px; box-sizing: border-box;
+  cursor: pointer;
+  background-color: transparent; /* Zwischenszene (veil) und Untertitel: die Szene bleibt sichtbar */
+  transition: opacity 0.8s ease, background-color 0.8s ease;
+}
+/* will-change: eigene Ebene auch nach dem Ein- und Ausblenden (sonst neu gerastert, wie .line, Ticket 20) */
+#story .caption { display: none; flex-direction: column; align-items: center; text-align: center; transition: opacity 0.35s ease; will-change: opacity; }
+#story[data-mode="caption"] .caption { display: flex; }
+#story .swap { opacity: 0; }
+#story .kicker { font-size: 10px; letter-spacing: 0.5em; padding-left: 0.5em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 16px; }
+#story .kicker:empty { display: none; }
+#story .text { margin: 0; max-width: 30em; font-size: clamp(15px, 2.2vw / var(--seite), 18px); line-height: 1.75; letter-spacing: 0.04em; color: var(--ink); }
+/* Leiste bei der Ankunft in einer Welt (story.fillPath; Leiste C «Zeichen im Wagen», Ticket 08 von
+   .scratch/kleiner-wagen/): der Kleine Wagen mit den Zeichen der Welten an seinen Sternen, geweckte hell und verbunden,
+   die Welt, in die das Licht kommt, mit Ring und Puls, spätere blass; an der Spitze der Polarstern. Sie steht unten
+   am Rand (wie die frühere Leiste), Kicker und Text in der Mitte (.caption.mitte) */
+#story .path { display: flex; justify-content: center; margin-top: 30px; pointer-events: none; }
+#story .path:empty { display: none; }
+#story .path svg { display: block; width: 279px; height: auto; overflow: visible; }
+#story .path .wl, #story .path .wgeist { stroke: #e3e7ff; stroke-width: 1.2; stroke-linecap: round; fill: none; }
+#story .path .wl { opacity: 0.72; }
+#story .path .wgeist { opacity: 0.22; }
+#story .path .zeichen { color: rgba(232, 230, 240, 0.32); }
+#story .path .scheibe { fill: rgba(3, 3, 8, 0.82); }
+#story .path .zeichen :not(.scheibe) { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+#story .path .hof, #story .path .ring { opacity: 0; }
+#story .path .wach .zeichen { color: #fff; filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.75)); }
+#story .path .wach .hof { opacity: 0.85; }
+#story .path .jetzt .zeichen { color: #fff; filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)); animation: intro-pulse 2.4s ease-in-out infinite; }
+#story .path .jetzt .ring { opacity: 0.8; fill: none; stroke: #fff; stroke-width: 1; }
+/* eben erwacht (Reise): blitzt einmal auf, die neue Linie zieht sich zu ihm (--len: ihre Länge) */
+#story .path .neu .zeichen { animation: story-blitz 1.6s ease-out 0.5s both; }
+#story .path .wl.neu { stroke-dasharray: var(--len) 1000; animation: story-linie 0.7s ease 0.6s both; }
+@keyframes story-blitz { 15% { filter: drop-shadow(0 0 12px #fff) drop-shadow(0 0 4px #fff); } }
+@keyframes story-linie { from { stroke-dashoffset: var(--len); } }
+@media (prefers-reduced-motion: reduce) { #story .path .neu .zeichen, #story .path .wl.neu { animation: none; } }
+@media (max-width: 480px) { #story .path svg { width: 240px; } } /* Handy hochkant */
+#story .tap { margin-top: 34px; font-size: 9px; letter-spacing: 0.45em; padding-left: 0.45em; text-transform: uppercase; color: var(--ink-dim); animation: intro-pulse 2.4s ease-in-out infinite; }
+#story.hidden .tap, #story.hidden .path * { animation-play-state: paused; } /* ausgeblendet: Puls ruht im Spiel */
+#story .actions { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; justify-content: center; }
+#story .actions:empty { display: none; }
+#story .actions button {
+  font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase; padding: 12px 22px 12px calc(22px + 0.4em);
+  border: 1px solid rgba(232, 230, 240, 0.3); border-radius: 999px; background: rgba(3, 3, 8, 0.55);
+}
+#story .actions button:hover { border-color: var(--ink-dim); background: rgba(40, 40, 60, 0.6); }
+#story .caption { position: absolute; left: 16px; right: 16px; bottom: max(14vh / var(--seite), 70px); }
+/* dunkler Verlauf über die ganze Breite bis zum unteren Rand, wie bei Untertiteln im Film: auch vor hellem Himmel
+   (Wüste, Strand) lesbar, ohne dass ein Fleck um den Text entsteht */
+#story .caption::before {
+  content: ""; position: absolute; z-index: -1; left: 50%; width: calc(100vw / var(--seite)); top: -70px; bottom: calc(-40vh / var(--seite));
+  transform: translateX(-50%);
+  background: linear-gradient(to top, rgba(3, 3, 8, 0.72), rgba(3, 3, 8, 0.5) 55%, rgba(3, 3, 8, 0));
+}
+#story .caption .text, #story .caption .kicker { text-shadow: 0 0 12px rgba(2, 2, 8, 0.95), 0 0 3px rgba(2, 2, 8, 0.9); }
+#story .caption .tap { margin-top: 18px; }
+#story .caption .kicker { margin-bottom: 12px; }
+#story .caption .path { margin-top: 18px; }
+#story .tap:empty { display: none; } /* Reise: Untertitel ohne Aufforderung zum Tippen */
+#story .caption.warte .tap { visibility: hidden; } /* Finale: Der Satz wartet erst nach dem Puls auf Tippen */
+/* Ankunft in einer Welt (mit Leiste; Wahl des Nutzers, Ticket 02 von .scratch/kleiner-wagen/): Kicker und Text
+   senkrecht in der Mitte, die Leiste unten am Rand, wo sie bisher stand (quer: knapp über dem Rand, sonst reicht der
+   Platz nicht); das Licht steht in der Mitte des freien Raums darüber (story.lichtHoch). Dahinter ein weicher Hof um
+   den Text und ein Verlauf vom unteren Rand (Wüste und Meer bei Tag) */
+#story .caption.mitte { top: 0; bottom: 0; justify-content: center; }
+#story .caption.mitte::before {
+  top: 0; bottom: 0;
+  background: radial-gradient(ellipse 46% 24% at 50% 50%, rgba(3, 3, 8, 0.5), rgba(3, 3, 8, 0)),
+    linear-gradient(to top, rgba(3, 3, 8, 0.6), rgba(3, 3, 8, 0) 34%);
+}
+#story .caption.mitte .path { position: absolute; left: 0; right: 0; bottom: max(14vh / var(--seite), 70px); margin: 0; }
+/* die Aufforderung, sobald das Licht über dem Text anhält (story.anhalten, Abnahme Ticket 11): unter dem Text, ohne
+   Höhe im Fluss, sonst rückten Kicker und Text (und mit ihnen das Licht, lichtHoch) beim Erscheinen hinauf */
+#story .caption.mitte .tap { margin-top: 0; height: 0; position: relative; top: 20px; }
+/* kleine Handys hochkant (360 × 640, 320 × 568): kleiner und tiefer, sonst rückt er an einen langen Text */
+@media (max-width: 480px) and (max-height: 700px) {
+  #story .path svg { width: 206px; }
+  #story .caption.mitte .path { bottom: max(9vh / var(--seite), 44px); }
+}
+/* Bühne für Prolog und Epilog (createStoryScene): das Dorf über den ganzen Bildschirm, Untertitel darunter */
+#story[data-mode="scene"] { background-color: #020208; padding: 0; }
+#story.slow { transition: opacity 1.8s ease, background-color 1.8s ease; } /* Finale: Welt versinkt, Dorf taucht auf */
+#story .scene { display: none; position: absolute; inset: 0; overflow: hidden; }
+#story[data-mode="scene"] .scene { display: block; }
+/* vorab einmal unsichtbar zeichnen (story.prewarmScene): Das erste Zeichnen der grossen Szene hielt das Bild an */
+#story .scene.prewarm { display: block; pointer-events: none; }
+#story .scene.prewarm .world { opacity: 0.002; }
+#story .scene.prewarm .sub, #story .scene.prewarm .skip { visibility: hidden; }
+/* vorgewärmt (story.vorwaermen), für neue Spieler bis zum Prolog gehalten: gezeichnet wie oben, aber weiter hidden
+   und inert */
+#story.hidden.gehalten { opacity: 1 !important; transition: none; }
+/* Ein- und Ausblenden der Bühne ohne neues Rastern ihrer Ebenen (siehe .world) */
+#story[data-mode="scene"]:not(.hidden), #story.gehalten { will-change: opacity; }
+/* will-change hier und an #story: Beginn und Ende des Einblendens liessen Chrome sonst alle Ebenen der Bühne neu
+   rastern (fehlende Kacheln, Ticket 16) */
+#story .scene .world { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s ease; pointer-events: none; will-change: opacity; }
+#story .scene.lit .world { opacity: 1; }
+/* Bühne in WebGL (Ticket 19, ADR 0007): eine Leinwand im .world; die Ebenen (SVG) sind nur die Quelle ihrer Texturen */
+#story .scene .ebene { display: none; }
+#story .scene .gl-buehne { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+#story .scene .sub {
+  position: absolute; left: 16px; right: 16px; bottom: max(7vh / var(--seite), calc(env(safe-area-inset-bottom) + 28px));
+  display: flex; flex-direction: column; align-items: center; pointer-events: none;
+  isolation: isolate; /* eigene Ebene: sonst läge der Hof (z-index -1) unter dem Bild der Bühne */
+}
+#story .scene .sub::before { /* dunkler Hof: der Text bleibt vor hellen Fenstern und dem Strahl lesbar */
+  content: ""; position: absolute; z-index: -1; left: 50%; top: 50%; width: min(980px, 100vw / var(--seite) + 80px); height: calc(100% + 140px);
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, rgba(2, 2, 8, 0.7), rgba(2, 2, 8, 0.4) 55%, rgba(2, 2, 8, 0));
+}
+/* beide Sätze in derselben Zelle, unten bündig: Ein langer Satz wächst nach oben, ohne die Zeile darüber (Angebot:
+   «Im Dorf») zu überdecken; mindestens zwei Zeilen hoch, damit der Hinweis darunter stillsteht */
+#story .scene .lines { position: relative; display: grid; width: min(780px, 100%); min-height: 3.6em; font-size: clamp(16px, 2.2vw / var(--seite), 22px); }
+/* der alte Satz blendet aus, der neue danach ein (kein Übereinander zweier Sätze) */
+#story .scene .line {
+  grid-area: 1 / 1; align-self: end; margin: 0;
+  line-height: 1.7; letter-spacing: 0.03em; text-align: center; color: #f2f0fa;
+  text-shadow: 0 0 14px rgba(2, 2, 8, 0.95), 0 0 4px rgba(2, 2, 8, 0.9);
+  opacity: 0; transform: translateY(8px); transition: opacity 0.6s ease, transform 0.6s ease;
+  /* immer eine eigene Ebene: Am Ende des Einblendens (1,7 s nach dem Tippen) legte Chrome sie sonst zurück in die
+     Ebene darunter und rasterte neu, in jeder Fahrt ein Bild zu spät (Ticket 20) */
+  will-change: opacity, transform;
+}
+#story .scene .line.on { opacity: 1; transform: none; transition-duration: 1.2s; transition-delay: 0.5s; }
+#story .scene .hint { margin-top: 16px; font-size: 9px; letter-spacing: 0.45em; padding-left: 0.45em; text-transform: uppercase; color: var(--ink-dim); opacity: 0; transition: opacity 0.8s ease; will-change: opacity; }
+#story .scene .hint.on { opacity: 1; }
+#story .scene .hint span { display: inline-block; animation: intro-pulse 2.4s ease-in-out infinite; }
+#story .scene .actions { pointer-events: auto; margin-top: 22px; }
+#story .scene .actions.platz { display: flex; } /* Platz für Knöpfe, die gleich kommen (scene.platzFuer) */
+/* Angebot nach dem Prolog (Ticket 07): «Im Dorf» über dem Satz, die Knöpfe blenden mit ihm ein */
+#story .scene .kicker {
+  margin-bottom: 12px; font-size: 12px; color: rgba(232, 230, 240, 0.86);
+  text-shadow: 0 0 12px rgba(2, 2, 8, 0.95), 0 0 4px rgba(2, 2, 8, 0.95), 0 0 2px rgba(2, 2, 8, 0.9);
+  opacity: 0; visibility: hidden; transition: opacity 0.6s ease, visibility 0s linear 0.6s;
+}
+#story .scene .kicker.on { opacity: 1; visibility: visible; transition: opacity 1.2s ease 0.5s, visibility 0s; }
+#story .scene .actions.angebot { animation: story-angebot 1.2s ease 0.5s both; }
+/* nach dem Umbau (scene.say mit umbau): Der alte Satz ist schon aus, der neue kommt mit allem um ihn gleich */
+#story .scene .sub.sofort .line.on, #story .scene .sub.sofort .kicker.on { transition-delay: 0s; }
+#story .scene .sub.sofort .actions.angebot { animation-delay: 0s; }
+/* im Angebot gibt es kein «Tippen»: seine leere Zeile fällt weg, die Frage steht tiefer, unter Noa und den Häusern */
+#story .scene .sub.angebot .hint { display: none; }
+@keyframes story-angebot { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { #story .scene .actions.angebot { animation: none; } }
+#story .scene .skip {
+  position: absolute; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right));
+  padding: 12px 8px 12px calc(8px + 0.4em); font-size: 9px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--ink-dim);
+  transition: color 0.25s ease;
+}
+#story .scene .skip:hover { color: var(--ink); }
+#story .scene .skip[hidden] { display: none; }
+#story.hidden .scene * { animation-play-state: paused; }
+/* «Überspringen» für die Einstiege in die Welten und das Kapitel «Im Dorf» (Ticket 07; den Prolog überspringt der
+   Knopf der Bühne): oben rechts wie dort, über dem Untertitel. Auf dem Handy hochkant unten links, die Kopfzeile
+   im Dorf reicht dort über die ganze Breite. Unter Menü und Übersicht nicht (story.skippable). */
+#btn-skip {
+  position: fixed; z-index: 8; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right));
+  padding: 12px 8px 12px calc(8px + 0.35em); font-size: 10.5px; letter-spacing: 0.35em; text-transform: uppercase;
+  color: rgba(232, 230, 240, 0.82); text-shadow: 0 0 10px rgba(3, 3, 8, 0.95), 0 0 3px rgba(3, 3, 8, 0.9);
+  transition: color 0.25s ease, opacity 0.6s ease;
+}
+#btn-skip:hover { color: var(--ink); }
+/* Ladezeichen (ladeZeichen): Die sieben Sterne des Kleinen Wagens leuchten nacheinander auf, solange die Geschichte
+   auf einen Himmel wartet. Über der Bühne (im Dokument danach), unter Menü und Übersicht. Nur Deckkraft und
+   Transform: Das rechnet der Compositor, so läuft der Wagen auch, während das Laden den Hauptthread anhält. Lage,
+   Grösse und Zeitplan der Sterne und Linien setzt ladeZeichen (aus einer Tabelle). */
+#lade {
+  position: fixed; left: 50%; top: 42%; z-index: 7; pointer-events: none;
+  transform: translate(-50%, -50%) scale(var(--gross, 1)); opacity: 0; transition: opacity 0.5s ease;
+}
+#lade.an { opacity: 1; transition-duration: 0.4s; }
+/* über der Bühne («Gleich los»): oben im Nachthimmel, in der Mitte lägen Berge und Dorf */
+#lade.oben { top: 25%; }
+#lade .stern { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); opacity: 0.16;
+  background: radial-gradient(circle closest-side, #f4f6ff 0 15%, rgba(210, 220, 255, 0.5) 22%, rgba(210, 220, 255, 0.12) 55%, rgba(210, 220, 255, 0)); }
+#lade .kante { position: absolute; height: 0; transform-origin: 0 0; }
+#lade .kante i { position: absolute; left: 0; top: -0.5px; width: 100%; height: 1px; background: rgba(200, 210, 255, 0.07); }
+#lade .kante i + i { background: rgba(200, 210, 255, 0.32); transform-origin: 0 50%; transform: scaleX(0); opacity: 0; }
+#lade:not(.laeuft) * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  #lade * { animation: none !important; }
+  #lade .stern { opacity: 1; }
+  #lade .kante i + i { transform: none; opacity: 1; }
+}
+@media (max-width: 520px) {
+  /* «Dorf überspringen» in zwei kurzen Zeilen: neben den vier Knöpfen unten rechts ist auch bei 360 px Platz */
+  #btn-skip {
+    top: auto; right: auto; bottom: max(16px, env(safe-area-inset-bottom)); left: max(8px, env(safe-area-inset-left));
+    max-width: 9em; padding: 8px; font-size: 10px; letter-spacing: 0.15em; line-height: 1.4; text-align: left;
+  }
+}
+@media (max-height: 500px) { /* Handy quer: kleineres Bild, weniger Abstand */
+  #solved .stats { display: none; } /* Platz für die längeren Meldungen („Weiter zu den Sternen“) */
+  #story .path svg { width: 176px; }
+  #story .caption.mitte .path { bottom: max(12px, env(safe-area-inset-bottom)); }
+  #story .tap, #story .actions { margin-top: 14px; }
+  #story .scene .sub { bottom: max(10px, env(safe-area-inset-bottom)); }
+  #story .scene .lines { font-size: 15px; min-height: 3.5em; }
+  #story .scene .kicker { margin-bottom: 6px; }
+  /* Angebot: die Frage passt in eine Zeile; ohne die Reserve für zwei Zeilen steht sie tiefer, unter Noa und dem Dorf,
+     der Hof dahinter etwas dunkler */
+  #story .scene .sub.angebot .lines { min-height: 0; }
+  #story .scene .sub.angebot::before { background: radial-gradient(closest-side, rgba(2, 2, 8, 0.82), rgba(2, 2, 8, 0.55) 55%, rgba(2, 2, 8, 0)); }
+  #story .scene .hint { margin-top: 8px; }
+}

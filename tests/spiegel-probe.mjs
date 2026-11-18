@@ -13,15 +13,15 @@
 //           die eingebaute Grafik taktet im Takt von 60 sonst herunter). Nach tests/output/energie/spiegel-<bildschirm>.json.
 //   bilder: Vergleichsbilder (Handy hoch, Massstab des Poco, ?t=12) vorher gegen neu je Welt, ganz und ein Ausschnitt der
 //           Mitte des Bretts, dazu nebeneinander mit dem Unterschied ×8 und der mittleren Änderung der Helligkeit.
-//           Vorher: --vorher <html> (eine Kopie einer früheren index.html im Wurzelordner), sonst ?spiegel=alle.
+//           Vorher: --vorher <html> (eine Kopie einer früheren index.html im Wurzelordner, ungebaut über http aus dem
+//           Wurzelordner), sonst ?spiegel=alle. Neu ist dist/ über http (tools/spielserver.mjs).
 //   --handy: 393 × 852, Pixeldichte 2,75, Android-Kennung und Touch (wie das Poco); sonst 1440 × 900.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join, resolve } from 'node:path';
 import { startChrome, emulate, evaluate, sleep } from '../tools/chrome.mjs';
 import { requireQuiet } from '../tools/ki-tester/shots.mjs';
+import { root, seiteAus, spielServer } from '../tools/spielserver.mjs';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const modus = ['messen', 'bilder', 'pruefe'].includes(args[0]) ? args[0] : 'pruefe';
 const wert = (name, vorgabe = null) => { const i = args.indexOf(name); return i < 0 ? vorgabe : args[i + 1]; };
@@ -52,7 +52,10 @@ async function until(expr, what, seconds = 120) {
   }
   throw new Error(`Zeitüberschreitung: ${what}`);
 }
-const seite = (datei = 'index.html') => pathToFileURL(join(root, datei)).href;
+// die Seite ohne Parameter: dist/ über http, mit datei (--vorher) diese Kopie im Wurzelordner (die Server enden mit
+// process.exit)
+const spiel = await spielServer(), alt = vorher ? await spielServer(seiteAus(join(root, vorher))) : null;
+const seite = (datei) => (datei ? alt : spiel).seite();
 
 async function oeffne(query, warte = 7000) {
   await send('Page.navigate', { url: `${seite()}?nointro&noadapt&${query}` });
