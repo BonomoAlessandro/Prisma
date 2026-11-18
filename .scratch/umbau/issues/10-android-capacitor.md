@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** needs-triage (vor Beginn ein eigenes Grilling)
+**Status:** ready-for-agent (Grilling 18.11.2026)
 
 **Blocked by:** 08, 09
 
@@ -31,3 +31,27 @@ weglassen (Review 04: 2,3 MB). Aus Review 05: Die Speicherschicht ist synchron; 
 einen Zwischenspeicher, der beim Start einmal geladen wird (oder `localStorage` in der WebView behalten).
 
 ## Comments
+
+### Grilling (18.11.2026, Nutzer)
+
+- **Paketname:** `ch.bonomo.prisma` (Nutzer), danach unveränderlich.
+- **Mindestversion:** die Vorgabe von Capacitor (`minSdkVersion` der Vorlage), `targetSdk` so, wie Google Play es heute
+  verlangt.
+- **Signatur:** Play App Signing; wir erzeugen nur den Upload-Schlüssel. Er liegt auf diesem Rechner **ausserhalb des
+  Repos** (nie in Git, auch nicht Passwörter; `.gitignore` sichert ab), Signieren über Umgebungsvariablen oder eine
+  nicht eingecheckte `keystore.properties`. Am Ende Datei und Ort des Passworts dem Nutzer nennen; er sichert beides
+  selbst (Passwortmanager/USB-Stick).
+- **Werkzeuge:** JDK und Android SDK als Kommandozeilen-Werkzeuge installieren (winget bzw. die offiziellen
+  cmdline-tools von Google), ohne Android Studio. Der Nutzer hat zugestimmt.
+- **Entscheide ohne Nutzer (Claude):** in der App kein Service Worker (das Spiel liegt in der App); keine Source-Maps in
+  der App; Spielstand bleibt in `localStorage` der WebView (die Speicherschicht ist synchron, kein Umbau auf
+  Preferences), mit Prüfung, dass er über einen App-Neustart und ein App-Update erhalten bleibt.
+- **Kontakt im Store:** `bonomo.alessandro@yahoo.de` (wie auf der Datenschutzseite). Datenschutz-Adresse:
+  `https://bonomoalessandro.github.io/Prisma/datenschutz.html`.
+- **Link zur Datenschutzseite im Spiel** (aus Ticket 09 offen): in diesem Ticket ins Menü, Deutsch und Englisch; dabei
+  die Menü-Referenzbilder beider Sprachen nachführen.
+- **Store-Texte** (Kurz- und Langbeschreibung) schreibt Claude auf Deutsch und Englisch, Ton wie die Spieltexte; der
+  Nutzer prüft sie. Antworten für Inhaltseinstufung und Datensicherheit als Vorlage bereitlegen.
+- **Test auf dem Gerät:** Claude installiert nichts auf dem Poco (dort nur Chrome per CDP). Die App testet der Nutzer
+  selbst auf seinem Handy; dafür eine Debug-APK/signierte APK und eine kurze Prüfliste bereitlegen. Im Emulator darf
+  geprüft werden, falls er ohne Android Studio läuft.
