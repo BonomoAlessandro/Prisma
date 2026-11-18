@@ -5,6 +5,7 @@ import { audio } from '../ton.js';
 import { IS_TOUCH } from '../oberflaeche/dom.ts';
 import { storyEase, storyLinear, storySleep } from './geschichte.js';
 import { mulberry32 } from '../../zufall.js';
+import { t } from '../../texte/sprache.js';
 
 /**
  * Bühne für Prolog und Epilog: ein Bergdorf bei Nacht über den ganzen Bildschirm, gezeichnet in sechs Ebenen (Himmel,
@@ -281,7 +282,7 @@ function createStoryScene(host, { wagenLage = null } = {}) {
       </div>
     </div>
     <div class="sub"><div class="kicker"></div><div class="lines"><p class="line"></p><p class="line"></p></div><div class="hint"><span></span></div><div class="actions"></div></div>
-    <button class="skip" type="button">Überspringen</button>
+    <button class="skip" type="button">${t('geschichte.ueberspringen')}</button>
   </div>`);
 
   const el = host.lastElementChild, q = (s) => el.querySelector(s);
@@ -1061,7 +1062,7 @@ function createStoryScene(host, { wagenLage = null } = {}) {
     };
   };
   const gl = glBuehne();
-  q('.hint span').textContent = IS_TOUCH ? 'Tippen zum Weitergehen' : 'Klicken zum Weitergehen';
+  q('.hint span').textContent = t('geschichte.weitergehen', { touch: IS_TOUCH });
   // Arm mit der Lampe zeigt zum Polarstern (Grad; er steht an der Spitze des Wagens, scene.wagenOrte), so wie man beide
   // in der Einstellung sieht, in der Noa zu ihm hinauf leuchtet (Prolog 4 reach, schon beim Heben in lamp; Epilog 3
   // answer), mit der Parallaxe von Himmel und Hügel (Abnahme Ticket 11; vorher wie bei Zoom 1, und der Strahl lief auf

@@ -21,6 +21,7 @@ import { frameRate, leistung } from './leistung.js';
 import { animate, draw, frame } from './schleife.js';
 import { neueAufgabe } from './aufgabe.ts';
 import { alsGlobal } from './testschnittstelle.ts';
+import { t } from '../texte/sprache.js';
 
 await neueAufgabe();
 
@@ -45,7 +46,7 @@ renderer.shadowMap.needsUpdate = true;
 function markShadowsDirty() { renderer.shadowMap.needsUpdate = true; }
 document.body.appendChild(renderer.domElement);
 renderer.domElement.tabIndex = -1; // Ziel des Fokus, wenn ein Knopf verschwindet (story.keepFocus), statt body
-renderer.domElement.setAttribute('aria-label', 'Spielfeld');
+renderer.domElement.setAttribute('aria-label', t('spielfeld'));
 
 // In HalfFloat rendern braucht explizit eine color_buffer-Extension (WebGL1 und WebGL2).
 const HDR_SUPPORTED = renderer.capabilities.isWebGL2
@@ -75,7 +76,7 @@ if (!HDR_SUPPORTED) {
 
 renderer.domElement.addEventListener('webglcontextlost', (e) => {
   e.preventDefault();
-  document.getElementById('hud-sub').textContent = 'Grafikkontext verloren – bitte neu laden';
+  document.getElementById('hud-sub').textContent = t('grafikVerloren');
 });
 
 const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));

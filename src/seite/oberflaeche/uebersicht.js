@@ -1,5 +1,6 @@
 // Übersicht des Grads (Sternhaufen) (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
 import './menue.js';
+import { t } from '../../texte/sprache.js';
 
 /* =====================================================================
    ÜBERSICHT DES GRADS (Ticket 06, Spec .scratch/noa-geschichte/, Entscheide 9, 16, 19, 24) — Baustein aus
@@ -53,8 +54,8 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
   const WISCH = { min: 50, schwelle: 10, steigung: 0.6, gummi: 0.3, ms: 280, easing: 'cubic-bezier(0.25, 0.8, 0.3, 1)' };
   /** wie GRAD_ANZEIGE im Spiel */
   const GRADE = {
-    'leicht': { name: 'Leicht', punkte: 1 }, 'mittel': { name: 'Mittel', punkte: 2 },
-    'schwer': { name: 'Schwer', punkte: 3 }, 'sehr schwer': { name: 'Sehr schwer', punkte: 4 },
+    'leicht': { name: t('grad.leicht'), punkte: 1 }, 'mittel': { name: t('grad.mittel'), punkte: 2 },
+    'schwer': { name: t('grad.schwer'), punkte: 3 }, 'sehr schwer': { name: t('grad.sehrSchwer'), punkte: 4 },
   };
   /** eigene Zeichen, im Strich der STORY_ICONS */
   const Z = {
@@ -76,13 +77,14 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
   };
   /** für Bildschirmleser «1 Minute 42 Sekunden» statt «1:42» */
   const sprichZeit = (sek) => {
-    const s = Math.floor(sek), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, r = s % 60, t = [];
-    if (h) t.push(`${h} ${h === 1 ? 'Stunde' : 'Stunden'}`);
-    if (m) t.push(`${m} ${m === 1 ? 'Minute' : 'Minuten'}`);
-    if (r || !t.length) t.push(`${r} ${r === 1 ? 'Sekunde' : 'Sekunden'}`);
-    return t.join(' ');
+    const s = Math.floor(sek), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, r = s % 60, teile = [];
+    const anzahl = (n, was) => teile.push(t(`uebersicht.zahl.${was}${n === 1 ? '' : 'n'}`, { n }));
+    if (h) anzahl(h, 'stunde');
+    if (m) anzahl(m, 'minute');
+    if (r || !teile.length) anzahl(r, 'sekunde');
+    return teile.join(' ');
   };
-  const drehungen = (n) => `${n} ${n === 1 ? 'Drehung' : 'Drehungen'}`;
+  const drehungen = (n) => t(n === 1 ? 'uebersicht.zahl.drehung' : 'uebersicht.zahl.drehungen', { n });
   /**
    * Weiche Trennstriche in langen Wörtern, ohne Wörterbuch (hyphens: auto kennt Deutsch nicht in jedem Browser): in
    * jeder Gruppe von Konsonanten zwischen zwei Vokalen vor dem längsten Anlaut, mit dem ein deutsches Wort beginnen
@@ -127,19 +129,19 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
     <div class="ueb-rahmen">
       <header class="ueb-kopf">
         <div class="ueb-kopftext">
-          <h2 class="ueb-titel" id="${uid}-titel">Übersicht</h2>
+          <h2 class="ueb-titel" id="${uid}-titel">${esc(t('uebersicht.titel'))}</h2>
           <p class="ueb-grad" id="${uid}-grad"></p>
         </div>
-        <p class="ueb-legende" aria-hidden="true"><span>${ico(Z.uhr)}Bestzeit</span><span>${ico(Z.drehung)}wenigste Drehungen</span></p>
+        <p class="ueb-legende" aria-hidden="true"><span>${ico(Z.uhr)}${esc(t('uebersicht.legende.bestzeit'))}</span><span>${ico(Z.drehung)}${esc(t('uebersicht.legende.drehungen'))}</span></p>
       </header>
-      <nav class="ueb-stationen" aria-label="Welten"></nav>
+      <nav class="ueb-stationen" aria-label="${esc(t('uebersicht.welten'))}"></nav>
       <div class="ueb-pager">
-        <button class="ueb-schritt" data-schritt="-1" aria-label="Vorige Welt">${ico(Z.links)}</button>
+        <button class="ueb-schritt" data-schritt="-1" aria-label="${esc(t('uebersicht.vorige'))}">${ico(Z.links)}</button>
         <div class="ueb-seitentitel"></div>
-        <button class="ueb-schritt" data-schritt="1" aria-label="Nächste Welt">${ico(Z.rechts)}</button>
+        <button class="ueb-schritt" data-schritt="1" aria-label="${esc(t('uebersicht.naechste'))}">${ico(Z.rechts)}</button>
       </div>
       <div class="ueb-fenster"><div class="ueb-spur"></div></div>
-      <footer class="ueb-fuss"><button class="ueb-schliessen" aria-label="Schliessen">${ico(Z.zu)}<span>Schliessen</span></button></footer>
+      <footer class="ueb-fuss"><button class="ueb-schliessen" aria-label="${esc(t('uebersicht.schliessen'))}">${ico(Z.zu)}<span>${esc(t('uebersicht.schliessen'))}</span></button></footer>
     </div>
     <p class="ueb-hinweis" role="status"></p>`;
   const $ = (sel) => root.querySelector(sel);
@@ -163,7 +165,7 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
    */
   function baueReihen(d) {
     const r = [];
-    if (d.dorf) r.push({ art: 'dorf', schluessel: 'dorf', name: d.dorf.name ?? 'Im Dorf', icon: d.dorf.icon ?? 'dorf', level: d.dorf.level ?? [] });
+    if (d.dorf) r.push({ art: 'dorf', schluessel: 'dorf', name: d.dorf.name ?? t('geschichte.dorf.titel'), icon: d.dorf.icon ?? 'dorf', level: d.dorf.level ?? [] });
     (d.welten ?? []).forEach((w, i) => r.push({ art: 'welt', schluessel: i, name: w.name, icon: w.icon, level: w.level ?? [] }));
     for (const art of ['dorf', 'welt']) {
       let frei = true;
@@ -191,24 +193,25 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
   /** «4 / 10 · ◷ 6:12» (sichtbar) und «Meer: 4 von 10 gelöst, Summe der Bestzeiten …» (Bildschirmleser) */
   const standHtml = (re) => `<span>${re.geloest} / ${re.level.length}</span>` +
     (re.mitZeit ? `<span class="ueb-wert">${ico(Z.uhr)}${zeit(re.summe)}</span>` : '');
-  const standText = (re) => `${re.name}: ${re.geloest} von ${re.level.length} gelöst` +
-    (re.mitZeit ? `, Summe der Bestzeiten ${sprichZeit(re.summe)}` : '');
+  const standText = (re) => t(re.mitZeit ? 'uebersicht.aria.reiheMitZeit' : 'uebersicht.aria.reihe',
+    { welt: re.name, n: re.geloest, N: re.level.length, zeit: re.mitZeit ? sprichZeit(re.summe) : '' });
 
   function kachelHtml(re, l) {
     const lvl = re.level[l], z = re.zustand[l], titel = lvl.titel ?? lvl.name ?? '';
-    const art = re.art === 'dorf' ? 'Übung' : 'Level';
+    const dorf = re.art === 'dorf';
     const mitZeit = z === 'geloest' && wert(lvl.bestzeit), mitDr = z === 'geloest' && wert(lvl.drehungen);
     const aktuell = daten.aktuell && daten.aktuell.welt === re.schluessel && daten.aktuell.level === l;
     let unten = '';
     if (z === 'gesperrt') unten = `<span class="ueb-schloss">${ico(Z.schloss)}</span>`;
-    else if (z === 'offen' || z === 'frei') unten = `<span class="ueb-los">${re.art === 'dorf' ? 'Üben' : 'Weiter'}${ico(Z.rechts)}</span>`;
+    else if (z === 'offen' || z === 'frei') unten = `<span class="ueb-los">${esc(t(dorf ? 'uebersicht.ueben' : 'uebersicht.weiter'))}${ico(Z.rechts)}</span>`;
     else unten = (mitZeit ? `<span class="ueb-wert">${ico(Z.uhr)}${zeit(lvl.bestzeit)}</span>` : '<span></span>') +
       (mitDr ? `<span class="ueb-wert">${ico(Z.drehung)}${Math.round(lvl.drehungen)}</span>` : '');
-    const sprache = [`${art} ${l + 1}`, titel, z === 'gesperrt' ? 'gesperrt'
-      : z === 'offen' ? (re.art === 'dorf' ? 'als Nächstes zu üben' : 'als Nächstes zu spielen') : z === 'frei' ? 'frei' : 'gelöst'];
-    if (mitZeit) sprache.push(`Bestzeit ${sprichZeit(lvl.bestzeit)}`);
-    if (mitDr) sprache.push(`wenigste ${drehungen(Math.round(lvl.drehungen))}`);
-    if (aktuell) sprache.push('läuft gerade');
+    const zustand = z === 'offen' ? (dorf ? 'offenUeben' : 'offenSpielen') : z;
+    const sprache = [t(dorf ? 'uebersicht.aria.uebung' : 'uebersicht.aria.level', { n: l + 1 }), titel,
+      t(`uebersicht.aria.${zustand}`)];
+    if (mitZeit) sprache.push(t('uebersicht.aria.bestzeit', { zeit: sprichZeit(lvl.bestzeit) }));
+    if (mitDr) sprache.push(t('uebersicht.aria.wenigste', { drehungen: drehungen(Math.round(lvl.drehungen)) }));
+    if (aktuell) sprache.push(t('uebersicht.aria.laeuft'));
     return `<li><button class="ueb-kachel ueb-${z}" tabindex="-1" aria-label="${esc(sprache.join(', '))}"` +
       `${z === 'gesperrt' ? ' aria-disabled="true"' : ''}${aktuell ? ' aria-current="true"' : ''}>` +
       `<span class="ueb-nr">${l + 1}</span>${z === 'geloest' ? '<span class="ueb-punkt"></span>' : ''}` +
@@ -238,10 +241,10 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
     const summe = welten.reduce((s, re) => s + re.summe, 0), alleZeiten = welten.every((re) => re.mitZeit === re.level.length);
     gradEl.innerHTML = `<span class="ueb-gradzeile" aria-hidden="true"><span class="ueb-pips">${[1, 2, 3, 4]
       .map((i) => `<i${i <= g.punkte ? ' class="ueb-an"' : ''}></i>`).join('')}</span><span class="ueb-gradname">${esc(g.name)}</span></span>` +
-      `<span class="ueb-fortschritt" aria-hidden="true">${geschafft ? `${STERN}<span>Geschafft</span><span class="ueb-trenn">·</span>` : ''}` +
+      `<span class="ueb-fortschritt" aria-hidden="true">${geschafft ? `${STERN}<span>${esc(t('uebersicht.geschafft'))}</span><span class="ueb-trenn">·</span>` : ''}` +
       `<span>${geloest} / ${gesamt}</span>${geschafft && alleZeiten ? `<span class="ueb-trenn">·</span><span class="ueb-wert">${ico(Z.uhr)}${zeit(summe)}</span>` : ''}</span>` +
-      `<span class="ueb-sr">${esc(g.name)}, ${geschafft ? 'geschafft, ' : ''}${geloest} von ${gesamt} Level gelöst` +
-      `${geschafft && alleZeiten ? `, Summe der Bestzeiten ${sprichZeit(summe)}` : ''}</span>`;
+      `<span class="ueb-sr">${esc(t(`uebersicht.aria.grad${geschafft ? 'Geschafft' : ''}${geschafft && alleZeiten ? 'MitZeit' : ''}`,
+        { grad: g.name, n: geloest, N: gesamt, zeit: geschafft && alleZeiten ? sprichZeit(summe) : '' }))}</span>`;
     root.classList.toggle('ueb-geschafft', geschafft);
     spur.innerHTML = reihen.map(reiheHtml).join('');
   }
@@ -328,7 +331,7 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
       if (k === naechster) wagenTeil += `<circle class="ueb-h-ring" cx="${f(x)}" cy="${f(y)}" r="${f(r + 6)}"/>`;
     }
     const [px, py] = P(polar);
-    name(px, py, HIMMEL.richtung[polar - 1], Math.max(12, 4 * s), 'Polarstern', '', geschafft ? 'ueb-an' : '');
+    name(px, py, HIMMEL.richtung[polar - 1], Math.max(12, 4 * s), t('welt.polarstern'), '', geschafft ? 'ueb-an' : '');
     stationen.innerHTML = `<svg class="ueb-himmel" viewBox="0 0 ${f(W)} ${f(H)}" aria-hidden="true" focusable="false">`
       + `<defs><radialGradient id="${uid}-schein"><stop offset="0" stop-color="#fff" stop-opacity="0.8"/>`
       + `<stop offset="0.22" stop-color="#dfe3ff" stop-opacity="0.32"/><stop offset="1" stop-color="#aab4ff" stop-opacity="0"/>`
@@ -492,7 +495,7 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
       const o = offeneKachel(re.art);
       const vor = o && reihen[o[0]];
       const titel = vor ? vor.level[o[1]].titel ?? vor.level[o[1]].name ?? '' : '';
-      sage(vor ? `Gesperrt – erst «${titel}» (${vor.name} ${o[1] + 1}) lösen` : 'Gesperrt', k);
+      sage(vor ? t('uebersicht.gesperrtErst', { titel, welt: vor.name, n: o[1] + 1 }) : t('uebersicht.gesperrt'), k);
       return;
     }
     onPlay({ welt: re.schluessel, level: l, wiederholen: z === 'geloest', eintrag: re.level[l] });

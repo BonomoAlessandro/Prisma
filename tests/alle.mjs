@@ -1,5 +1,6 @@
 // Alle Node-Tests ohne Browser nacheinander (npm test; Ticket 02 von .scratch/umbau/): golden ohne --write, die
-// Strahllogik samt Build und Dev-Server, Hall, Speicherschicht und Testschnittstelle (Ticket 05), Vorrat, Geschichte, Levelliste, Würfelliste, KI-Tester, Beurteilung und
+// Strahllogik samt Build und Dev-Server, Hall, Speicherschicht und Testschnittstelle (Ticket 05), Übersetzungsschicht
+// (Ticket 07), Vorrat, Geschichte, Levelliste, Würfelliste, KI-Tester, Beurteilung und
 // Generator, dazu die Typen (tsc, Ticket 04) und die Sperre von leise.sh (mit eigenen Pfaden). Läuft jeder bis zum Ende, auch wenn einer scheitert; am Schluss die Übersicht. Schwer (mehrere Minuten,
 // der Generator rechnet auf allen Kernen): nur über tools/leise.sh, etwa
 //   LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 3600 npm test
@@ -15,6 +16,7 @@ const ALLE = {
   hall: 'hall.test.mjs',
   speicher: 'speicher.test.mjs',
   testschnittstelle: 'testschnittstelle.test.mjs',
+  texte: 'texte.test.mjs',
   vorrat: 'vorrat.test.mjs',
   geschichte: 'geschichte.test.mjs',
   levelliste: 'levelliste.test.mjs',

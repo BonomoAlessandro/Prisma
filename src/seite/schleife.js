@@ -24,9 +24,10 @@ import { himmelsWagen } from './geschichte/daten.js';
 import { menu, story, uebersicht } from './geschichte/geschichte.js';
 import { adaptiveResolution, renderReflection, sceneTime } from './aufloesung.js';
 import {
-  COLORS, createBoard, geraeteText, isRotatable, LEVELS, mod8, NEBENBEI, STORY_LEVELS, TUTORIAL_COUNT,
+  COLORS, createBoard, isRotatable, LEVELS, mod8, NEBENBEI, STORY_LEVELS, TUTORIAL_COUNT,
 } from '../logik.js';
 import { progress } from '../spielstand.js';
+import { levelTitel, t } from '../texte/sprache.js';
 import { neueAufgabe } from './aufgabe.ts';
 import { alsGlobal } from './testschnittstelle.ts';
 
@@ -288,8 +289,8 @@ seitenstart();
 
 // Testschnittstelle: Diese Namen lesen Proben als globale Namen (src/seite/testschnittstelle.ts)
 alsGlobal({
-  COLORS: () => COLORS, draw: () => draw, geraeteText: () => geraeteText, isRotatable: () => isRotatable,
-  LEVELS: () => LEVELS, NEBENBEI: () => NEBENBEI, STORY_LEVELS: () => STORY_LEVELS,
+  COLORS: () => COLORS, draw: () => draw, isRotatable: () => isRotatable, levelTitel: () => levelTitel,
+  LEVELS: () => LEVELS, NEBENBEI: () => NEBENBEI, STORY_LEVELS: () => STORY_LEVELS, t: () => t,
   TUTORIAL_COUNT: () => TUTORIAL_COUNT,
 }, { draw: (f) => { draw = f; } });
 

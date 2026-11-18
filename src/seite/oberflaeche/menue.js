@@ -1,5 +1,6 @@
 // Menü der Geschichte (Sternkarte mit Reitern) (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
 import './ui.js';
+import { setzeSprache, sprache, spracheName, t, VORHANDEN } from '../../texte/sprache.js';
 
 /* =====================================================================
    MENÜ DER GESCHICHTE (Ticket 05; seit Ticket 08 von .scratch/kleiner-wagen/ «Sternkarte mit Reitern», Variante F des
@@ -10,8 +11,10 @@ import './ui.js';
    zuletzt gespielten, nicht geschafften Grads; ihn zeigt das Menü beim Öffnen. Ist seit dem letzten Zeigen eines Grads
    (in dieser Sitzung) ein Stern erwacht, blitzt er auf, und seine Linien ziehen sich (der Moment aus dem Katalog).
    Desktop und Handy quer: Reiter links untereinander, die Karte daneben, der Knopf darunter; Handy hoch: Reiter oben
-   als Segmente, darunter Karte und Stand, der Knopf ganz unten in Reichweite des Daumens. Gestalt im Stil (Präfix
-   menue-). Der Baustein .scratch/noa-geschichte/bausteine/menue/ («Lichtwege») ist damit überholt.
+   als Segmente, darunter Karte und Stand, der Knopf ganz unten in Reichweite des Daumens. Oben rechts der Schalter
+   der Sprache (Ticket 07 von .scratch/umbau/; das Spiel hat keine eigenen Einstellungen): Globus und der Name der
+   Sprache, ein Klick wechselt zur nächsten und lädt neu. Texte über die Übersetzungsschicht (t). Gestalt im Stil
+   (Präfix menue-). Der Baustein .scratch/noa-geschichte/bausteine/menue/ («Lichtwege») ist damit überholt.
 
      const menu = createMenu({ root, onAction, wagen });
      menu.show(stand);   // einblenden; ist es offen, mit dem neuen Stand neu zeichnen (Fokus und Reiter bleiben)
@@ -34,21 +37,22 @@ import './ui.js';
 const createMenu = (() => {
   /** Die Grade in der Reihenfolge des Menüs; id wie das Feld grad in LEVELS (GRAD_ANZEIGE im Spiel). */
   const GRADE = [
-    { id: 'leicht', name: 'Leicht', punkte: 1 },
-    { id: 'mittel', name: 'Mittel', punkte: 2 },
-    { id: 'schwer', name: 'Schwer', punkte: 3 },
-    { id: 'sehr schwer', name: 'Sehr schwer', punkte: 4 },
+    { id: 'leicht', name: t('grad.leicht'), punkte: 1 },
+    { id: 'mittel', name: t('grad.mittel'), punkte: 2 },
+    { id: 'schwer', name: t('grad.schwer'), punkte: 3 },
+    { id: 'sehr schwer', name: t('grad.sehrSchwer'), punkte: 4 },
   ];
   /** Die sechs Welten eines Durchgangs, Welt i weckt Stern i + 1; vor der ersten Welt ist das Licht im Dorf. */
-  const WELTEN = [
-    { id: 'wald', name: 'Bergwald' }, { id: 'meer', name: 'Meer' }, { id: 'wueste', name: 'Wüste' },
-    { id: 'vulkan', name: 'Vulkan' }, { id: 'planeten', name: 'Planeten' }, { id: 'sterne', name: 'Sterne' },
-  ];
+  const WELTEN = ['wald', 'meer', 'wueste', 'vulkan', 'planeten', 'sterne'].map((id) => ({ id, name: t(`welt.${id}`) }));
   const JE_WELT = 10;
   const LEVEL = WELTEN.length * JE_WELT; // 60 je Grad
-  /** Zeichen im Strich der STORY_ICONS: «Von vorn» wie «Level neu starten» im Spiel. */
-  const ICONS = { neu: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.2h3.2"/>' };
-  const AKTION = { weiter: 'Weiter', beginnen: 'Beginnen', fortsetzen: 'Fortsetzen', uebersicht: 'Übersicht', vonvorn: 'Von vorn' };
+  /** Zeichen im Strich der STORY_ICONS: «Von vorn» wie «Level neu starten» im Spiel; die Sprache ein Globus. */
+  const ICONS = {
+    neu: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.2h3.2"/>',
+    sprache: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5s1.2-6.2 3.6-8.5z"/>',
+  };
+  const AKTION = Object.fromEntries(['weiter', 'beginnen', 'fortsetzen', 'uebersicht', 'vonvorn']
+    .map((a) => [a, t(`menue.aktion.${a}`)]));
   // gleich wie im CSS des Menüs
   const HOCH = '(max-width: 600px) and (orientation: portrait)';
   const STILL = '(prefers-reduced-motion: reduce)';
@@ -110,15 +114,16 @@ const createMenu = (() => {
     else if (stand?.hervorheben && zuletzt?.art === 'geschafft') hervor = grade.slice(zuletzt.i + 1).find((g) => g.art !== 'geschafft') ?? null;
     return { grade, zuletzt, weiter, hervor };
   }
-  const weltName = (g) => (g.dorf ? 'Dorf' : WELTEN[g.welt].name);
-  const ariaStand = (g) => (g.art === 'geschafft' ? 'geschafft, Polarstern erreicht' : g.art === 'neu' ? 'noch nicht begonnen'
-    : `begonnen, ${g.dorf ? 'im Dorf' : weltName(g)}, ${g.geloest} von ${LEVEL} Leveln gelöst`);
-  const wohin = (g) => (g.art === 'neu' ? `${g.name} · noch nicht begonnen` : g.art === 'geschafft' ? `${g.name} · geschafft`
-    : `${g.name} · ${weltName(g)} ${g.geloest} / ${LEVEL}`);
+  const weltName = (g) => (g.dorf ? t('welt.dorf') : WELTEN[g.welt].name);
+  const ariaStand = (g) => (g.art === 'geschafft' ? t('menue.aria.geschafft') : g.art === 'neu' ? t('menue.neu')
+    : t('menue.aria.begonnen', { wo: g.dorf ? t('menue.imDorf') : weltName(g), n: g.geloest, N: LEVEL }));
+  const wohin = (g) => (g.art === 'neu' ? t('menue.wohin.neu', { grad: g.name })
+    : g.art === 'geschafft' ? t('menue.wohin.geschafft', { grad: g.name })
+      : t('menue.wohin.begonnen', { grad: g.name, welt: weltName(g), n: g.geloest, N: LEVEL }));
   /** Was als Nächstes am Himmel des Grads geschieht (Handy hoch, unter der Karte). */
-  const fein = (g) => (g.art === 'geschafft' ? 'Alle sieben Sterne sind wach' : g.art === 'neu' ? 'Alle Sterne schlafen'
-    : g.naechster ? `Als Nächstes erwacht Stern ${g.naechster}: ${WELTEN[g.naechster - 1].name}`
-      : 'Nur der Polarstern wartet noch');
+  const fein = (g) => (g.art === 'geschafft' ? t('menue.fein.geschafft') : g.art === 'neu' ? t('menue.fein.neu')
+    : g.naechster ? t('menue.fein.naechster', { n: g.naechster, welt: WELTEN[g.naechster - 1].name })
+      : t('menue.fein.polarstern'));
 
   /* ---------- Baustein ---------- */
 
@@ -134,7 +139,7 @@ const createMenu = (() => {
     root.inert = true;
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-modal', 'true');
-    root.setAttribute('aria-label', 'Menü');
+    root.setAttribute('aria-label', t('menue.name'));
     root.innerHTML = `
       <svg class="menue-defs" aria-hidden="true" focusable="false"><defs>
         <radialGradient id="${uid}-hof"><stop offset="0" stop-color="#ffffff" stop-opacity="0.6"/><stop offset="0.22" stop-color="#cdd4ff" stop-opacity="0.26"/><stop offset="1" stop-color="#aab4ff" stop-opacity="0"/></radialGradient>
@@ -148,21 +153,22 @@ const createMenu = (() => {
         </symbol>
       </defs></svg>
       <div class="menue-inhalt">
-        <header class="menue-kopf"><h2 class="menue-titel">Prisma</h2><p class="menue-unter">Ein Lichtsignal an die Sterne</p></header>
-        <ol class="menue-grade" aria-label="Grade"></ol>
+        <header class="menue-kopf"><h2 class="menue-titel">Prisma</h2><p class="menue-unter">${esc(t('start.untertitel'))}</p></header>
+        <ol class="menue-grade" aria-label="${esc(t('menue.grade'))}"></ol>
         <div class="menue-karte" aria-hidden="true"><svg class="menue-sternkarte" focusable="false"></svg></div>
         <div class="menue-info" aria-hidden="true"><span class="menue-info-name"></span><span class="menue-stand"></span><span class="menue-fein"></span></div>
         <div class="menue-knoepfe">
           <button type="button" class="menue-weiter" data-menue-fokus="weiter"><span class="menue-was"></span><span class="menue-wohin"></span></button>
         </div>
+        <button type="button" class="menue-sprache" data-menue-fokus="sprache" aria-label="${esc(t('menue.sprache', { sprache: spracheName(sprache) }))}">${icon('sprache')}<span>${esc(spracheName(sprache))}</span></button>
       </div>
       <div class="menue-frage menue-aus" role="alertdialog" aria-modal="true" aria-labelledby="${uid}-frage-titel" aria-describedby="${uid}-frage-text" hidden>
         <div class="menue-frage-box">
           <h3 class="menue-frage-titel" id="${uid}-frage-titel"></h3>
           <p class="menue-frage-text" id="${uid}-frage-text"></p>
           <div class="menue-frage-knoepfe">
-            <button type="button" class="menue-pille" data-menue-frage="nein">Abbrechen</button>
-            <button type="button" class="menue-pille menue-pille-ja" data-menue-frage="ja">Von vorn</button>
+            <button type="button" class="menue-pille" data-menue-frage="nein">${esc(t('menue.frage.abbrechen'))}</button>
+            <button type="button" class="menue-pille menue-pille-ja" data-menue-frage="ja">${esc(AKTION.vonvorn)}</button>
           </div>
         </div>
       </div>
@@ -176,6 +182,11 @@ const createMenu = (() => {
     const knopf = $('.menue-weiter'), knoepfe = $('.menue-knoepfe'), info = $('.menue-info');
     const frageEl = $('.menue-frage'), sr = $('.menue-sr');
     const neinBtn = $('[data-menue-frage="nein"]'), jaBtn = $('[data-menue-frage="ja"]');
+    // Sprache (Ticket 07 von .scratch/umbau/): die nächste der Sprachen mit Datei; die Seite lädt dann neu
+    // (setzeSprache). Mit nur einer Sprache bleibt alles, wie es ist.
+    $('.menue-sprache').addEventListener('click', () => {
+      if (offen && !gesperrt) setzeSprache(VORHANDEN[(VORHANDEN.indexOf(sprache) + 1) % VORHANDEN.length]);
+    });
 
     let daten = lies({}, uebersicht);
     let offen = false;
@@ -199,8 +210,8 @@ const createMenu = (() => {
 
     function standEl(el, g) {
       el.replaceChildren();
-      if (g.art === 'geschafft') { el.innerHTML = stern(); el.append(make('span', '', 'Geschafft')); }
-      else if (g.art === 'neu') el.textContent = 'noch nicht begonnen';
+      if (g.art === 'geschafft') { el.innerHTML = stern(); el.append(make('span', '', t('menue.geschafft'))); }
+      else if (g.art === 'neu') el.textContent = t('menue.neu');
       else el.append(make('span', '', weltName(g)), make('span', 'menue-trenn', '·'), make('span', 'menue-zahl', `${g.geloest} / ${LEVEL}`));
     }
     function render() {
@@ -214,7 +225,8 @@ const createMenu = (() => {
         const wahl = make('button', 'menue-wahl');
         wahl.type = 'button';
         wahl.dataset.menueFokus = `wahl:${g.id}`;
-        wahl.setAttribute('aria-label', `${g.name}: ${ariaStand(g)}${g === daten.hervor ? ', als Nächstes empfohlen' : ''}. ${AKTION[aktionVon(g)]}`);
+        wahl.setAttribute('aria-label', t(g === daten.hervor ? 'menue.aria.wahlEmpfohlen' : 'menue.aria.wahl',
+          { grad: g.name, stand: ariaStand(g), aktion: AKTION[aktionVon(g)] }));
         const zeile = make('span', 'menue-zeile1');
         const pips = make('span', 'menue-pips');
         for (let k = 1; k <= 4; k++) pips.append(make('i', k <= g.punkte ? 'menue-on' : ''));
@@ -231,9 +243,9 @@ const createMenu = (() => {
           const vv = make('button', 'menue-vonvorn');
           vv.type = 'button';
           vv.dataset.menueFokus = `vonvorn:${g.id}`;
-          vv.setAttribute('aria-label', `${g.name} von vorn beginnen`);
+          vv.setAttribute('aria-label', t('menue.aria.vonvorn', { grad: g.name }));
           vv.setAttribute('aria-haspopup', 'dialog');
-          vv.innerHTML = `${icon('neu')}<span>Von vorn</span>`;
+          vv.innerHTML = `${icon('neu')}<span>${esc(AKTION.vonvorn)}</span>`;
           vv.addEventListener('click', () => oeffneFrage(g, vv));
           knoepfe.append(vv);
         }
@@ -252,7 +264,7 @@ const createMenu = (() => {
       const a = aktionVon(g);
       knopf.querySelector('.menue-was').textContent = AKTION[a];
       knopf.querySelector('.menue-wohin').textContent = wohin(g);
-      knopf.setAttribute('aria-label', `${AKTION[a]}: ${g.name}, ${ariaStand(g)}`);
+      knopf.setAttribute('aria-label', t('menue.aria.knopf', { aktion: AKTION[a], grad: g.name, stand: ariaStand(g) }));
       if (a === 'vonvorn') knopf.setAttribute('aria-haspopup', 'dialog'); else knopf.removeAttribute('aria-haspopup');
       info.querySelector('.menue-info-name').textContent = g.name;
       standEl(info.querySelector('.menue-stand'), g);
@@ -346,7 +358,7 @@ const createMenu = (() => {
         const cls = k === polar ? `menue-polar${an ? ' menue-an' : ''}`
           : `menue-welt${an ? ' menue-an' : k === g.naechster ? ' menue-jetzt' : ''}`;
         namen += `<text class="menue-etikett ${cls}" x="${f(tx)}" y="${f(ty)}" text-anchor="${anker}" dominant-baseline="${lage}">`
-          + `<tspan x="${f(tx)}" dy="${d1}">${esc(k === polar ? 'Polarstern' : WELTEN[k - 1].name)}</tspan>`
+          + `<tspan x="${f(tx)}" dy="${d1}">${esc(k === polar ? t('welt.polarstern') : WELTEN[k - 1].name)}</tspan>`
           + (zahl ? `<tspan class="menue-klein" x="${f(tx)}" dy="${d2}">${zahl}</tspan>` : '') + '</text>';
       }
       svg.setAttribute('viewBox', `0 0 ${f(W)} ${f(H)}`);
@@ -396,10 +408,9 @@ const createMenu = (() => {
       clearTimeout(zeitFrage);
       frage = g;
       frageVon = von?.dataset.menueFokus ?? null;
-      $('.menue-frage-titel').textContent = `${g.name} von vorn beginnen?`;
-      $('.menue-frage-text').textContent = g.art === 'geschafft'
-        ? `Der Stand dieses Grads wird gelöscht, auch der erreichte Polarstern. Die anderen Grade bleiben, wie sie sind.`
-        : `Der Stand dieses Grads wird gelöscht (${g.dorf ? 'im Dorf' : weltName(g)}, ${g.geloest} von ${LEVEL} Leveln). Die anderen Grade bleiben, wie sie sind.`;
+      $('.menue-frage-titel').textContent = t('menue.frage.titel', { grad: g.name });
+      $('.menue-frage-text').textContent = g.art === 'geschafft' ? t('menue.frage.geschafft')
+        : t('menue.frage.begonnen', { wo: g.dorf ? t('menue.imDorf') : weltName(g), n: g.geloest, N: LEVEL });
       inhalt.inert = true;
       frageEl.hidden = false;
       void frageEl.offsetWidth; // erst sichtbar setzen, dann einblenden
@@ -421,7 +432,7 @@ const createMenu = (() => {
       fokussiere(`wahl:${g.id}`); // vor onAction: ein show() darin behält den Fokus beim Grad
       melde('vonvorn', g);
       fokussiere(`wahl:${g.id}`) || fokussiere(startFokus());
-      sage(`${g.name}: Stand gelöscht.`);
+      sage(t('menue.geloescht', { grad: g.name }));
     }
     neinBtn.addEventListener('click', () => schliesseFrage(false));
     jaBtn.addEventListener('click', () => schliesseFrage(true));

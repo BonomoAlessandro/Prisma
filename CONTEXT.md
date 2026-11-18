@@ -283,6 +283,15 @@ Schlüssel und Format des Spielstands bleiben dabei gleich (Umbau für die Store
 Schlüssel und Format in `src/spielstand.js`.
 _Vermeiden_: Datenbank, Cloud-Speicher (für die Schicht selbst), Savegame
 
+**Übersetzungsschicht**:
+Der einzige Weg zu einem Text, den der Spieler sieht: Der Code nennt einen Schlüssel, `t('schluessel', { werte })`
+holt den Text aus der Datei der Sprache (`src/texte/de.json`, je Sprache eine Datei). Fehlt dort ein Schlüssel, gilt
+der deutsche Text. Werte stehen als Platzhalter im Text («Übung {n} / {N}»), die Befehlsform je Gerät ebenso («{Tippe}»
+ist am Handy «Tippe», mit der Maus «Klicke»). Auch die Titel der Level (unter ihrem Namen) und die Sätze der Führung
+stehen dort; die Leveldaten nennen nur Schlüssel. Die Sprache ist beim ersten Start die des Geräts, danach die im Menü
+gewählte (Speicherschicht, `prisma.sprache`). Umbau für die Stores, Ticket 07; im Code `src/texte/`.
+_Vermeiden_: i18n, Lokalisierung (für die Schicht selbst), Sprachpaket
+
 **Testschnittstelle**:
 `window.__prismaDebug`, nur über die Konsole: Werkzeuge, Proben und die Bilder der KI-Tester steuern das Spiel damit.
 Sie bietet keinen Weg, ein Level zu überspringen; auch Taste N und `?signal` gibt es nicht mehr (ADR 0005).
@@ -317,8 +326,10 @@ _Vermeiden_: Name für das, was der Spieler in der Geschichte liest (das ist der
 
 **Titel**:
 Der Anzeigename eines Levels der Geschichte (`titel`): ein oder zwei Wörter, die zu seiner Welt passen, eindeutig über
-alle Titel und Namen. Das Spiel zeigt den Titel, sonst den Namen (die Übungen im Dorf). Ein Titel gehört zum Platz in
-der Welt: Ersetzt ein Level ein anderes, behält der Platz seinen Titel; ein Level im Vorrat hat keinen.
+alle Titel und Namen. Das Spiel zeigt den Titel, sonst den Namen; die Übungen im Dorf haben ihren Namen als Titel. Ein
+Titel gehört zum Platz in der Welt: Ersetzt ein Level ein anderes, behält der Platz seinen Titel; ein Level im Vorrat
+hat keinen. Seit Ticket 07 des Umbaus steht er in der Übersetzungsschicht (Bereich `titel` je Sprache), nicht mehr in
+den Leveldaten.
 
 **Vorrat**:
 Die Level, die nicht im Spiel stehen, aber jederzeit zurückkommen können: die nicht gewählten flachen Level und alle

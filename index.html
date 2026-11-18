@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Prisma – Licht-Puzzle</title>
-<meta name="description" content="Ein 3D-Licht-Puzzle: Spiegel, Prismen und Filter lenken das Licht zu farbigen Kristallen.">
+<title data-t="seite.titel">Prisma – Licht-Puzzle</title>
+<meta name="description" content="Ein 3D-Licht-Puzzle: Spiegel, Prismen und Filter lenken das Licht zu farbigen Kristallen." data-t-content="seite.beschreibung">
 <meta name="apple-mobile-web-app-title" content="Prisma">
 <link rel="icon" href="favicon.svg" type="image/svg+xml" vite-ignore>
 <link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192" vite-ignore>
@@ -85,31 +85,31 @@ if (SEITE !== 1) {
     <div class="band-neben" hidden></div>
     <div class="band-kasten">
       <div class="band-punkte" aria-hidden="true"></div>
-      <div class="band-zeile"><p class="band-satz" aria-live="polite"></p><button type="button" class="fuehrung-weiter" hidden>Weiter</button></div>
+      <div class="band-zeile"><p class="band-satz" aria-live="polite"></p><button type="button" class="fuehrung-weiter" data-t="fuehrung.weiter" hidden></button></div>
     </div>
   </div>
 </div>
 
-<nav id="controls" class="hidden" inert aria-label="Steuerung">
-  <button id="btn-restart" title="Level neu starten (R)" aria-label="Level neu starten">
+<nav id="controls" class="hidden" inert data-t-aria-label="steuerung.name">
+  <button id="btn-restart" data-t-title="steuerung.neustart.titel" data-t-aria-label="steuerung.neustart.name">
     <svg viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.2h3.2"/></svg>
   </button>
-  <button id="btn-sound" title="Ton an/aus (M)" aria-label="Ton aus" aria-pressed="false">
+  <button id="btn-sound" data-t-title="steuerung.ton.titel" data-t-aria-label="steuerung.ton.aus" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M4 9.5h3l4.5-4v13l-4.5-4H4z"/><path class="on" d="M15 9a4 4 0 0 1 0 6M17.5 6.5a7.5 7.5 0 0 1 0 11"/><path class="off" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></svg>
   </button>
-  <button id="btn-overview" title="Übersicht (L)" aria-label="Übersicht" hidden>
+  <button id="btn-overview" data-t-title="steuerung.uebersicht.titel" data-t-aria-label="steuerung.uebersicht.name" hidden>
     <svg viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="5.5" height="5.5" rx="1"/><rect x="14" y="4.5" width="5.5" height="5.5" rx="1"/><rect x="4.5" y="14" width="5.5" height="5.5" rx="1"/><rect x="14" y="14" width="5.5" height="5.5" rx="1"/></svg>
   </button>
-  <button id="btn-menu" title="Menü (Esc)" aria-label="Menü">
+  <button id="btn-menu" data-t-title="steuerung.menue.titel" data-t-aria-label="steuerung.menue.name">
     <svg viewBox="0 0 24 24"><path d="M5 7.5h14M5 12h14M5 16.5h14"/></svg>
   </button>
 </nav>
 
 <div id="solved" class="hidden" inert aria-live="polite">
-  <div class="msg" id="solved-msg">Level gelöst</div>
+  <div class="msg" id="solved-msg" data-t="geloest.level"></div>
   <div class="best" id="solved-best"></div>
   <div class="stats" id="solved-stats"></div>
-  <button id="btn-next">Weiter</button>
+  <button id="btn-next" data-t="geloest.weiter"></button>
 </div>
 
 <div id="story" class="hidden" inert aria-live="polite" tabindex="-1">
@@ -120,7 +120,7 @@ if (SEITE !== 1) {
     <div class="tap"></div>
   </div>
 </div>
-<button id="btn-skip" class="hidden" type="button" inert>Überspringen</button>
+<button id="btn-skip" class="hidden" type="button" data-t="geschichte.ueberspringen" inert></button>
 <div id="lade" aria-hidden="true"></div> <!-- Ladezeichen: der Kleine Wagen, solange die Geschichte auf einen Himmel wartet (ladeZeichen) -->
 
 <div id="menue"></div> <!-- Menü der Geschichte (createMenu füllt es) -->
@@ -149,8 +149,8 @@ if (SEITE !== 1) {
       </svg>
     </div>
   </div>
-  <div class="sub">Ein Lichtsignal an die Sterne</div>
-  <button class="start"><span>Tippen zum Starten</span></button>
+  <div class="sub" data-t="start.untertitel"></div>
+  <button class="start"><span data-t="start.tippen"></span></button>
 </div>
 
 <script src="vendor/three-0.147.0/three.min.js" vite-ignore></script>
