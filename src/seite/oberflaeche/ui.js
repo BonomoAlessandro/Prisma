@@ -8,7 +8,7 @@ import { CUBE_START, fillTier, flow, restartLevel } from '../levelfluss.js';
 import { $, IS_TOUCH } from './dom.ts';
 import { story, vorwaermenVorStart } from '../geschichte/geschichte.js';
 import { LEVELS, TUTORIAL_COUNT } from '../../logik.js';
-import { levelTitel, t } from '../../texte/sprache.js';
+import { beiSprachwechsel, levelTitel, t } from '../../texte/sprache.js';
 
 /** Sekunden als m:ss bzw. h:mm:ss. */
 function formatDuration(seconds) {
@@ -48,6 +48,9 @@ const ui = {
   next: $('btn-next'), overview: $('btn-overview'),
   intro: $('intro'),
   canStart: false, // „Klicken zum Starten“ ist da (siehe init)
+  hudIndex: null,  // die Kopfzeile zeigt dieses Level (showHud); ein Wechsel der Sprache schreibt sie neu
+  ziel: [0, 0],    // so viele Ziele leuchten, von so vielen (showGoal)
+  geloest: null,   // «Gelöst» zeigt(e) { index, stats } (showSolved)
 
   init() {
     $('btn-restart').addEventListener('click', () => restartLevel());
@@ -58,6 +61,7 @@ const ui = {
     this.intro.addEventListener('click', () => this.start());
     this.intro.querySelector('.start span').textContent = t('start.tippen', { touch: IS_TOUCH });
     this.updateSound();
+    beiSprachwechsel(() => this.sprachwechsel());
     // Enthüllung starten, sobald die Schrift geladen ist (spätestens nach 0,8 s), ohne auf die Szene zu warten (Ticket 03
     // der Leistung). Kein sichtbares Bild: Die Szene liegt hinter dem deckenden Startbildschirm und wird davor nur einmal
     // gezeichnet (aufwaermen; was das erste Bild bei three einrichtet, hielte sonst die Enthüllung an). Sind ihre Shader
@@ -101,8 +105,18 @@ const ui = {
     this.hud.classList.toggle('tutorial', !!lvl.tutorial || lvl.dim === 3);
     this.hud.classList.toggle('geschichte', story.drives(index)); // Handy quer: die Unterzeile bleibt (CSS)
     this.overview.hidden = !story.drives(index); // die Übersicht gibt es nur in einem Level der Geschichte
+    this.hudIndex = index;
+    this.hudTexte(index);
+    this.showGoal(0, game.board.elements.filter(e => e.type === 'target').length);
+    // unter dem offenen Menü nicht (ein Level, das beim Öffnen gerade wechselte, wächst dahinter fertig heraus)
+    this.hud.classList.toggle('hidden', story.choosing);
+    if (story.choosing) fuehrung.verbergen(); else fuehrung.zeigen();
+  },
+  /** Die Texte der Kopfzeile zum Level index: Titel, Grad, Unterzeile (showHud, Wechsel der Sprache). */
+  hudTexte(index) {
+    const lvl = LEVELS[index];
     fillTier(this.tier, lvl);
-    this.grad.hidden = true;
+    fillTier(this.grad, {}); // verborgen und leer (sonst stünde dort der Grad eines früheren Levels, alte Sprache)
     // eine Übung ausserhalb der Führung zeigt ihren ersten Schritt (Testschnittstelle zeige)
     const hinweis = () => (lvl.schritte ? t(lvl.schritte[0].text, { touch: IS_TOUCH }) : '');
     if (story.drives(index)) {
@@ -137,13 +151,10 @@ const ui = {
       this.title.textContent = levelTitel(lvl);
       this.sub.textContent = '';
     }
-    this.showGoal(0, game.board.elements.filter(e => e.type === 'target').length);
-    // unter dem offenen Menü nicht (ein Level, das beim Öffnen gerade wechselte, wächst dahinter fertig heraus)
-    this.hud.classList.toggle('hidden', story.choosing);
-    if (story.choosing) fuehrung.verbergen(); else fuehrung.zeigen();
   },
   /** Wie viele Ziele schon in ihrer Farbe leuchten – macht die Aufgabe in jedem Level sichtbar. */
   showGoal(lit, total) {
+    this.ziel = [lit, total];
     const text = t('kopf.ziele', { n: lit, N: total });
     if (this.ziele.textContent !== text) this.ziele.textContent = text;
     this.goal.classList.toggle('done', lit === total); // hellt nur die Ziele auf, der Grad hat seine eigene Farbe
@@ -158,6 +169,16 @@ const ui = {
    */
   showSolved(index, stats) {
     if (story.choosing) return;
+    this.geloest = { index, stats };
+    this.geloestTexte(index, stats);
+    const inStory = story.drives(index);
+    this.next.hidden = !inStory;
+    if (inStory) story.preloadNext();
+    setShown(this.solved, true);
+    document.body.classList.add('is-solved'); // Handy quer: Meldung ersetzt die Kopfzeile
+  },
+  /** Texte von «Gelöst» zum Level index: Zeit, Drehungen, Bestmarke, Meldung, «Weiter» (showSolved, Sprachwechsel). */
+  geloestTexte(index, stats) {
     const r = flow.record;
     const stat = (num, unit, best) => {
       const el = document.createElement('span'), n = document.createElement('span'), u = document.createElement('span');
@@ -172,13 +193,10 @@ const ui = {
     // in der Zeile oben (Handy quer: dort ohne Zeit und Drehungen) und für den Bildschirmleser (aria-live)
     this.solvedBest.textContent = [r?.neueBestzeit && t('geloest.neueBestzeit'),
       r?.wenigerDrehungen && t('geloest.wenigerDrehungen')].filter(Boolean).join(' · ');
-    const inStory = story.drives(index);
-    if (inStory) [this.solvedMsg.textContent, this.next.textContent] = story.solvedText();
-    else this.solvedMsg.textContent = t('geloest.level');
-    this.next.hidden = !inStory;
-    if (inStory) story.preloadNext();
-    setShown(this.solved, true);
-    document.body.classList.add('is-solved'); // Handy quer: Meldung ersetzt die Kopfzeile
+    // ausserhalb der Geschichte nur die Meldung («Weiter» ist dort verborgen, showSolved)
+    const [meldung, weiter] = story.drives(index) ? story.solvedText() : [t('geloest.level'), t('geloest.weiter')];
+    this.solvedMsg.textContent = meldung;
+    this.next.textContent = weiter;
   },
   hideSolved() { setShown(this.solved, false); document.body.classList.remove('is-solved'); },
   solvedVisible() { return !this.solved.classList.contains('hidden'); },
@@ -197,6 +215,23 @@ const ui = {
     this.sound.classList.toggle('muted', audio.muted);
     this.sound.setAttribute('aria-pressed', String(audio.muted));
     this.sound.setAttribute('aria-label', t(audio.muted ? 'steuerung.ton.an' : 'steuerung.ton.aus'));
+  },
+
+  /**
+   * Wechsel der Sprache (Ticket 01 von .scratch/sprachwahl/, ohne Neuladen): die Texte mit Zustand neu, die sonst nur
+   * beim Zeigen entstehen, auch verborgen (Kopfzeile und «Gelöst» unter dem Menü): Startbildschirm (je Gerät), Ton (an
+   * oder aus), Kopfzeile des Levels, das sie zuletzt zeigte, samt Zielen, «Gelöst» mit Meldung und «Weiter» nach der
+   * Lage der Geschichte. Die übrigen festen Texte (data-t) setzt die Übersetzungsschicht.
+   */
+  sprachwechsel() {
+    this.intro.querySelector('.start span').textContent = t('start.tippen', { touch: IS_TOUCH });
+    this.updateSound();
+    if (this.hudIndex !== null) {
+      this.hudTexte(this.hudIndex);
+      this.showGoal(...this.ziel);
+    }
+    if (this.geloest) this.geloestTexte(this.geloest.index, this.geloest.stats);
+    else [this.solvedMsg.textContent, this.next.textContent] = [t('geloest.level'), t('geloest.weiter')];
   },
 
   /** Startbildschirm verlassen: Ton freischalten, dann das Menü (story.start); die Knöpfe kommen mit dem Level. */

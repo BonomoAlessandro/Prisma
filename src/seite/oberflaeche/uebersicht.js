@@ -1,6 +1,6 @@
 // Übersicht des Grads (Sternhaufen) (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
 import './menue.js';
-import { sprache, t } from '../../texte/sprache.js';
+import { beiSprachwechsel, sprache, t } from '../../texte/sprache.js';
 
 /* =====================================================================
    ÜBERSICHT DES GRADS (Ticket 06, Spec .scratch/noa-geschichte/, Entscheide 9, 16, 19, 24) — Baustein aus
@@ -18,6 +18,8 @@ import { sprache, t } from '../../texte/sprache.js';
    Beim Einbau geändert (im Baustein nachgeführt): Trennung erst vor einem Rest von vier Buchstaben (Asteroiden-gürtel
    statt Asteroidengür-tel); daten.geschafft (Finale gesehen) statt «alle gelöst» für den Kopf; daten.dorf.frei (nach
    «Überspringen» sind alle Übungen spielbar, Ticket 07).
+   Ein Wechsel der Sprache (Ticket 01 von .scratch/sprachwahl/, ohne Neuladen) schreibt Gerüst und Inhalt neu, offen
+   oder zu, aus denselben Daten: Ihre Namen und Titel holt story.overviewData erst beim Lesen (Getter).
    ===================================================================== */
 
 /**
@@ -52,10 +54,12 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
   const form = wagen?.form ?? [], linien = wagen?.linien ?? [], polar = wagen?.polarstern ?? form.length;
   /** Wischen und Blättern mit den Werten der früheren Levelauswahl (bis Ticket 04 im Spiel) */
   const WISCH = { min: 50, schwelle: 10, steigung: 0.6, gummi: 0.3, ms: 280, easing: 'cubic-bezier(0.25, 0.8, 0.3, 1)' };
-  /** wie GRAD_ANZEIGE im Spiel */
+  /** wie GRAD_ANZEIGE im Spiel (der Name erst beim Lesen, in der aktuellen Sprache) */
   const GRADE = {
-    'leicht': { name: t('grad.leicht'), punkte: 1 }, 'mittel': { name: t('grad.mittel'), punkte: 2 },
-    'schwer': { name: t('grad.schwer'), punkte: 3 }, 'sehr schwer': { name: t('grad.sehrSchwer'), punkte: 4 },
+    'leicht': { get name() { return t('grad.leicht'); }, punkte: 1 },
+    'mittel': { get name() { return t('grad.mittel'); }, punkte: 2 },
+    'schwer': { get name() { return t('grad.schwer'); }, punkte: 3 },
+    'sehr schwer': { get name() { return t('grad.sehrSchwer'); }, punkte: 4 },
   };
   /** eigene Zeichen, im Strich der STORY_ICONS */
   const Z = {
@@ -91,7 +95,8 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
    * kann (Schaum-krone, Feuer-schlund, See-pferd-chen, Luft-spiegelung), sonst vor dem letzten Konsonanten
    * (Asteroiden-gürtel); vorn zwei, hinten vier Buchstaben mindestens (sonst Asteroidengür-tel, Bärenhü-ter). Gebraucht
    * nur, wenn ein Wort auch klein nicht in die Kachel passt (.ueb-brich); sonst trennt das CSS nicht.
-   * Je Sprache eigene Regeln (TRENNREGELN, Ticket 08 des Umbaus; eine Sprache ohne eigene nimmt die deutschen). Englisch:
+   * Je Sprache eigene Regeln (TRENNREGELN, Ticket 08 des Umbaus; eine Sprache ohne eigene nimmt die deutschen; die der
+   * aktuellen Sprache, gelesen bei jedem Aufruf, seit die Sprache ohne Neuladen wechselt). Englisch:
    * die Anlaute englischer Wörter (ohne th, tw, sh: Earth-rise, Drift-wood statt Ear-thrise, Drif-twood); ck und x
    * bleiben bei der Silbe davor; vor einem e, dem gleich wieder Konsonanten folgen, wird nicht getrennt (meist ein
    * stummes e am Ende eines Wortteils: Horse-head, Fire-storm statt Hor-se-head, Fi-re-storm).
@@ -104,9 +109,10 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
       'gr', 'ph', 'pl', 'pr', 'qu', 'sc', 'sk', 'sl', 'sm', 'sn', 'sp', 'st', 'sw', 'tr', 'wr'], amEnde: ['ck', 'x'],
     stummesE: true },
   };
-  const { anlaut: ANLAUT, amEnde: AM_ENDE = [], stummesE: STUMMES_E = false } = TRENNREGELN[sprache] ?? TRENNREGELN.de;
   const SHY = String.fromCharCode(0xad);
   const trenne = (titel) => String(titel ?? '').replace(/\p{L}{9,}/gu, (w) => {
+    const regeln = TRENNREGELN[sprache] ?? TRENNREGELN.de;
+    const { anlaut: ANLAUT, amEnde: AM_ENDE = [], stummesE: STUMMES_E = false } = regeln;
     const klein = w.toLowerCase(), stellen = [];
     for (let i = 1; i < w.length; i++) {
       if (VOKAL.test(klein[i]) || !VOKAL.test(klein[i - 1])) continue; // Anfang einer Gruppe von Konsonanten
@@ -131,6 +137,10 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
     <stop offset="1" stop-color="#aab4ff" stop-opacity="0"/></radialGradient></defs><circle r="46" fill="url(#${uid}-hof)"/>
     <path d="M0-46L2.6-2.6 32 0 2.6 2.6 0 46-2.6 2.6-32 0-2.6-2.6z" fill="#fff"/><circle r="5" fill="#fff"/></svg>`;
 
+  /** Inhalt der Legende im Kopf (Bestzeit, wenigste Drehungen) */
+  const legende = () => `<span>${ico(Z.uhr)}${esc(t('uebersicht.legende.bestzeit'))}</span>`
+    + `<span>${ico(Z.drehung)}${esc(t('uebersicht.legende.drehungen'))}</span>`;
+
   root.classList.add('ueb', 'ueb-zu');
   root.setAttribute('role', 'dialog');
   root.setAttribute('aria-modal', 'true');
@@ -144,7 +154,7 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
           <h2 class="ueb-titel" id="${uid}-titel">${esc(t('uebersicht.titel'))}</h2>
           <p class="ueb-grad" id="${uid}-grad"></p>
         </div>
-        <p class="ueb-legende" aria-hidden="true"><span>${ico(Z.uhr)}${esc(t('uebersicht.legende.bestzeit'))}</span><span>${ico(Z.drehung)}${esc(t('uebersicht.legende.drehungen'))}</span></p>
+        <p class="ueb-legende" aria-hidden="true">${legende()}</p>
       </header>
       <nav class="ueb-stationen" aria-label="${esc(t('uebersicht.welten'))}"></nav>
       <div class="ueb-pager">
@@ -699,6 +709,45 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
     passeTitelAn();
     requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('ueb-vorwaermen')));
   }
+
+  /**
+   * Wechsel der Sprache (Ticket 01 von .scratch/sprachwahl/, ohne Neuladen): Gerüst und Inhalt neu, offen oder zu, aus
+   * denselben Daten (ihre Texte holen sie erst beim Lesen). Seite, Fokus und die mit Tab erreichbare Kachel bleiben
+   * (die Kacheln entstehen neu: gemerkt als Reihe und Platz); ein Hinweis zu einer gesperrten Kachel geht.
+   */
+  beiSprachwechsel(() => {
+    $('.ueb-titel').textContent = t('uebersicht.titel');
+    $('.ueb-legende').innerHTML = legende();
+    stationen.setAttribute('aria-label', t('uebersicht.welten'));
+    for (const b of schritte) {
+      b.setAttribute('aria-label', t(b.dataset.schritt === '1' ? 'uebersicht.naechste' : 'uebersicht.vorige'));
+    }
+    const zu = $('.ueb-schliessen');
+    zu.setAttribute('aria-label', t('uebersicht.schliessen'));
+    zu.lastElementChild.textContent = t('uebersicht.schliessen');
+    clearTimeout(hinweisUhr);
+    hinweis.classList.remove('ueb-da');
+    hinweis.textContent = '';
+    if (!daten) return;
+    const lage = (k) => {
+      const r = k ? +k.closest('.ueb-welt').dataset.reihe : -1;
+      return k ? [r, kacheln(r).indexOf(k)] : null;
+    };
+    const an = root.contains(document.activeElement) ? document.activeElement : null;
+    const fokus = lage(an?.closest('.ueb-kachel'));
+    const station = an?.classList.contains('ueb-tab') ? an.dataset.reihe : null;
+    const mitTab = lage(spur.querySelector('.ueb-kachel[tabindex="0"]'));
+    reihen = baueReihen(daten);
+    datenWas = himmelWas = himmelMass.fenster = '';
+    zeichne();
+    zeichneHimmel();
+    setzeModus();
+    zeigeSeitenkopf();
+    passeTitelAn();
+    if (mitTab) rolle(kacheln(mitTab[0])[mitTab[1]]);
+    if (fokus) kacheln(fokus[0])[fokus[1]]?.focus();
+    else if (station !== null) stationen.querySelector(`.ueb-tab[data-reihe="${station}"]`)?.focus();
+  });
 
   return { show, hide, vorwaermen, get offen() { return offen; } };
 }

@@ -1,7 +1,8 @@
 // Übersetzungsschicht, Kern (Ticket 07 von .scratch/umbau/): Alle Texte, die der Spieler sieht, stehen in einer
 // JSON-Datei je Sprache (src/texte/<sprache>.json, Deutsch in de.json); der Code nennt nur Schlüssel und holt den Text
 // mit t('schluessel', { werte }). Dieser Kern ist rein (kein DOM, kein Speicher) und gilt auch in Node (Tests); die
-// Seite benutzt ihn über src/texte/sprache.js, das die Sprachdateien lädt und die Sprache wählt.
+// Seite benutzt ihn über src/texte/sprache.js, das die Sprachdateien lädt, die Sprache wählt und sie wechselt
+// (sprachSchicht, seit Ticket 01 von .scratch/sprachwahl/ ohne Neuladen).
 //
 // Sprachdatei: ein Objekt mit Bereichen (menue, uebersicht, geschichte …); ein Schlüssel ist der Weg mit Punkten
 // (menue.aktion.weiter). Ein Blatt ist ein Text oder ein Text je Gerät { touch, maus } (Finger bzw. Maus, etwa «Tippen»
@@ -77,4 +78,33 @@ export function uebersetzer(sprachen, sprache, touch = false) {
 export function titelVon(sprachen, sprache, name) {
   const aus = (s) => (Object.hasOwn(sprachen[s]?.titel ?? {}, name) ? sprachen[s].titel[name] : undefined);
   return aus(sprache) ?? aus(GRUNDSPRACHE) ?? name;
+}
+
+/**
+ * Die Sprache zur Laufzeit (Ticket 01 von .scratch/sprachwahl/: ein Wechsel lädt nicht mehr neu). t, titel und
+ * sprache folgen immer der aktuellen Sprache (t wie bei uebersetzer, titel wie titelVon). wechsle(kuerzel) stellt um
+ * und meldet es allen, die sich mit abonniere(fn) gemeldet haben, in dieser Reihenfolge: fn({ sprache, vorher }).
+ * Gleiche oder unbekannte Sprache (ohne Datei): nichts, zurück false. Wirft ein Abonnent, kommen die übrigen trotzdem
+ * dran (der Fehler geht an fehler, Vorgabe die Konsole). sprachen und touch wie bei uebersetzer.
+ */
+export function sprachSchicht(sprachen, sprache, { touch = false, fehler = (e) => console.error(e) } = {}) {
+  let aktuell = Object.hasOwn(sprachen, sprache) ? sprache : GRUNDSPRACHE;
+  let uebersetze = uebersetzer(sprachen, aktuell, touch);
+  const abonnenten = [];
+  return {
+    get sprache() { return aktuell; },
+    t: (schluessel, werte) => uebersetze(schluessel, werte),
+    titel: (name) => titelVon(sprachen, aktuell, name),
+    abonniere(fn) { abonnenten.push(fn); },
+    wechsle(kuerzel) {
+      if (kuerzel === aktuell || !Object.hasOwn(sprachen, kuerzel)) return false;
+      const vorher = aktuell;
+      aktuell = kuerzel;
+      uebersetze = uebersetzer(sprachen, aktuell, touch);
+      for (const fn of [...abonnenten]) {
+        try { fn({ sprache: aktuell, vorher }); } catch (e) { fehler(e); }
+      }
+      return true;
+    },
+  };
 }

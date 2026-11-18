@@ -10,7 +10,7 @@ import {
   LEVELS, NEBENBEI, schrittErfuellt, schrittErlaubt, schrittGeste, schrittZellen, zelleVon,
 } from '../logik.js';
 import { alsGlobal } from './testschnittstelle.ts';
-import { t } from '../texte/sprache.js';
+import { beiSprachwechsel, t } from '../texte/sprache.js';
 
 /**
  * Führung im Dorf (Spec .scratch/tutorial-fuehrung/, neu gestaltet mit .scratch/tutorial-neu/): zeigt die Schritte
@@ -236,11 +236,22 @@ const fuehrung = {
     if (!an) return;
     b.zeile.classList.toggle('wechsel', this.wechselt);
     if (!this.wechselt) {
-      const s = this.aktuell(), text = t(s.text, { touch: IS_TOUCH });
-      if (b.satz.textContent !== text) b.satz.textContent = text;
+      const s = this.aktuell();
+      b.satzSchluessel = s.text;
       b.knopf.hidden = s.weiter !== 'erklaerung';
     } else if (b.knopf.contains(document.activeElement)) b.knopf.blur();
-    const neben = this.nebenbei.map((n) => t(NEBENBEI[n].text, { touch: IS_TOUCH })).join(' ');
+    b.nebenSchluessel = this.nebenbei.map((n) => NEBENBEI[n].text);
+    this.bandTexte();
+  },
+  /**
+   * Satz und Hinweise nebenbei im Band in der aktuellen Sprache (zeichneBand; ein Wechsel der Sprache schreibt sie neu,
+   * auch im ausgeblendeten Band, das seinen Inhalt behält). Die Schlüssel merkt sich das Band.
+   */
+  bandTexte() {
+    const b = this.bandTeile();
+    const text = b.satzSchluessel ? t(b.satzSchluessel, { touch: IS_TOUCH }) : b.satz.textContent;
+    if (b.satz.textContent !== text) b.satz.textContent = text;
+    const neben = (b.nebenSchluessel ?? []).map((s) => t(s, { touch: IS_TOUCH })).join(' ');
     if (b.neben.textContent !== neben) b.neben.textContent = neben;
     b.neben.hidden = !neben;
   },
@@ -387,6 +398,8 @@ const fuehrung = {
   },
 };
 const _fzMitte = new THREE.Vector3(), _fzRechts = new THREE.Vector3();
+// Wechsel der Sprache (Ticket 01 von .scratch/sprachwahl/, ohne Neuladen): das Band im selben Schritt neu
+beiSprachwechsel(() => fuehrung.bandTexte());
 
 // Testschnittstelle: Diese Namen lesen Proben als globale Namen (src/seite/testschnittstelle.ts)
 alsGlobal({

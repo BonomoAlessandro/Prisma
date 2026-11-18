@@ -87,6 +87,7 @@
     "imDorf": "im Dorf",
     "geloescht": "{grad}: Stand gelöscht.",
     "sprache": "Sprache: {sprache}",
+    "spracheGewechselt": "Das Spiel ist jetzt auf {sprache}.",
     "aktion": {
       "weiter": "Weiter",
       "beginnen": "Beginnen",

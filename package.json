@@ -2,7 +2,7 @@
   "name": "prisma",
   "private": true,
   "description": "Prisma – ein 3D-Licht-Puzzle",
-  "appVersion": "2026-11-16 umbau-02",
+  "appVersion": "2026-11-18 sprachwahl-1",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
