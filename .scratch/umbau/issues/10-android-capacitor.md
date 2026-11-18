@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent (umgesetzt, Review bestanden)
+**Status:** done (Review 18.11.2026 bestanden; Gerätetest durch den Nutzer offen)
 
 **Blocked by:** 08, 09
 
