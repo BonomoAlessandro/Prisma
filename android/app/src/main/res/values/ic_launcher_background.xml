@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Grund des adaptiven Icons (tools/app-icons.mjs): das Dunkel am Rand des Icons -->
+    <color name="ic_launcher_background">#05040F</color>
+    <!-- Grund der App vor dem ersten Bild des Spiels (Startbild, Fenster): wie theme-color in index.html -->
+    <color name="prisma_grund">#030308</color>
+</resources>

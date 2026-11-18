@@ -170,7 +170,9 @@ const AUSNAHMEN = {
     // Name des Spiels (Marke, in jeder Sprache gleich)
     'Prisma': 'Name des Spiels', 'PRISMA': 'Name des Spiels',
   },
-  'src/seite/oberflaeche/menue.js': { 'Prisma': 'Name des Spiels' },
+  'src/seite/oberflaeche/menue.js': { 'Prisma': 'Name des Spiels',
+    // Adresse der Datenschutzerklärung (Link in der Android-App, Ticket 10), kein Text
+    'https://bonomoalessandro.github.io/Prisma/datenschutz.html': 'Adresse' },
   // Grad als Kennung (Feld grad der Level, Schlüssel des Speicherstands), kein Text
   '*': { 'sehr schwer': 'Kennung des Grads' },
   // Was die Schleife noch bewegt (pending): Warnung des Sicherheitsnetzes an die Konsole, kein Text für den Spieler

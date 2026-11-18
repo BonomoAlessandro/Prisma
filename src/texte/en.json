@@ -89,6 +89,7 @@
     "sprache": "Language: {sprache} ({kuerzel})",
     "sprachliste": "Choose language",
     "spracheGewechselt": "The game is now in {sprache}.",
+    "datenschutz": "Privacy",
     "aktion": {
       "weiter": "Continue",
       "beginnen": "Start",

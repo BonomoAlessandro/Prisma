@@ -1375,7 +1375,9 @@ console.log('Offline');
   const imBau = (unter = '') => readdirSync(join(aus, unter), { withFileTypes: true })
     .flatMap((e) => (e.isDirectory() ? imBau(`${unter}${e.name}/`) : [`${unter}${e.name}`]));
   test('Offline: index.html lädt nichts von fremden Servern (keine http(s)-Adresse, auch nicht per Skript)', () => {
-    assert.deepEqual(html.match(/https?:\/\/\S*/g) ?? [], []);
+    // ausser dem Link «Datenschutz» der Android-App (Ticket 10): ein Link, der den Browser öffnet, lädt nichts
+    const link = /^https:\/\/bonomoalessandro\.github\.io\/Prisma\/datenschutz\.html'?$/;
+    assert.deepEqual((html.match(/https?:\/\/\S*/g) ?? []).filter((u) => !link.test(u)), []);
   });
   test('Offline: sw.js (Build) speichert alles, was index.html und das Manifest laden', () => {
     assert.ok(swFiles.length > 0, 'Liste FILES im gebauten sw.js leer');
