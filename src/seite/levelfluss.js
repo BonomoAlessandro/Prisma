@@ -309,14 +309,14 @@ LEVELS.push(...LEVELS_3D);
 /**
  * Anzeige der Grade (Feld grad in LEVELS): volle Punkte von GRAD_PUNKTE (●○○○ … ●●●●) und Text in der Kopfzeile, für
  * Screenreader als Text (das Menü hat dieselben Grade und Namen, createMenu). Das Tutorial hat keinen Grad und keine
- * Anzeige.
+ * Anzeige. Den Text holt ein Getter erst beim Lesen, in der aktuellen Sprache (Ticket 01 von .scratch/sprachwahl/).
  */
 const GRAD_PUNKTE = 4;
 const GRAD_ANZEIGE = {
-  'leicht': { label: t('grad.leicht'), punkte: 1 },
-  'mittel': { label: t('grad.mittel'), punkte: 2 },
-  'schwer': { label: t('grad.schwer'), punkte: 3 },
-  'sehr schwer': { label: t('grad.sehrSchwer'), punkte: 4 },
+  'leicht': { get label() { return t('grad.leicht'); }, punkte: 1 },
+  'mittel': { get label() { return t('grad.mittel'); }, punkte: 2 },
+  'schwer': { get label() { return t('grad.schwer'); }, punkte: 3 },
+  'sehr schwer': { get label() { return t('grad.sehrSchwer'); }, punkte: 4 },
 };
 /** Füllt ein .tier-Element für ein Level mit Punkten und Text; ohne Grad (Tutorial) bleibt es leer und versteckt. */
 function fillTier(el, lvl) {

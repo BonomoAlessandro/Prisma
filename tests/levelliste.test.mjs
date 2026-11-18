@@ -100,10 +100,11 @@ test('Entlang der Reihenfolge sinkt der Grad nie', () => {
 // Die Daten der Anzeige aus dem Spielcode (GRAD_ANZEIGE, Ticket 17; seit Ticket 04 des Umbaus in den Modulen unter
 // src/); wie Kopfzeile und Menü aussehen, prüfen die Proben im Browser (tests/geschichte-probe.mjs). Die Seiten der
 // Levelauswahl gibt es seit Ticket 04 nicht mehr. Die Texte kommen seit Ticket 07 des Umbaus aus der
-// Übersetzungsschicht (t, hier Deutsch).
+// Übersetzungsschicht (t, hier Deutsch); seit Ticket 01 von .scratch/sprachwahl/ über Getter (in der Konstante stehen
+// darum Strichpunkte: ein Objekt reicht bis zur Zeile «};»).
 const anzeige = () => {
   const html = spielQuelltext();
-  const konstante = (k) => html.match(new RegExp(`^const ${k} = [^;]+;`, 'm'))[0];
+  const konstante = (k) => html.match(new RegExp(`^const ${k} = (?:\\{[^]*?^\\};|[^;{]+;)`, 'm'))[0];
   const code = ['GRAD_PUNKTE', 'GRAD_ANZEIGE'].map(konstante).join('\n') + '\nreturn { GRAD_PUNKTE, GRAD_ANZEIGE };';
   return new Function('t', code)(uebersetzer(sprachen(), 'de'));
 };

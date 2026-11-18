@@ -76,8 +76,10 @@ const progress = {
 /**
  * Einstellungen: Ton aus (Knopf in der Kopfzeile) unter prisma.muted, '1' für aus, '0' für an; fehlt der Schlüssel
  * oder ist das Lesen gescheitert, ist der Ton an. Die Sprache (Ticket 07 von .scratch/umbau/, Schalter im Menü) unter
- * prisma.sprache als Kürzel ihrer Datei ('de'); geschrieben erst, wenn der Spieler sie wählt, sonst gilt die des
- * Geräts (src/texte/sprache.js). Weitere Einstellungen merkt sich das Spiel nicht.
+ * prisma.sprache als Kürzel ihrer Datei ('de'); geschrieben erst, wenn der Spieler sie wählt (ohne Neuladen, seit
+ * Ticket 01 von .scratch/sprachwahl/; sie gilt sofort und bei jedem weiteren Start), sonst gilt die des Geräts
+ * (src/texte/sprache.js).
+ * Weitere Einstellungen merkt sich das Spiel nicht.
  */
 const einstellungen = {
   stummKey: 'prisma.muted',
