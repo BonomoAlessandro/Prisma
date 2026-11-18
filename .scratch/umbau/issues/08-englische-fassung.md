@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent (umgesetzt, wartet auf Review)
+**Status:** ready-for-agent (umgesetzt, Review bestanden)
 
 **Blocked by:** 07
 
@@ -138,3 +138,60 @@ allein.
 - Unter `tests/bildvergleich/` sind nur `en-*` neu, keine deutsche Referenz geändert.
 
 Meilenstein 2: vom Nutzer am 18.11.2026 ausgelassen.
+
+### Review (unabhängiger Reviewer)
+
+Reviewer, 18.11.2026, auf `baa73b3`. **Bestanden**, mit zwei kleinen Korrekturen (`b45c327`, `dcaa705`).
+
+**Texte.** Alle 179 Texte und 244 Titel gelesen (Deutsch und Englisch nebeneinander, dazu die Vergleichsseite und die
+englischen Bilder). Gutes, natürliches Englisch, inhaltlich treu; die Geschichte im warmen Ton «Vorgelesen», ohne
+Gedankenstriche, Doppelpunkte und feierliche Formeln, die Reisen verschieden gebaut. Grenzen der Führung eingehalten
+(Test je Sprache und Gerät). Geändert:
+- `geschichte.dorf.ende`: «Now Noa has got the hang of it.» → «Noa has the hang of it now.» («has got» ist britisch,
+  sonst gilt amerikanische Schreibweise).
+- Titel `Querschläger` (Planetenbahn): «Planet Path» → «Orbit» (natürlicher).
+
+Beide stehen in keinem Referenzbild (die Übersicht im Bild zeigt die Wüste); die Vergleichsseite ist nachgeführt.
+Erwogen und gelassen: «fewest {drehungen}» (nur Bildschirmleser, wie im Deutschen), «Village» ohne Artikel (Grund:
+Kopfzeile auf dem Handy), zweizeilige Kopfzeile bei langen Titeln (etwa «The Planets – Ringed Planet» auf dem Handy;
+kommt im Deutschen bei langen Titeln auch vor, nichts überdeckt).
+
+**Fund im Bildvergleich (behoben).** Die Ausnahme im Wasser von Handy quer, Meer 1 (`AUSNAHMEN`, die dünne Linie, die
+das Spiel nur in etwa jedem zweiten Lauf zeichnet) galt nur für `quer-welt-2-*`, nicht für `en-quer-welt-2-*`. Der
+ganze Lauf in SwiftShader war darum rot an genau diesen zwei Bildern (257/260 Pixel bis 18, die bekannte Linie bei
+y ≈ 150 links). Jetzt gelten die Ausnahmen eines Bilds in jeder Sprache (`ausnahmenVon`); danach `--sprache en
+--groesse quer --nur welt-1-2` grün, `testschnittstelle`, `texte`, `typecheck` grün.
+
+**Geprüft ohne Befund.** Deutsche Referenzen unter `tests/bildvergleich/referenz*/` byte-gleich (im Diff nur `A` für
+`en-*`, je 77), `de.json` unverändert. Trennung in `uebersicht.js`: für Deutsch rechnerisch dieselbe wie vorher (ohne
+`amEnde` und `stummesE`). Sprachwahl, `?sprache=`, Manifest je Sprache, `vite.config.mjs` kopiert beide Manifeste,
+`sw.js` nennt beide in `FILES`. Die neuen Prüfungen in `texte.test.mjs` greifen (Gegenprobe in einer Kopie: fehlender
+Titel, Gedankenstrich im Prolog, 20 Wörter in einem Schritt, Text gleich dem Deutschen, abweichendes Manifest, alle
+erkannt; Kopie gelöscht). Englische Bilder angesehen (Band, Knöpfe, Kopfzeile, Menü, Übersicht, Reise, Prolog,
+«Gelöst»; Desktop, hoch, quer, Poco): nichts abgeschnitten oder überdeckt.
+
+**Offline auf Englisch** (eigenes Hilfsskript, Chrome `--lang=en-US`, danach gelöscht): online und offline `lang="en"`,
+Titel «Prisma – Light Puzzle», Verweis auf `manifest-en.webmanifest`, das offline aus dem Speicher kommt, Texte
+englisch; offline `?sprache=de` deutsch mit deutschem Manifest. (Ein Teil der Skybox des Bergwalds fehlte offline, weil
+das Skript diesen Himmel online nie gewählt hatte: ein Teil aus `LAZY`, unabhängig von der Sprache.)
+
+**Läufe** (alle über `tools/leise.sh` als leichte Läufe, mit Zeitgrenze; auf Wunsch des Nutzers keine Messläufe):
+- `npm test`: alles grün (15 Tests, geschichte 2062 s).
+- `golden --voll`: grün (842 Level).
+- Bildvergleich SwiftShader ganz, beide Sprachen: 154 Bilder in 111 min, alle grün bis auf `en-quer-welt-2-vor/-nach`
+  (siehe Fund, danach grün); «fast ruhig»: poco-start, en-poco-start, en-poco-dorf-uebung-2.
+- `offline.mjs`: bestanden.
+- `geschichte-probe --sprache en`: `--finale leicht`, `--ganz`, `--wagen` (zweimal), `--grenzen`, `--dorf-raender`,
+  `--handy --menue`, `--quer --uebersicht`, `--handy --groesse 360x640 --finale leicht`: alle inhaltlichen Prüfungen
+  bestanden (Texte, Kopfzeilen, Halt, Leiste, Übersicht, «ganz im Bild»); rot nur an Lücken über 100 ms und bei
+  `--wagen` am Gleichmass von Fall und Kamera (Bilder mit 0 px, also ausgefallene Bilder neben dem SwiftShader-Lauf).
+  `--wagen` auf Deutsch zur selben Zeit: dieselben Fehlerarten, also nicht von der Sprache.
+- `geschichte-probe` Deutsch ohne Optionen (alle vier Grade): bestanden.
+
+**Für den Merge mit Ticket 09.** `vite.config.mjs`: Konflikt an `STATISCH` (09 fügt `datenschutz.html` an, 08 liest
+die Manifeste mit `readdirSync`), beides nehmen, den Kommentar darüber ebenso. `README.md`: beide ändern den Absatz zu
+`offline.mjs` (`--lang=de` bzw. `--unterpfad`), zusammenführen. `tests/offline.mjs`: getrennte Stellen
+(Chrome-Argumente bzw. Server und Prüfungen). `index.html`: 08 ändert nichts; `sprache.js` setzt den
+`<link rel="manifest">` um, den das Kopfskript einfügt, und das bleibt in 09 gleich. `logic.test.mjs` von 09 prüft nur
+`manifest.webmanifest` (scope, start_url, Icons); `manifest-en` ist laut `texte.test` gleich bis auf Name, Beschreibung
+und `lang`, gilt also mit. Nach dem Merge `npm test` und `offline.mjs` (auch `--unterpfad`) einmal laufen lassen.
