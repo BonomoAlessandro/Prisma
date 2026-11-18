@@ -2,9 +2,9 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent (nach Ticket 01)
+**Status:** ready-for-agent (nach Ticket 01 und 03)
 
-**Blocked by:** 01
+**Blocked by:** 01, 03 (die Liste geht von der Lage aus Ticket 03 aus auf, je nach Lage nach unten oder nach oben)
 
 **What to build:** Heute zeigt der Schalter oben rechts im Menü den Globus und die aktuelle Sprache («DEUTSCH»). Ein
 Klick wechselt direkt zur nächsten Sprache, ohne dass man sieht, welche das ist. Neu öffnet der Schalter eine kleine

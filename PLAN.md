@@ -433,7 +433,8 @@ eigenen Spielstand, Steam zusätzlich Steam Cloud. Vor Steam eine volle Controll
   `feature/energie` und dem Go des Nutzers.** Während des Umbaus keine neuen Funktionen.
 - [ ] **3a.2 Verpacken** (Tickets 10–12: Android, Controller, Steam), je mit eigenem Grilling vorher.
 - [ ] **3a.3 Sprachwahl** (Wunsch des Nutzers 18.11.2026): Die Sprache wechselt ohne Neuladen, und der Schalter im
-  Menü öffnet eine Liste der Sprachen statt blind zur nächsten zu springen. Branch `feature/sprachwahl`, Spec und
+  Menü öffnet eine Liste der Sprachen statt blind zur nächsten zu springen. Auf dem Handy bekommt er eine bessere
+  Lage (Skizzenkatalog, der Nutzer wählt). Branch `feature/sprachwahl`, Spec und
   Tickets in `.scratch/sprachwahl/`.
 
 ## 4. Google Play Store

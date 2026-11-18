@@ -31,13 +31,18 @@ Menü, oben rechts:
    └─────────────┘
 ```
 
+- **Bessere Lage des Schalters** (Wunsch des Nutzers 18.11.2026): Auf dem Handy geht der Schalter oben rechts
+  zwischen den nahen Texten unter. Seine Lage wählt der Nutzer aus einem Skizzenkatalog (Ticket 03).
+
 ## Tickets
 
-Nacheinander, weil beide `src/seite/oberflaeche/menue.js` ändern. Nach jedem Ticket ein unabhängiges Review, dann der
-Commit.
+Die Umsetzungen nacheinander, weil alle `src/seite/oberflaeche/menue.js` ändern: 01, dann 03, dann 02. Die Liste
+baut auf der gewählten Lage auf. Den Katalog von Ticket 03 gibt es schon während Ticket 01, er ändert keinen Code.
+Nach jedem Ticket ein unabhängiges Review, dann der Commit.
 
 - `issues/01-wechsel-ohne-neuladen.md`: Die Sprache wechselt im laufenden Spiel. Der Schalter bleibt dabei, wie er
   ist.
-- `issues/02-liste-beim-antippen.md`: Der Schalter öffnet die Liste.
+- `issues/03-lage-des-schalters.md`: Zuerst ein Skizzenkatalog der Lage, der Nutzer wählt, dann die Umsetzung.
+- `issues/02-liste-beim-antippen.md`: Der Schalter öffnet die Liste, an der Lage aus Ticket 03.
 
 Danach testet der Nutzer auf dem Desktop und auf dem Handy, dann folgt der Merge nach `main`.
