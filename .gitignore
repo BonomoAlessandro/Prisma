@@ -25,3 +25,14 @@ tools/blender/*.blend1
 tools/blender/out/
 tools/blender/sky/
 __pycache__/
+
+# Android-App (Ticket 10 des Umbaus): Build-Ausgaben und nie den Upload-Schlüssel oder sein Passwort (liegen ausserhalb
+# des Repos, README unter «Android-App»)
+*.jks
+*.keystore
+*.p12
+*.pk8
+keystore.properties
+*.aab
+*.apk
+*.apks

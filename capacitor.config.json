@@ -1,0 +1,16 @@
+{
+  "appId": "ch.bonomo.prisma",
+  "appName": "Prisma",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#030308"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native",
+      "initialViewportFitValueHint": "cover",
+      "style": "DARK",
+      "hidden": true
+    }
+  }
+}

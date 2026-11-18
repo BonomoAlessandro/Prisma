@@ -2,17 +2,28 @@
   "name": "prisma",
   "private": true,
   "description": "Prisma – ein 3D-Licht-Puzzle",
-  "appVersion": "2026-11-16 umbau-02",
+  "appVersion": "2026-11-18 umbau-10",
+  "android": {
+    "versionCode": 1,
+    "versionName": "1.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "node tests/alle.mjs",
     "test:bild": "node tests/bildvergleich.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json",
+    "build:app": "vite build --mode app && cap sync android"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.6.2",
     "typescript": "5.9.3",
     "vite": "8.3.8"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.2"
   }
 }

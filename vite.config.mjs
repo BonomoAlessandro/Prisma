@@ -19,6 +19,10 @@
 // - sw.js mit den Listen FILES und LAZY aus dem, was in dist/ liegt (Regeln im Kopf von sw.js);
 // - APP_VERSION aus package.json (appVersion, die einzige Quelle) in src/seite/konfiguration.ts und sw.js; im
 //   Dev-Server ebenso in src/seite/konfiguration.ts.
+// Android-App (Ticket 10, npm run build:app: vite build --mode app, dann cap sync): dieselbe Ausgabe nach dist/, aber
+// ohne Source-Maps, ohne sw.js und ohne Manifeste (das Spiel liegt in der App), dafür window.PRISMA_APP im Kopf der
+// Seite (sie registriert dann keinen Service Worker und bindet kein Manifest ein) und import.meta.env.MODE 'app' (nur
+// dann kommen @capacitor/core und @capacitor/app ins Spiel, für die Zurück-Taste; src/seite/geschichte/geschichte.js).
 // Im Dev-Server registriert die Seite keinen Service Worker (PRISMA_DEV); fragt ein alter, noch registrierter nach
 // sw.js, bekommt er einen, der sich selbst abmeldet und den Speicher leert. vendor/ und backgrounds/ liefert er roh
 // (sonst hängte Vite an die klassischen Skripte eine Source-Map an). tests/logic.test.mjs prüft Build und Dev-Server.
@@ -88,10 +92,14 @@ function stilZurueck(html) {
 
 function prisma() {
   let aus = null; // Ausgabeordner
+  let app = false; // Build der Android-App (--mode app)
   const vonVite = new Set(); // Quelldateien, die Vite selbst (mit Hash) nach assets/ übernommen hat
   return {
     name: 'prisma',
-    configResolved(config) { aus = resolve(config.root, config.build.outDir); },
+    configResolved(config) {
+      aus = resolve(config.root, config.build.outDir);
+      app = config.mode === 'app';
+    },
     load(id) {
       // PRISMA_LEVELDATEN=<pfad>: andere Leveldaten statt src/daten/level.js (tools/spielserver.mjs, baue mit daten: die
       // KI-Tester mit Kandidaten am Ende der Level; bis Ticket 06 von .scratch/umbau/ PRISMA_LOGIK)
@@ -106,10 +114,12 @@ function prisma() {
     },
     transformIndexHtml: {
       order: 'pre',
-      // im Dev-Server kein Service Worker (index.html fragt PRISMA_DEV ab, bevor sie ihn registriert)
+      // im Dev-Server und in der App kein Service Worker (index.html fragt PRISMA_DEV bzw. PRISMA_APP ab, bevor sie ihn
+      // registriert)
       handler: (html, ctx) => ({
         html,
-        tags: ctx.server ? [{ tag: 'script', children: 'window.PRISMA_DEV = true;', injectTo: 'head-prepend' }] : [],
+        tags: ctx.server ? [{ tag: 'script', children: 'window.PRISMA_DEV = true;', injectTo: 'head-prepend' }]
+          : app ? [{ tag: 'script', children: 'window.PRISMA_APP = true;', injectTo: 'head-prepend' }] : [],
       }),
     },
     configureServer(server) {
@@ -144,13 +154,15 @@ self.addEventListener('activate', (e) => e.waitUntil(caches.keys()
         if (!existsSync(join(root, pfad))) throw new Error(`${pfad} fehlt`);
         if (!vonVite.has(pfad)) cpSync(join(root, pfad), join(aus, pfad));
       };
-      for (const p of STATISCH) for (const d of dateien(root, p)) kopiere(d);
+      // in der App ohne Manifeste (kein Service Worker, nichts zu installieren)
+      for (const p of STATISCH.filter((s) => !app || !s.endsWith('.webmanifest'))) for (const d of dateien(root, p)) kopiere(d);
       kopiere('backgrounds/skies.js');
       const lazy = new Set();
       for (const sky of skyboxen()) for (const part of sky.parts ?? []) {
         kopiere(`backgrounds/${part.file}`);
         if (!part.precache) lazy.add(`backgrounds/${part.file}`);
       }
+      if (app) { console.log(`App: ohne sw.js, Manifeste und Source-Maps (${relative(root, aus) || '.'})`); return; }
       // sw.js mit den Listen aus der Ausgabe
       const alle = dateien(aus).filter((d) => !NICHT_SPEICHERN.test(d));
       let sw = mitVersion(readFileSync(join(root, 'sw.js'), 'utf8'), 'sw.js');
@@ -166,23 +178,23 @@ self.addEventListener('activate', (e) => e.waitUntil(caches.keys()
   };
 }
 
-export default {
+export default ({ mode }) => ({
   base: './',
   publicDir: false,
   plugins: [prisma()],
   // verkleinert, mit Source-Maps (nicht im Speicher des Service Workers; auch auf GitHub Pages, Entscheid in Ticket 09:
   // das Repo ist öffentlich, die Maps lädt nur ein offenes DevTools, und Fehlerorte gemeldeter Fehler zeigen so auf die
-  // Module; für die App in Ticket 10 neu entscheiden); ohne den Nachlader für modulepreload (das
-  // Spiel ist ein einziges Modul). Die Bitgleichheit des Halls prüft tests/logic.test.mjs an der Prüfsumme des
+  // Module; in der App ohne, Ticket 10: dort öffnet niemand DevTools, und das Paket wäre gut 2 MB grösser); ohne den
+  // Nachlader für modulepreload (das Spiel ist ein einziges Modul; in der App kommt @capacitor/app als eigener Teil dazu). Die Bitgleichheit des Halls prüft tests/logic.test.mjs an der Prüfsumme des
   // gebauten Workers (verkleinert wird etwa Math.pow zu **, nach ECMAScript dieselbe Operation).
   // Namen werden verkürzt (mangle, seit Ticket 05 wieder an): Kein Worker bekommt mehr seinen Code als Text von
   // Funktionen des Spiels (bis dahin skyBitmaps und boardTextures; umbenannt scheiterten sie und rechneten im
   // Hauptthread). Alle Worker sind eigene Module (src/*-worker.ts).
   build: {
-    outDir: 'dist', emptyOutDir: true, cssMinify: false, minify: true, sourcemap: true, modulePreload: { polyfill: false },
+    outDir: 'dist', emptyOutDir: true, cssMinify: false, minify: true, sourcemap: mode !== 'app', modulePreload: { polyfill: false },
     chunkSizeWarningLimit: 1500,
   },
   worker: { format: 'es' },
   // Proben, Werkzeuge und Notizen schreiben viel; der Dev-Server muss davon nichts wissen
-  server: { watch: { ignored: ['**/tests/output/**', '**/.scratch/**', '**/tools/**', '**/dist/**'] } },
-};
+  server: { watch: { ignored: ['**/tests/output/**', '**/.scratch/**', '**/tools/**', '**/dist/**', '**/android/**', '**/store/**'] } },
+});

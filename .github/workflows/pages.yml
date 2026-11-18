@@ -40,7 +40,7 @@ jobs:
       # die schnellen Node-Tests ohne Chrome aus tests/alle.mjs (lokal zusammen gut 2 min). Nur lokal: geschichte (12 min),
       # beurteilung, levelliste, generator (je 1–2 min auf allen Kernen; Level und Werkzeuge, nicht der Build) und leise
       # (prüft die Sperre von tools/leise.sh, nur unter Windows)
-      - run: node tests/alle.mjs golden logic hall speicher testschnittstelle texte vorrat wuerfelliste ki-tester typecheck
+      - run: node tests/alle.mjs golden logic hall speicher testschnittstelle texte vorrat wuerfelliste ki-tester typecheck app
       - run: npm run build
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

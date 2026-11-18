@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Startbild bis Android 11 (ab Android 12 zeigt das System das Icon auf windowSplashScreenBackground, values/styles.xml):
+     der Grund des Spiels, in der Mitte das runde Icon -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/prisma_grund" />
+    <item android:width="120dp" android:height="120dp" android:gravity="center">
+        <bitmap android:src="@mipmap/ic_launcher_round" android:gravity="fill" />
+    </item>
+</layer-list>

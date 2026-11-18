@@ -46,6 +46,9 @@
 //   Lichtkegel), um zu finden, was zwischen zwei Läufen abweicht. --jobs n: so viele Abläufe gleichzeitig, je in einem
 //   eigenen Prozess mit eigenem Chrome (Vorgabe JOBS; --jobs 1 alles nacheinander in einem Chrome je Grösse wie bis
 //   Ticket 13). Dasselbe Ergebnis wie nacheinander: Jeder Ablauf lädt die Seite ohnehin frisch mit seinem Stand.
+//   --store <ordner> (Ticket 10, Bilder für den Play Store): statt der vier Grössen die Grössen mit store (STORE_GROESSEN:
+//   Handy hoch 1080 × 1920 wie ein Android-Handy mit Pixeldichte 2,5, Feature-Grafik 1024 × 500), die Bilder in diesen
+//   Ordner, ohne Vergleich und ohne Referenzen. Die Grössen mit store laufen nur so.
 // Aus der Seite gelesen nur window.__prisma und __prismaDebug (darin auch beamView, STORY_LEVELS, COLORS, mit --diag
 // shockUniforms), keine globalen Namen: Wandert Code in Module (Tickets 03 und 04), muss nur __prismaDebug bleiben.
 // Laufzeit siehe README (Abschnitt Tests).
@@ -107,6 +110,9 @@ const GROESSEN = [
   { name: 'quer', width: 844, height: 390, dpr: 1, phone: true, mobile: true },
   // wie das Poco F4 GT (Kopf); nur diese Abläufe
   { name: 'poco', width: 393, height: 873, dpr: 2.75, phone: true, android: true, nur: ['start', 'dorf', 'welt-1-2'] },
+  // nur mit --store (Ticket 10): Bilder für den Play Store (Seitenverhältnis höchstens 2:1, 1080 × 1920 empfohlen)
+  { name: 'store', width: 432, height: 768, dpr: 2.5, phone: true, android: true, store: true },
+  { name: 'grafik', width: 1024, height: 500, dpr: 1, phone: false, store: true, nur: ['start', 'welt-1-2', 'welt-3-4', 'welt-5-6'] },
 ];
 const ANDROID = 'Mozilla/5.0 (Linux; Android 14; 22021211RG) AppleWebKit/537.36 (KHTML, like Gecko) '
   + 'Chrome/130.0.0.0 Mobile Safari/537.36';
@@ -129,6 +135,7 @@ const liste = (k) => wert(k)?.split(',') ?? null;
 const schreiben = args.includes('--write');
 const diag = args.includes('--diag');
 const nurGroessen = liste('--groesse');
+const STORE = wert('--store') ? resolve(wert('--store')) : null; // Ordner der Bilder für den Play Store
 const nurAnsichten = liste('--nur');
 const jobs = +(wert('--jobs') ?? JOBS);
 const teil = wert('--teil'); // Teilprozess von --jobs: hierhin das Ergebnis als JSON
@@ -329,7 +336,9 @@ async function weltLevel(w, platz, vorher = null) {
   await merkeElemente();
   await bild(`welt-${w + 1}-vor`);
   if (vorher) await vorher();
-  await s.ev(`${D}.loese(); true`);
+  // für den Store eine Zeit wie beim Spielen (loese dreht sofort, «Gelöst» zeigte sonst 0:00): der Beginn früher
+  const zeit = STORE ? `if (${D}.game.stats.startedAt !== null) ${D}.game.stats.startedAt -= ${(40 + 13 * w) * 1000};` : '';
+  await s.ev(`${D}.loese(); ${zeit} true`);
   await until('window.__prisma.solvedPanel()', `Welt ${w + 1}: gelöst`, 240, true);
   await bild(`welt-${w + 1}-nach`);
 }
@@ -484,7 +493,7 @@ const t0 = Date.now();
 const zeit = (was) => console.log(`  ${((Date.now() - t0) / 1000).toFixed(0).padStart(5)} s  ${was}`);
 const fehler = [];
 const ergebnisse = [];
-const FAST_RUHIG = ['poco']; // Grössen, bei denen eine Ansicht auch «fast ruhig» gelten darf (aufnehmen)
+const FAST_RUHIG = ['poco', 'store']; // Grössen, bei denen eine Ansicht auch «fast ruhig» gelten darf (aufnehmen)
 const fastRuhig = []; // die Ansichten, die nur «fast ruhig» waren
 if (!teil) rmSync(OUT, { recursive: true, force: true }); // ein Teilprozess (--teil) räumt die Ausgabe nicht
 mkdirSync(OUT, { recursive: true });
@@ -492,7 +501,8 @@ mkdirSync(REFERENZ, { recursive: true });
 // Zeitrahmen: allein rund 30 min, neben anderen leichten Läufen mehrmals so lang (Ticket 13)
 setTimeout(() => { console.error('Zeitrahmen von 180 min überschritten: Abbruch'); process.exit(3); }, 180 * 60000).unref();
 
-const groessen = GROESSEN.filter((g) => !nurGroessen || nurGroessen.includes(g.name));
+const groessen = GROESSEN.filter((g) => !nurGroessen || nurGroessen.includes(g.name)).filter((g) => !!g.store === !!STORE);
+if (STORE) mkdirSync(STORE, { recursive: true });
 /** die Abläufe einer Grösse (--nur, und eine Grösse mit nur nimmt nur diese) */
 const ablaeufeVon = (view) => ABLAEUFE.filter((x) => (!nurAnsichten || nurAnsichten.includes(x.name))
   && (!view.nur || view.nur.includes(x.name)));
@@ -545,6 +555,12 @@ async function groesseAufnehmen(view, sprache = 'de') {
   } finally { await s.chrome.close(); }
 
   for (const b of s.bilder) {
+    if (STORE) {
+      writeFileSync(join(STORE, `${b.name}.jpg`), Buffer.from(b.jpeg, 'base64'));
+      ergebnisse.push({ name: b.name });
+      console.log(`  für den Store ${b.name}.jpg`);
+      continue;
+    }
     const ref = join(REFERENZ, `${b.name}.jpg`);
     if (schreiben) {
       writeFileSync(ref, Buffer.from(b.jpeg, 'base64'));
@@ -589,7 +605,7 @@ async function parallel() {
   const eine = async ({ k, g, a }) => {
     const datei = join(tmp, `${k}-${g}-${a}.json`);
     const p = spawn(process.execPath, [fileURLToPath(import.meta.url), '--sprache', k, '--groesse', g, '--nur', a,
-      '--teil', datei, ...(schreiben ? ['--write'] : []), ...(diag ? ['--diag'] : []), ...(GPU ? ['--gpu'] : [])],
+      '--teil', datei, ...(schreiben ? ['--write'] : []), ...(STORE ? ['--store', STORE] : []), ...(diag ? ['--diag'] : []), ...(GPU ? ['--gpu'] : [])],
     { env: { ...process.env, PRISMA_SPIEL: spiel.base }, stdio: ['ignore', 'pipe', 'pipe'] });
     let text = '';
     p.stdout.on('data', (d) => { text += d; });
@@ -652,8 +668,8 @@ if (teil) { // Teilprozess von --jobs: das Ergebnis für den Hauptprozess
   process.exit(fehler.length ? 1 : 0);
 }
 
-// jedes Element mindestens einmal im Bild (nur bei einem ganzen Lauf)
-if (!nurAnsichten) {
+// jedes Element mindestens einmal im Bild (nur bei einem ganzen Lauf, nicht für den Store)
+if (!nurAnsichten && !STORE) {
   const soll = ['source:weiss', 'source:farbig', 'mirror', 'prism', 'filter', 'combiner', 'blocker', 'target'];
   const fehlt = soll.filter((t) => !elementeImBild.has(t));
   if (fehlt.length) fehler.push(`Elemente nie im Bild: ${fehlt.join(', ')}`);

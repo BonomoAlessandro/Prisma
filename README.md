@@ -110,6 +110,53 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   sich alle Seiten des Kontos einen Ursprung (`localStorage`, Cache Storage); das Spiel nutzt nur Schlüssel `prisma.*`
   und Speicher `prisma-*`, sein Service Worker gilt nur unter `/Prisma/`. Die Source-Maps gehen mit auf Pages
   (Entscheid in Ticket 09).
+- **Android-App (Ticket 10 des Umbaus, ADR 0012):** Capacitor 8.6.2 (`@capacitor/core`, `@capacitor/android`,
+  `@capacitor/cli`, dazu `@capacitor/app` 8.1.2 für die Zurück-Taste), Paket `ch.bonomo.prisma` (fest), Projekt in
+  `android/` (Konfiguration `capacitor.config.json`, `webDir` = `dist`). Mindestens Android 7 (`minSdkVersion` 24 der
+  Vorlage), `targetSdk` und `compileSdk` 36 (Google Play verlangt seit 31.08.2026 für neue Apps 36).
+  - **Werkzeuge** (ohne Android Studio, Stand 18.11.2026): JDK Temurin 21.0.13 (Zip von Adoptium) unter
+    `C:\Users\admin\AppData\Local\Programs\Temurin\jdk-21.0.13+9`, Android SDK unter
+    `C:\Users\admin\AppData\Local\Android\Sdk` (offizielle `cmdline-tools` 23 unter `cmdline-tools\latest`, dazu
+    `platform-tools`, `platforms/android-36`, `build-tools/35.0.0` und `36.0.0`, `emulator`). Die Umgebungsvariablen
+    `JAVA_HOME` und `ANDROID_HOME` des Benutzers zeigen dorthin. Pakete nachinstallieren: `sdkmanager.bat
+    platforms/android-37` (Pfade mit `/`, nicht `;`: die Shell trennt sonst daran). Gradle 8.14.3 holt der Wrapper
+    `android/gradlew` selbst.
+  - **Bauen:** `npm run build:app` (`vite build --mode app`, dann `cap sync android`): dieselbe Ausgabe wie die
+    Browser-Fassung nach `dist/`, aber ohne Source-Maps, ohne `sw.js` und ohne Manifeste, dafür `window.PRISMA_APP` im
+    Kopf der Seite (kein Service Worker, kein Manifest) und `@capacitor/app` im Spiel; `cap sync` kopiert sie nach
+    `android/app/src/main/assets/public/` (nicht im Repo). Dann `cd android && ./gradlew bundleRelease
+    assembleRelease` (über `leise.sh` als leichten Lauf, erster Lauf gut 2 min, `./gradlew --stop` beendet den
+    Daemon): die signierte `.aab` für den Store in `android/app/build/outputs/bundle/release/app-release.aab`, eine
+    signierte, installierbare APK in `android/app/build/outputs/apk/release/app-release.apk`. Prüfen:
+    `jarsigner -verify` (JDK) bzw. `apksigner verify --print-certs` (build-tools). Danach `npm run build`, wenn
+    `dist/` wieder die Browser-Fassung sein soll.
+  - **Version:** `android.versionCode` und `android.versionName` in `package.json` (Gradle liest sie dort). Vor jedem
+    Upload `versionCode` um 1 erhöhen; der Store nimmt jede Nummer nur einmal. `appVersion` bleibt die Fassung des
+    Spiels (Anzeige der Leistung).
+  - **Signieren:** Play App Signing (Google signiert für die Geräte); hier nur der **Upload-Schlüssel**
+    `C:\Users\admin\prisma-schluessel\prisma-upload.jks` (Alias `prisma-upload`), ausserhalb des Repos. Gradle liest
+    `keystore.properties` daneben (Pfad sonst in `PRISMA_SCHLUESSEL`); fehlt sie, bleibt die Release-Fassung
+    unsigniert. Das Passwort steht nur in den Dateien in diesem Ordner, nie im Repo; `.gitignore` schliesst Keystores,
+    `keystore.properties`, `.aab` und `.apk` aus. Ordner sichern: ohne Schlüssel muss Google den Upload-Schlüssel
+    zurücksetzen.
+  - **In der App:** kein Service Worker (das Spiel liegt in der App), Spielstand im `localStorage` der WebView (bleibt
+    über Neustart und Update; geht mit dem Deinstallieren). Vollbild (Leisten aus, Wischen holt sie kurz zurück;
+    `MainActivity.java`), Hoch- und Querformat, Abstände zu Kamera-Loch und Rand über `env(safe-area-inset-*)`
+    (SystemBars `insetsHandling: native`). Zurück-Taste wie Esc (`zurueckTaste` in
+    `src/seite/geschichte/geschichte.js`): Level → Menü, Menü aus einem Level → zurück, Übersicht und Rückfrage zu,
+    Prolog überspringen; auf dem Startbildschirm und im Menü ohne Level dahinter schliesst die App. Ton ruht im
+    Hintergrund (`visibilitychange`). Der Link «Datenschutz» im Menü öffnet in der App die Seite auf GitHub Pages im
+    Browser des Handys, in der Browser-Fassung die Seite daneben.
+  - **Icons:** `node tools/app-icons.mjs` macht aus `icons/` das adaptive Icon und die Icons für Android 7
+    (`android/app/src/main/res/mipmap-*`) und `store/icon-512.png`. Startbild: das Icon auf dem Grund des Spiels.
+  - **Store:** alles für den Eintrag im Play Store in `store/` (Übersicht `store/index.html`: Texte, Bilder, Antworten
+    für Inhaltseinstufung und Datensicherheit). Bilder: `tests/bildvergleich.mjs --gpu --store <ordner>` (gelöste
+    Level dort mit einer Zeit wie beim Spielen statt 0:00), Feature-Grafik `tools/store-grafik.mjs` (JPEG: Google Play
+    nimmt sie nicht mit Alphakanal), das Symbol als PNG mit 32 Bit.
+  - **Emulator:** geht auf diesem Rechner nicht (kein Hypervisor: Hyper-V/WHPX aus, AEHD nicht installiert, beides
+    braucht Adminrechte). Geprüft wird ohne Android mit `node tests/app.test.mjs` (Build und Projekt) und
+    `tests/app-probe.mjs` (Build der App im Browser: kein Service Worker, Link, Zurück-Taste), auf dem Handy vom
+    Nutzer (Prüfliste in `.scratch/umbau/issues/10-android-capacitor.md`).
 - **Version:** `appVersion` in `package.json` ist die einzige Quelle; Dev-Server und Build setzen sie in `index.html`
   und `sw.js` ein (Platzhalter `__APP_VERSION__`). Mit jedem Stand für einen Handy-Durchlauf nachführen.
 - **Offline:** Über http(s) ausgeliefert, speichert der Service Worker `sw.js` alle Dateien; danach läuft das Spiel
@@ -458,6 +505,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (`?ruhetakt=60`): stetig voller Takt, Grund «Spiel (Ruhe aus)». `wald` (ohne Parameter): auch mit den
     Glühwürmchen Ruhe. Gemessen in der Seite über rAF und `draw` (auch headless brauchbar); Ergebnis nach
     `tests/output/energie/ruhetakt-*.json`.
+  - `node tests/app.test.mjs` prüft die Android-App ohne Android (Ticket 10 des Umbaus; etwa 3 s, in `npm test`): Build
+    der App (ohne Source-Maps, `sw.js`, Manifeste; `PRISMA_APP`; Zurück-Taste nur dort), Browser-Fassung ohne Capacitor,
+    Paketname, Version, Signieren ausserhalb des Repos (kein Schlüssel und keine `.aab`/`.apk` in Git), Store-Texte in
+    den Grenzen von Google Play. `LEISE_ART=leicht … node tests/app-probe.mjs [--gpu]` (leicht, etwa 2 min) öffnet den
+    Build der App in Chrome als Handy: kein Manifest, kein Service Worker, «Datenschutz» auf GitHub Pages, die Schritte
+    der Zurück-Taste (`zurueckTaste`), Konsole ohne Fehler.
   - `node tests/offline.mjs` prüft den Offline-Betrieb am frisch gebauten `dist/` mit dessen `sw.js` (`--redirect`:
     Server leitet index.html weiter; `--unterpfad`: das Spiel unter `/Prisma/` wie auf GitHub Pages; startet
     Headless-Chrome, also wie die Screenshots nur über `leise.sh`; Chrome mit `--lang=de`, damit das Ergebnis nicht
