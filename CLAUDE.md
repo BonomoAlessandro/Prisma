@@ -29,10 +29,9 @@ Abschnitt Tests.
 
 ## Laufendes Vorhaben
 
-PLAN 3a.3 «Sprachwahl» (`feature/sprachwahl`, seit 18.11.2026): Spec und Tickets in `.scratch/sprachwahl/`, vor dem
-Weitermachen lesen. Alle Tickets fertig und reviewt (18.11.2026, `db4d746`): Wechsel der Sprache ohne Neuladen (01),
-Liste beim Antippen (02), Lage des Schalters bleibt (03). Offen: Test des Nutzers, Merge nach `main`, zwei kleine
-Punkte in der Spec. Zuletzt abgeschlossen: PLAN 3a.1
+Keines. Zuletzt abgeschlossen: PLAN 3a.3 «Sprachwahl» (18.11.2026 vom Nutzer abgenommen und nach `main`: Wechsel der
+Sprache ohne Neuladen, Liste beim Antippen, Kürzel DE/EN auf dem Smartphone; `.scratch/sprachwahl/`, zwei kleine
+offene Punkte oben in der Spec); davor PLAN 3a.1
 «Umbau für die Stores» (Tickets 01–09 am 18.11.2026 nach `main`, 08d3d80; `.scratch/umbau/`, Ticket 10 mit eigenem
 Grilling offen); davor «Energie auf dem Handy» (16.11.2026 nach `main`: Ruhe-Bildrate 30, Spiegelung nur im All, −50 % Strom auf dem Poco;
 `.scratch/energie/`); davor PLAN 1a.3 «Tutorial neu» (15.11.2026 nach `main`, Übergabe in

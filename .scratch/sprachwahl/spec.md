@@ -1,7 +1,7 @@
 # Spec: Sprachwahl
 
-Status: umgesetzt (18.11.2026: Tickets 01–03 fertig und reviewt, `db4d746` auf `feature/sprachwahl` von `main`
-08d3d80; offen sind der Test des Nutzers und der Merge nach `main`)
+Status: done (18.11.2026: Tickets 01–03 fertig und reviewt, vom Nutzer getestet: «sieht gut aus»; nach `main`
+gemergt und gepusht)
 
 Offen aus den Reviews:
 - `sprachliste.js` importiert `./ui.js` nur für die Ladereihenfolge, die der Kettentest in `tests/logic.test.mjs`

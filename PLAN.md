@@ -432,7 +432,7 @@ eigenen Spielstand, Steam zusätzlich Steam Cloud. Vor Steam eine volle Controll
   Pages). Branch `feature/umbau`, Spec und Tickets in `.scratch/umbau/`. **Beginnt erst nach dem Merge von
   `feature/energie` und dem Go des Nutzers.** Während des Umbaus keine neuen Funktionen.
 - [ ] **3a.2 Verpacken** (Tickets 10–12: Android, Controller, Steam), je mit eigenem Grilling vorher.
-- [ ] **3a.3 Sprachwahl** (Wunsch des Nutzers 18.11.2026): Die Sprache wechselt ohne Neuladen, und der Schalter im
+- [x] **3a.3 Sprachwahl** (Wunsch des Nutzers 18.11.2026): Die Sprache wechselt ohne Neuladen, und der Schalter im
   Menü öffnet eine Liste der Sprachen statt blind zur nächsten zu springen. Seine Lage bleibt (Skizzenkatalog mit
   sieben Lagen, der Nutzer wählte die heutige). Branch `feature/sprachwahl`, Spec und
   Tickets in `.scratch/sprachwahl/`.
