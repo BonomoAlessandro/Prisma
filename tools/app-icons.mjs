@@ -11,7 +11,7 @@
 // - ic_launcher.png (Android 7: das Icon mit runder Ecke, icon-512.png) und ic_launcher_round.png (rund
 //   zugeschnitten aus dem Icon mit Schutzrand), je 48 dp.
 // Und store/icon-512.png: das Icon für den Play Store, 512 × 512, quadratisch ohne Ecke (die Ecken rundet Google).
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { evaluate, startChrome } from './chrome.mjs';
@@ -47,8 +47,8 @@ try {
     schreibe(join(ordner, 'ic_launcher_round.png'), await zeichne(maskable, Math.round(48 * f), { rund: true }));
     console.log(`mipmap-${dichte}: geschrieben`);
   }
-  mkdirSync(join(root, 'store'), { recursive: true });
-  copyFileSync(join(root, 'icons', 'icon-maskable-512.png'), join(root, 'store', 'icon-512.png'));
+  // über das Canvas: Google Play verlangt ein PNG mit 32 Bit (mit Alphakanal), icons/ hat nur 24
+  schreibe(join(root, 'store', 'icon-512.png'), await zeichne(maskable, 512));
   console.log('store/icon-512.png: geschrieben');
 } finally {
   await chrome.close();

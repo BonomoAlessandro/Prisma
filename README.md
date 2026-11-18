@@ -150,7 +150,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - **Icons:** `node tools/app-icons.mjs` macht aus `icons/` das adaptive Icon und die Icons für Android 7
     (`android/app/src/main/res/mipmap-*`) und `store/icon-512.png`. Startbild: das Icon auf dem Grund des Spiels.
   - **Store:** alles für den Eintrag im Play Store in `store/` (Übersicht `store/index.html`: Texte, Bilder, Antworten
-    für Inhaltseinstufung und Datensicherheit). Bilder: `tests/bildvergleich.mjs --gpu --store <ordner>`.
+    für Inhaltseinstufung und Datensicherheit). Bilder: `tests/bildvergleich.mjs --gpu --store <ordner>` (gelöste
+    Level dort mit einer Zeit wie beim Spielen statt 0:00), Feature-Grafik `tools/store-grafik.mjs` (JPEG: Google Play
+    nimmt sie nicht mit Alphakanal), das Symbol als PNG mit 32 Bit.
   - **Emulator:** geht auf diesem Rechner nicht (kein Hypervisor: Hyper-V/WHPX aus, AEHD nicht installiert, beides
     braucht Adminrechte). Geprüft wird ohne Android mit `node tests/app.test.mjs` (Build und Projekt) und
     `tests/app-probe.mjs` (Build der App im Browser: kein Service Worker, Link, Zurück-Taste), auf dem Handy vom

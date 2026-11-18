@@ -336,7 +336,9 @@ async function weltLevel(w, platz, vorher = null) {
   await merkeElemente();
   await bild(`welt-${w + 1}-vor`);
   if (vorher) await vorher();
-  await s.ev(`${D}.loese(); true`);
+  // für den Store eine Zeit wie beim Spielen (loese dreht sofort, «Gelöst» zeigte sonst 0:00): der Beginn früher
+  const zeit = STORE ? `if (${D}.game.stats.startedAt !== null) ${D}.game.stats.startedAt -= ${(40 + 13 * w) * 1000};` : '';
+  await s.ev(`${D}.loese(); ${zeit} true`);
   await until('window.__prisma.solvedPanel()', `Welt ${w + 1}: gelöst`, 240, true);
   await bild(`welt-${w + 1}-nach`);
 }
