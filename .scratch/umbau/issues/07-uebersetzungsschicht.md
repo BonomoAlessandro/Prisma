@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent (umgesetzt, wartet auf Review)
+**Status:** ready-for-agent (umgesetzt, Review bestanden)
 
 **Blocked by:** 06
 
@@ -153,3 +153,74 @@ Startbildschirms («Tippen zum Starten»), die Führung im Dorf (Sätze mit «Ti
 Untertitel der Reisen, Menü und Übersicht (Titel der Level, «Gesperrt – erst …»), Prolog/Epilog («Tippen zum
 Weitergehen», «Zum Menü»). Ein Tippen auf «Deutsch» tut noch nichts (es gibt nur Deutsch); erst mit Ticket 08 wechselt
 es die Sprache und lädt dabei die Seite neu (zurück auf den Startbildschirm).
+
+### Review (unabhängiger Reviewer)
+
+Reviewer, 18.11.2026, auf `ticket/umbau-07` (`0686ba7`, mit Ticket 06 hereingemergt). **Ergebnis: bestanden.** Das Spiel
+ist **bereit für den Handytest** (Meilenstein 1).
+
+**Texte wörtlich gleich.** Ein Skript hat alle Texte aus den entfernten Zeilen des Diffs (`src/`, `index.html`; Literale,
+Templates mit `${…}` als Platzhalter, Text in HTML) gegen alle Blätter von `de.json` (beide Geräte, `{Tippe}`/`{Drücke
+lang}` stehen gelassen) verglichen: Jeder alte Text steht genau so in `de.json`; die zusammengesetzten (Kopfzeile,
+`aria-label` des Menüs, «… von … Level gelöst», Zeiten im Bildschirmleser, «Würfel n / N – …») von Hand Stück für Stück
+nachgeprüft, gleich. Die 240 Titel stimmen alle mit den alten `titel:` der Basis überein, dazu die 4 Übungen mit ihrem
+Namen. Platzhalter je Gerät: `{Tippe}` → «Tippe»/«Klicke», `{Drücke lang}` → «Drücke lang»/«Rechtsklicke», «Tippen»/
+«Klicken» (Untertitel), «Tippen/Klicken zum Starten/Weitergehen» und die Hinweise nebenbei wie vorher; das Gerät ohne
+Angabe (`matchMedia('(pointer: coarse)')`) ist dasselbe wie `IS_TOUCH`. Nur noch über `t()`: Menü, Kopfzeile,
+«Gelöst», Übersicht, Führung, Prolog, Reisen, Finale, Epilog, Titel, Seitentitel, Meldung bei verlorenem
+Grafikkontext, `aria-label`/`title`. Der Name der Welt in `STORY_STATIONS` heisst jetzt «Bergwald» statt «Wald»; er
+wurde vorher nirgends angezeigt (nur die Kennung), jetzt in der Übersicht, wo vorher «Bergwald» aus dem Kapiteltitel
+kam – gleich.
+
+**Test gegen feste Texte.** Gegenprobe in einer Kopie: «Level gelöst», `title = 'Ton an/aus (M)'`, «Neue Runde
+starten», «Weiter spielen» in `ui.js` und Text im `data-t`-Element von `index.html` → alle fünf rot gemeldet. Grenze
+(klein, kein Fehler): Ein ganz neuer Text ohne Umlaut und ohne Wort aus `de.json` (etwa «Gut gemacht») fiele nicht auf;
+`src/logik.js` und `src/daten/` gehören nicht zur Oberfläche (dort stehen nur noch Schlüssel). Die Ausnahmeliste ist
+klein und begründet.
+
+**Sprachwahl** (Chrome mit `--lang`, Hilfsskript im Temp-Ordner): ohne `en.json` und Gerät `en-US` Deutsch, `lang="de"`,
+Klick auf den Schalter lädt nicht neu und speichert nichts; kaputter gespeicherter Wert (`kaputt{`) → Deutsch. Mit einer
+vorübergehenden `en.json` (Kopie mit vier geänderten Texten, in einer Kopie des Worktrees, danach gelöscht): `en-US` →
+Englisch, `lang="en"`, Seitentitel englisch; Klick → `prisma.sprache = de`, neu geladen, Deutsch; Klick → `en`;
+`?sprache=en` auf `de-DE` wirkt; unbekanntes `?sprache=xx` und gespeichertes `fr` fallen auf das Gerät zurück; `de-CH`
+→ Deutsch. Konsole immer leer. Bestehende Schlüssel unverändert (`speicher.test` grün), `prisma.sprache` erst beim
+Wechsel geschrieben. Nebensache: Beim Wechsel wird `?nointro` zu `?nointro=` (URLSearchParams), wirkungslos.
+
+**Schalter.** Desktop, hochkant, quer (Referenzbilder) und eigens Poco (393 × 873, Pixeldichte 2,75) und 360 × 640:
+oben rechts, überdeckt nichts, der Mittelpunkt trifft den Knopf (`elementFromPoint`), 44 px hoch. Nur im Menü; Führung
+und Prolog sehen ihn nicht; in der Rückfrage «Von vorn» ist er mit dem Inhalt `inert`; die Pfeiltasten des Menüs
+überspringen ihn (Tab erreicht ihn). Dass ein Tippen mit nur Deutsch nichts tut, ist für den Handytest unauffällig
+genug; dem Nutzer vorher sagen (steht oben unter «Für den Handytest»).
+
+**Referenzen.** Gegen `feature/umbau` geändert sind genau `desktop-menue`, `handy-menue`, `quer-menue` je in
+`referenz/` und `referenz-gpu/`; alle anderen 71 + 71 byte-gleich. `poco` hat kein Menübild (nur `start`, `dorf`,
+`welt-1-2`), also keine Lücke.
+
+**Werkzeuge** (in einer Kopie des Worktrees, danach `git status` leer): `geschichte.mjs spiel` am echten Stand: nichts zu
+schreiben. `vorrat.mjs ablegen Wasserfarbe`, dann `geschichte.mjs spiel`: holt es zurück, alles byte-gleich (Titel in
+`de.json` blieb stehen; dazwischen meldet `texte.test` den Titel ohne Level, wie unter «Offene Punkte» beschrieben).
+Generator, `ordne-level`, `vorrat` lesen `titel` nur wahlweise; Kandidaten der KI-Tester haben keinen Titel, das Spiel
+zeigt ihren Namen, `shots.mjs` setzt die Kopfzeile selbst (`ki-tester.test` grün).
+
+**Läufe** (alle über `tools/leise.sh`, `LEISE_MAX_CPU=100 LEISE_CPU=100`, Proben mit `GPU=1` allein):
+
+- `npm test`: alles grün, 23 min 5 s (neben `golden --voll` und `offline`).
+- `golden.mjs --voll`: alle 842 Level wie in `golden.json`, Löser für alle.
+- Bildvergleich **SwiftShader ganz** (allein): **GRÜN**, 77 Bilder in 35 min 37 s, grösste Abweichung 4, Anteil
+  0,000 %; die drei Menübilder Abweichung 0; `poco-start` «fast ruhig».
+- `offline.mjs`: erst neben `npm test` nach 15 min an `timeout 900` abgebrochen (bis dahin alles ok), allein mit
+  `timeout 1500` bestanden in 12 min 2 s (README nennt für `offline` keinen Zeitrahmen; 900 s reichen unter Last nicht).
+- `start-probe` in Ordnung, `leerlauf-probe` OK, `ruhetakt-probe` OK, `spiegel-probe pruefe` OK, `buehne-messung` ohne
+  Konsolenfehler, `brett-probe` bestanden (alle fünf Teile, auch «Reise»).
+- `geschichte-probe` (Desktop, `--handy`, `--quer`, je etwa 11 min; `--menue` 79 s): bestanden.
+- `geschichte-probe --uebersicht` und `--dorf`: rot nur an einzelnen Lücken über 100 ms, alle inhaltlichen Prüfungen
+  (Texte, Kopfzeilen, Führung, Übersicht) bestanden. Gegen die Basis (Worktree von `feature/umbau`, abwechselnd je
+  zweimal): Basis `--uebersicht` 2/2 rot (1–2 Lücken: «Spiel → Übersicht», «Menü → Übersicht» 414 ms, «letztes Level →
+  Übersicht»), Ticket 3/3 rot (1–2 Lücken an denselben Übergängen, längste 425 ms); `--dorf` Basis 2/2 rot, Ticket 3/3
+  rot, je an «Sehr schwer: Übersicht → Übung 3 wiederholen → Übung 4» (Basis 372/432 ms, Ticket 228–407 ms), dazu
+  einzeln «Menü → Prolog → Überspringen» oder «Angebot steht» (beide Seiten). Nichts, was auf der Basis nicht kommt.
+
+**Funde.** Keine mittleren oder grossen. Selbst behoben: README, ein überlanger Absatz zu `tools/chrome.mjs` umbrochen
+(`973e354`). Hinweise für Ticket 08: `tests/offline.mjs` startet Chrome selbst ohne `--lang` (mit `en.json` sähe er auf
+einem englischen Rechner Englisch; prüft aber keine Texte); die Suche nach festen Texten erkennt englische Texte nicht
+(nur deutsche Wörter).
