@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 
 **Blocked by:** 08 (technisch genügt 02; auf Wunsch des Nutzers nach Meilenstein 1 vorziehbar)
 
