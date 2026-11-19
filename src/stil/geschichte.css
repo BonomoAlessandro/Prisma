@@ -157,9 +157,9 @@
 #story .scene .skip:hover { color: var(--ink); }
 #story .scene .skip[hidden] { display: none; }
 #story.hidden .scene * { animation-play-state: paused; }
-/* «Überspringen» für die Einstiege in die Welten und das Kapitel «Im Dorf» (Ticket 07; den Prolog überspringt der
-   Knopf der Bühne): oben rechts wie dort, über dem Untertitel. Auf dem Handy hochkant unten links, die Kopfzeile
-   im Dorf reicht dort über die ganze Breite. Unter Menü und Übersicht nicht (story.skippable). */
+/* «Dorf überspringen» für das Kapitel «Im Dorf» (Ticket 07; den Prolog überspringt der Knopf der Bühne, in einem
+   Einstieg genügt Tippen): oben rechts wie dort. Auf dem Handy hochkant unten links, die Kopfzeile im Dorf reicht dort
+   über die ganze Breite. Unter Menü und Übersicht nicht (story.skippable). */
 #btn-skip {
   position: fixed; z-index: 8; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right));
   padding: 12px 8px 12px calc(8px + 0.35em); font-size: 10.5px; letter-spacing: 0.35em; text-transform: uppercase;

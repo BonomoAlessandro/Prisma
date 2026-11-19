@@ -155,9 +155,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `MainActivity.java`), Hoch- und Querformat, Abstände zu Kamera-Loch und Rand über `env(safe-area-inset-*)`
     (SystemBars `insetsHandling: native`). Zurück-Taste wie Esc (`zurueckTaste` in
     `src/seite/geschichte/geschichte.js`): Level → Menü, Menü aus einem Level → zurück, Übersicht und Rückfrage zu,
-    Prolog überspringen; auf dem Startbildschirm und im Menü ohne Level dahinter schliesst die App. Ton ruht im
-    Hintergrund (`visibilitychange`). Der Link «Datenschutz» im Menü öffnet in der App die Seite auf GitHub Pages im
-    Browser des Handys, in der Browser-Fassung die Seite daneben.
+    Prolog und Einstieg überspringen; auf dem Startbildschirm und im Menü ohne Level dahinter schliesst die App. Ton
+    ruht im Hintergrund (`visibilitychange`). Der Link «Datenschutz» im Menü öffnet in der App die Seite auf GitHub
+    Pages im Browser des Handys, in der Browser-Fassung die Seite daneben.
   - **Icons:** `node tools/app-icons.mjs` macht aus `icons/` das adaptive Icon und die Icons für Android 7
     (`android/app/src/main/res/mipmap-*`) und `store/icon-512.png`. Startbild: das Icon auf dem Grund des Spiels.
   - **Store:** alles für den Eintrag im Play Store in `store/` (Übersicht `store/index.html`: Texte, Bilder, Antworten
@@ -478,13 +478,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     nebenbei und Menü), mitten in der Führung von «Farbenlehre» Neuladen: «Weiter» beginnt bei Übung 1 (kein Stand im
     Dorf), Menü und Übersicht behalten Übung und Schritt, die offene Übung aus der Übersicht läuft im Ablauf weiter,
     «Überspringen» mitten in einer Übung (danach bleibt von der Führung nichts stehen) und beim Herauswachsen, «Gleich
-    los», alle 4 Übungen bis zum Bergwald, Wiederholen einer Übung aus der Übersicht, Einstiege übersprungen im Flug, im
-    Fall und gleich zu Beginn: genau ein Level wächst, kein leeres Brett, Tempo des Einstiegs, Drehung der Kamera je
-    Bild); `--dorf-raender` Randfälle des Dorfs (etwa 6 min: Wiederholen im laufenden Kapitel, Bergwald 1 aus der
-    Übersicht mitten im Dorf, Neuladen im Einstieg, «Dorf überspringen» beim Versinken, Einstieg überspringen, während er
-    aufs Versinken wartet, ein altes gespieltes Dorf mit `platz` 8 bleibt beendet, mitten in der Führung in einen
-    anderen Grad und zurück zu Übung 1, «Dorf überspringen» im Wechsel zwischen zwei Schritten). Nach dem Prolog wählen
-    die übrigen Abläufe «Gleich los».
+    los», alle 4 Übungen bis zum Bergwald, Wiederholen einer Übung aus der Übersicht, Einstiege mit Esc übersprungen
+    (ohne Knopf «Überspringen») im Flug, im Fall und gleich zu Beginn: genau ein Level wächst, kein leeres Brett, Tempo
+    des Einstiegs, Drehung der Kamera je Bild); `--dorf-raender` Randfälle des Dorfs (etwa 6 min: Wiederholen im
+    laufenden Kapitel, Bergwald 1 aus der Übersicht mitten im Dorf, Neuladen im Einstieg, «Dorf überspringen» beim
+    Versinken, Einstieg überspringen, während er aufs Versinken wartet, ein altes gespieltes Dorf mit `platz` 8 bleibt
+    beendet, mitten in der Führung in einen anderen Grad und zurück zu Übung 1, «Dorf überspringen» im Wechsel zwischen
+    zwei Schritten). Nach dem Prolog wählen die übrigen Abläufe «Gleich los».
     `--ganz` (Abnahme Ticket 08; etwa 7 min je Grad, Zeitrahmen 14 min je Grad): der ganze Durchgang je Grad in einer
     Sitzung vom Menü bis zum Epilog und zurück ins Menü, mit Neuladen mitten in der Wüste und den Bildzeiten jeder
     Zwischenszene (Prolog, Einstieg, fünf Reisen, Finale, Epilog). `--handy` 390 × 844 (mit `--groesse` ein anderes

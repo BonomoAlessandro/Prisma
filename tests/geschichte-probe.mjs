@@ -2158,22 +2158,23 @@ async function warteSkip(sichtbar) {
   for (let i = 0; i < 40 && (await skipSichtbar()) !== sichtbar; i++) await sleep(100);
   return (await skipSichtbar()) ? ev("document.getElementById('btn-skip').textContent") : null;
 }
-/** Einstieg überspringen (esc: mit der Taste, sonst der Knopf) und prüfen: Level steht, Untertitel zu, Moment gesehen. */
-async function einstiegWeg(g, was, moment, { esc = false, sky } = {}) {
+/**
+ * Einstieg überspringen und prüfen: Level steht, Untertitel zu, Moment gesehen. Einen Knopf dafür gibt es nicht
+ * (Nutzer, 19.11.2026: Tippen genügt), nur Esc bzw. die Zurück-Taste von Android (zurueckTaste); die Probe drückt Esc
+ * auch auf dem Handy, so läuft die Landung im Hochformat mit.
+ */
+async function einstiegWeg(g, was, moment, { sky } = {}) {
+  pruefe(!(await skipSichtbar()), `${g}: ${was}: «Überspringen» zu sehen`);
   await messe();
   const vorher = await ev(`({ skyBereit: ${D}.skyTheme.ready, fall: ${D}.story.flare.scale.x < 4.9 })`);
-  if (esc) await taste('Escape');
-  else await tippe(SKIP, 'Überspringen');
-  // während der Landung, bis das Level wächst, kein «Überspringen» (es meinte im Dorf schon das Kapitel)
+  await taste('Escape');
+  // während der Landung, bis das Level wächst, kein «Dorf überspringen»
   await sleep(100);
   await ev(`window.__skipLandung = false; (function schau() { if (['in', 'play'].includes(${D}.flow.state)) return;
     if (!document.getElementById('btn-skip').classList.contains('hidden')) window.__skipLandung = true;
     requestAnimationFrame(schau); })(); true`);
   await until(`window.__prisma.playing() && !${D}.story.running`, `${g}: ${was}: Level steht`, 40);
   pruefe(!(await ev('window.__skipLandung')), `${g}: ${was}: «Überspringen» während der Landung zu sehen`);
-  // der Knopf ist weg, der Untertitel zu: der Fokus liegt auf dem Spielfeld, nicht auf body (Ticket 08)
-  const fokus = await ev('document.activeElement?.tagName');
-  pruefe(esc || fokus === 'CANVAS', `${g}: ${was}: Fokus nach «Überspringen» auf ${fokus}`);
   await sleep(1200);
   const log = await ende(`${g}: ${was} übersprungen`);
   const n = wachsen(log);
@@ -2200,8 +2201,8 @@ async function einstiegWeg(g, was, moment, { esc = false, sky } = {}) {
  * zurück in dieselbe Übung und denselben Schritt → Übersicht im Dorf (Reihe «Im Dorf», die zwei gelösten gelöst, die
  * laufende Übung 1) → zu und wieder auf, die offene Übung 3 gewählt: im normalen Ablauf ab ihr → «Überspringen» mitten
  * in der Übung → Satz zum Ende → Glühwürmchen in den Bergwald (dorf.ende uebersprungen) → Übersicht: übrige Übungen frei.
- * Mittel: Einstieg ins Dorf während des Flugs übersprungen, «Überspringen» während die nächste Übung wächst, dann den
- * Einstieg in den Bergwald während des Falls.
+ * Mittel: Einstieg ins Dorf während des Flugs übersprungen (Esc, einen Knopf gibt es im Einstieg nicht), «Dorf
+ * überspringen» während die nächste Übung wächst, dann den Einstieg in den Bergwald während des Falls.
  * Schwer: «Gleich los» (Desktop: Tab und Enter), den Einstieg in den Bergwald gleich zu Beginn übersprungen (Himmel lädt
  * evtl. noch: kein leeres Brett); kein dorf im Stand, Übersicht ohne Dorf.
  * Sehr schwer: alle 4 Übungen geführt, jeder Schritt wie ein Spieler (schritteSpielen), bis zum Ende → Bergwald
@@ -2236,7 +2237,7 @@ async function dorfAblauf() {
     `Leicht: Einstieg ins Dorf «${await kicker()}», Himmel ${await ev(`${D}.skyTheme.current`)}`);
   await sleep(1500);
   await bild('dorf-einstieg');
-  pruefe(await skipSichtbar(), 'Leicht: «Überspringen» fehlt im Einstieg ins Dorf');
+  pruefe(!(await skipSichtbar()), 'Leicht: «Überspringen» im Einstieg ins Dorf (Tippen genügt)');
   // Leiste C auch im Dorf (alle Zeichen blass), und das Licht steigt über den Untertitel in der Mitte (Review Ticket 08:
   // es lag gut 3 s hinter dem Text)
   await pruefeLeiste(0, 'Leicht: Einstieg ins Dorf', { licht: false });
@@ -2348,7 +2349,7 @@ async function dorfAblauf() {
   await tippe('#story .caption .text', 'Untertitel');
   await until(`${storyMode} === 'caption' && document.querySelector('#story .caption .kicker').textContent === `
     + JSON.stringify(KAPITEL(0)), 'Leicht: Einstieg in den Bergwald', 30);
-  pruefe(await skipSichtbar(), 'Leicht: «Überspringen» fehlt im Einstieg in den Bergwald');
+  pruefe(!(await skipSichtbar()), 'Leicht: «Überspringen» im Einstieg in den Bergwald (Tippen genügt)');
   await sleep(1200);
   await bild('dorf-wald');
   await halt('Leicht: Einstieg in den Bergwald nach dem Dorf', { station: 1 });
@@ -2378,7 +2379,7 @@ async function dorfAblauf() {
   await angebot('mittel', 'Üben');
   await until(`${D}.story.entering && ${D}.story.flare.visible && ${storyMode} === 'caption'`, 'Mittel: Flug', 30);
   await sleep(700);
-  await einstiegWeg('mittel', 'Einstieg ins Dorf (Flug)', 'dorf', { esc: !view.phone });
+  await einstiegWeg('mittel', 'Einstieg ins Dorf (Flug)', 'dorf');
   await uebungLaeuft(0);
   await ev(`${D}.loese()`);
   await until('window.__prisma.solvedPanel()', 'Mittel: Übung 1 gelöst', 30);
@@ -2391,7 +2392,7 @@ async function dorfAblauf() {
   pruefe((await stand('mittel')).dorf?.ende === 'uebersprungen', 'Mittel: dorf.ende');
   await tippe('#story .caption .text', 'Untertitel');
   await until(`${D}.story.entering && ${D}.story.flare.scale.x < 4.9`, 'Mittel: Fall in den Bergwald', 30);
-  await einstiegWeg('mittel', 'Einstieg in den Bergwald (Fall)', 'wald', { esc: !view.phone });
+  await einstiegWeg('mittel', 'Einstieg in den Bergwald (Fall)', 'wald');
   await kopfzeile('mittel', 0);
 
   // Schwer: «Gleich los», Einstieg gleich zu Beginn überspringen
@@ -2400,8 +2401,8 @@ async function dorfAblauf() {
   await prologWeg('schwer');
   await angebot('schwer', 'Gleich los', { mitTaste: !view.phone });
   await until(`${D}.story.entering`, 'Schwer: Einstieg beginnt', 30);
-  await until("!document.getElementById('btn-skip').classList.contains('hidden')", 'Schwer: «Überspringen»', 5);
-  await einstiegWeg('schwer', 'Einstieg in den Bergwald (Beginn)', 'wald', { esc: !view.phone, sky: 'forest' });
+  await sleep(200); // story.update lief (bis zum 19.11.2026 kam hier der Knopf «Überspringen»)
+  await einstiegWeg('schwer', 'Einstieg in den Bergwald (Beginn)', 'wald', { sky: 'forest' });
   await kopfzeile('schwer', 0);
   s = await stand('schwer');
   const ohneDorf = await ev(`${D}.story.overviewData('schwer').dorf === undefined`);
@@ -2424,7 +2425,7 @@ async function dorfAblauf() {
   try { await until(`${D}.story.halt === true`, 'Sehr schwer: Licht hält über dem Untertitel an', 60); }
   finally { tippeHalt = false; }
   await sleep(600);
-  await einstiegWeg(g, 'Einstieg in den Bergwald (Halt)', 'wald', { esc: !view.phone });
+  await einstiegWeg(g, 'Einstieg in den Bergwald (Halt)', 'wald');
   await until(`window.__prisma.playing() && !${D}.story.running && ${D}.story.step === 0`, 'Sehr schwer: Bergwald 1',
     60);
   await tippe('#btn-overview', 'Übersicht');
@@ -2588,7 +2589,7 @@ async function dorfRaender() {
   await angebot('mittel', 'Gleich los');
   await until(`${D}.story.entering && ${D}.story.holdEnter && ${D}.story.flare.visible && !${D}.story.tweens.some(
     (t) => t.mark)`, 'd: Einstieg wartet aufs Versinken', 30);
-  await einstiegWeg('mittel', 'Einstieg in den Bergwald (wartet aufs Versinken)', 'wald', { esc: !view.phone });
+  await einstiegWeg('mittel', 'Einstieg in den Bergwald (wartet aufs Versinken)', 'wald');
   await kopfzeile('mittel', 0);
 
   // d2) Einstieg ins Dorf im Flug überspringen, während das alte Brett noch nicht versunken ist: Die Landung wartet
@@ -2604,8 +2605,7 @@ async function dorfRaender() {
   await angebot('sehr schwer', 'Üben');
   await until(`${D}.story.entering && ${D}.story.holdEnter && ${D}.story.tweens.some((t) => t.mark)`,
     'd2: Flug ins Dorf, das alte Brett wartet', 30);
-  await einstiegWeg('sehr schwer', 'Einstieg ins Dorf (Flug, Landung wartet aufs Versinken)', 'dorf',
-    { esc: !view.phone });
+  await einstiegWeg('sehr schwer', 'Einstieg ins Dorf (Flug, Landung wartet aufs Versinken)', 'dorf');
   await uebungLaeuft(0);
 
   // f) ein altes gespieltes Dorf (platz 8 aus der Zeit der 9 Übungen, die alten Übungen gelöst): bleibt beendet, gilt
