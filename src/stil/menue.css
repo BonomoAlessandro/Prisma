@@ -20,6 +20,9 @@
   font-weight: 300;
   -webkit-font-smoothing: antialiased;
   user-select: none; -webkit-user-select: none;
+  /* waagrechtes Ziehen gehört dem Menü (Wischen zum Nachbargrad), nicht dem Browser; dazu nimmt createMenu beim
+     Wischen touchmove selbst (sonst gab Chrome einem schnellen Wisch unsichtbaren Schwung) */
+  touch-action: pan-y;
   transition: opacity 0.8s ease;
 }
 .menue[hidden] { display: none; }
@@ -90,6 +93,16 @@
 /* Sternkarte (SVG, createMenu zeichnet sie bei jeder Grössenänderung und Wahl neu) */
 .menue-karte { position: absolute; left: calc(7% + 330px); right: 4%; top: 9%; bottom: calc(9% + 78px); }
 .menue-sternkarte { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+/* Wischen (createMenu): die Karte folgt dem Finger, die des Nachbargrads (.menue-nachbar, sonst leer) fährt daneben
+   herein. Seitlich am Rand der Karte abgeschnitten, sonst führe sie über die Reiter (hoch nicht: dort bis an den Rand
+   des Bildschirms) */
+.menue-wischt { clip-path: inset(-200px 0); }
+.menue-wischt .menue-sternkarte { will-change: transform; }
+/* leer gar nicht im Bild: Über der Karte liegend, änderte sie sonst, wie Chrome die Namen der Karte rastert
+   (Bildvergleich desktop-menue rot, Review) */
+.menue-nachbar:empty { display: none; }
+/* die des Nachbargrads wie vor dem Moment: er beginnt erst, wenn sie gewählt ist (auf der Karte selbst) */
+.menue-nachbar .menue-erwacht, .menue-nachbar .menue-zieht, .menue-nachbar .menue-ring.menue-spaeter { animation-play-state: paused; }
 .menue-netz circle, .menue-netz line { fill: none; stroke: rgba(200, 210, 255, 0.07); stroke-width: 1; }
 .menue-netz line { stroke: rgba(200, 210, 255, 0.05); }
 .menue-geist { stroke: rgba(200, 208, 255, 0.28); stroke-dasharray: 3 5; stroke-linecap: round; } /* noch nicht gezogen */
@@ -210,6 +223,7 @@
   .menue-name { font-size: 12px; letter-spacing: 0.06em; margin-right: 0; text-transform: none; }
   .menue-wahl .menue-stand { display: none; }
   .menue-karte { position: relative; inset: auto; flex: 1 1 auto; min-height: 120px; margin: 6px 0; }
+  .menue-wischt { clip-path: none; }
   .menue-etikett { font-size: 9px; letter-spacing: 0.16em; }
   .menue-etikett .menue-klein { font-size: 9px; }
   .menue-info { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
