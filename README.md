@@ -208,11 +208,16 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     | leicht | `npm test` und jeder Node-Test einzeln (`golden`, `logic`, `geschichte`, `generator` …), `bildvergleich.mjs`, `offline.mjs`, `screenshot.mjs`, `spiegel-probe.mjs bilder`, `buehne-messung.mjs bilder`, `sprachwechsel-probe.mjs`, Werkzeuge (`generiere.mjs`, `ordne-level.mjs`, `geschichte.mjs`, KI-Tester `prepare.mjs` und `shots.mjs` …) |
     | allein | `leerlauf-probe.mjs`, `ruhetakt-probe.mjs`, `start-probe.mjs`, `buehne-messung.mjs` (messen), `spiegel-probe.mjs` (`pruefe`, `messen`), `geschichte-probe.mjs` (misst in jedem Ablauf die Lücken im Bildtakt), `brett-probe.mjs` (scheitert an Lücken über 100 ms auf der Grafikkarte, `mechanik` und `reise`), `tools/bench.mjs`, alles mit `--fenster` |
 
-    **Regeln für die Agenten** (Nutzer, 16. und 17.11.2026): Umsetzer lassen nur die schnellen Prüfungen laufen, als
-    leichte Läufe: Node-Tests (`npm test` oder die betroffenen), Golden, den Bildvergleich **auf der Grafikkarte**
-    (`--gpu`, etwa 8 min), dazu die Proben, die ihr Ticket direkt betrifft. Der Reviewer lässt den ganzen Satz einmal
-    laufen, den Bildvergleich in **SwiftShader** (ohne `--gpu`, die genaue Prüfung, etwa 35 min); die Proben mit
-    Zeitmessung (alleinige) nur er. Wackelt ein paralleler Lauf (Zeitüberschreitung, Flake), ihn als alleinigen
+    **Regeln für die Agenten** (Nutzer, 16., 17. und 19.11.2026): **Gezielt prüfen**, beim Umsetzer wie beim
+    Reviewer: Nach einer Änderung laufen nur die Prüfungen, die sie betrifft, als leichte Läufe. Das sind die
+    Node-Tests der geänderten Teile (`node tests/alle.mjs <name> …`; eine Änderung an Texten etwa `texte`, eine an der
+    Spiellogik `logic` und `golden`) und der Bildvergleich nur für die Abläufe, die das Geänderte zeigen (`--nur`,
+    dazu `--sprache` und `--groesse`): beim Umsetzer **auf der Grafikkarte** (`--gpu`), beim Reviewer in
+    **SwiftShader** (ohne `--gpu`, die genaue Prüfung). Dazu kommen die Proben des geänderten Teils; die mit
+    Zeitmessung (alleinige) lässt nur der Reviewer laufen, und nur, wenn die Änderung den Bildtakt berühren kann. Den
+    ganzen Satz (`npm test`, Bildvergleich ohne `--nur`, in SwiftShader etwa 35 min, alle Proben) nur bei breiten
+    Umbauten wie dem Umbau für die Stores oder auf Wunsch des Nutzers. Wackelt ein paralleler Lauf
+    (Zeitüberschreitung, Flake), ihn als alleinigen
     wiederholen (ohne `LEISE_ART`, beim Bildvergleich dazu `--jobs 1`), bevor man einen Fehler meldet. Nach einem
     Treiberupdate der Grafikkarte (oder einer neuen Fassung von Chrome) kann der GPU-Weg überall rot werden: dann zuerst
     den Bildvergleich in SwiftShader laufen lassen, und erst wenn er grün ist, die GPU-Referenzen mit `--gpu --write`

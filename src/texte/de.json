@@ -181,11 +181,11 @@
     "kapitelKicker": "Kapitel {n} · {titel}",
     "prolog": {
       "1": "Hoch in den Bergen liegt ein kleines Dorf. Aus den Kaminen steigt Rauch, und über den Dächern funkeln die Sterne.",
-      "2": "Jeden Abend klettert Noa auf den Hügel hinter den Häusern und sucht den Polarstern. Er sitzt ganz vorn an der Deichsel des Kleinen Wagens.",
-      "3": "Heute hat Noa die Taschenlampe mitgenommen. Klick. Der Polarstern soll ein Zeichen bekommen.",
-      "4": "Aber das Licht kommt nicht weit. Die Sterne des Wagens schlafen, und ohne sie verliert es sich im Dunkeln.",
+      "2": "Jeden Abend klettert Noa auf den Hügel hinter den Häusern und schaut zum Polarstern hinauf. Er ist der einzige Stern, der immer am selben Platz bleibt.",
+      "3": "Im Dorf erzählt man sich, dass der Polarstern jedes Licht sieht. Heute will Noa es ausprobieren und knipst die Taschenlampe an.",
+      "4": "Aber das Licht kommt nicht weit. Der Weg zum Polarstern führt über die Sterne des Kleinen Wagens, und die schlafen noch.",
       "5": "Da blinkt etwas am Waldrand. Ein Schwarm Glühwürmchen fliegt heran und fängt das Licht ein.",
-      "6": "Jeder Stern im Wagen gehört zu einem Ort und wacht erst auf, wenn dort Licht ankommt. Hilf den Glühwürmchen, das Licht von Ort zu Ort zu bringen, bis es beim Polarstern ankommt."
+      "6": "Jeder Stern des Wagens gehört zu einem fernen Ort und wacht erst auf, wenn dort Licht ankommt. Hilf mit, das Licht hinzubringen. Die Glühwürmchen machen den Anfang."
     },
     "dorf": {
       "titel": "Im Dorf",
@@ -208,13 +208,13 @@
       "meer": {
         "titel": "Das Meer",
         "reise": "Über dem Wald ist der erste Stern aufgewacht. Er zeigt zum Meer, und die Glühwürmchen fliegen mit dem Licht über die Hügel bis an den Strand.",
-        "fertig": "Das Meer leuchtet",
+        "fertig": "Das Meer glitzert",
         "weiter": "Weiter in die Wüste"
       },
       "wueste": {
         "titel": "Die Wüste",
-        "reise": "Jetzt leuchtet auch der zweite Stern. Der Wind nimmt das Licht mit, weit übers Wasser bis dorthin, wo die Wüste anfängt.",
-        "fertig": "Die Wüste leuchtet",
+        "reise": "Jetzt leuchtet auch der zweite Stern. Eine Welle wirft das Licht in die Luft, und der Wind trägt es übers Wasser bis in die Wüste.",
+        "fertig": "Die Wüste flimmert",
         "weiter": "Weiter zum Vulkan"
       },
       "vulkan": {
@@ -225,26 +225,26 @@
       },
       "planeten": {
         "titel": "Die Planeten",
-        "reise": "Mit dem vierten Stern ist die Schale des Wagens vollständig. Da bricht der Vulkan aus und schleudert das Licht hoch über die Wolken.",
-        "fertig": "Die Planeten leuchten",
+        "reise": "Mit dem vierten Stern schliesst sich die Schale des Wagens. Der Krater faucht, und Funken tragen das Licht hinauf zu den Planeten.",
+        "fertig": "Die Planeten schimmern",
         "weiter": "Weiter zu den Sternen"
       },
       "sterne": {
         "titel": "Die Sterne",
-        "reise": "Fünf Sterne leuchten schon, nur einer schläft noch. Ein Komet nimmt das Licht mit, weit hinaus zu den Sternen.",
+        "reise": "Noa zählt am Himmel schon fünf helle Sterne. Ein Komet nimmt das Licht mit, hinaus zu den Sternen, wo der letzte noch schläft.",
         "fertig": "Der Wagen ist wach",
         "weiter": "Hinaufschauen"
       }
     },
     "finale": {
       "1": "Der letzte Stern wacht auf. Jetzt leuchtet der ganze Kleine Wagen.",
-      "2": "Das Licht wandert die Deichsel entlang bis zum Polarstern.",
-      "3": "Der Polarstern hat Noas Zeichen gesehen."
+      "2": "Das Licht läuft die Deichsel entlang, bis ganz nach vorn.",
+      "3": "Dort leuchtet der Polarstern auf. Er hat Noas Licht gesehen."
     },
     "epilog": {
       "1": "In dieser Nacht bleibt Noa noch lange auf dem Hügel sitzen und schaut hinauf.",
       "2": "Da blinkt der Polarstern. Einmal, zweimal, dreimal.",
-      "3": "Noa lacht und blinkt mit der Taschenlampe zurück. Über dem Dorf leuchten jetzt alle sieben Sterne."
+      "3": "Noa lacht und blinkt zurück, auch dreimal. Über dem Dorf leuchten jetzt alle sieben Sterne."
     }
   },
   "fuehrung": {
