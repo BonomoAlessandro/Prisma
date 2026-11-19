@@ -18,9 +18,12 @@ Schwere Läufe über `tools/leise.sh` mit Zeitgrenze. Läufe ohne Zeitmessung (N
 `offline`, `screenshot`, Werkzeuge) als leichte (`LEISE_ART=leicht`, bis zu vier gleichzeitig), Proben
 mit Bildzeiten oder Messungen (auch `brett-probe` und `geschichte-probe`) allein (ohne `LEISE_ART`); Tabelle im README,
 Abschnitt Tests.
-- Umsetzer: nur die schnellen Prüfungen (Node-Tests, Golden, Bildvergleich auf der Grafikkarte mit `--gpu`) und die
-  Proben, die ihr Ticket direkt betrifft. Der Reviewer lässt den ganzen Satz einmal laufen, den Bildvergleich in
-  SwiftShader (ohne `--gpu`), die Proben mit Zeitmessung nur er.
+- **Gezielt prüfen** (Nutzer, 19.11.2026), beim Umsetzer wie beim Reviewer: Nach einer Änderung laufen nur die
+  Prüfungen, die sie betrifft. Das sind die Node-Tests der geänderten Teile und der Bildvergleich mit `--nur` (dazu
+  `--sprache`, `--groesse`) für die Abläufe, die das Geänderte zeigen: beim Umsetzer auf der Grafikkarte (`--gpu`),
+  beim Reviewer in SwiftShader. Dazu kommen die Proben des geänderten Teils; die mit Zeitmessung lässt nur der Reviewer
+  laufen, und nur, wenn die Änderung den Bildtakt berühren kann. Welcher Test was abdeckt: README, Abschnitt Tests.
+  Den ganzen Satz nur bei breiten Umbauten (wie dem Umbau für die Stores) oder auf Wunsch des Nutzers.
 - Nach einem Treiberupdate (oder neuem Chrome) die GPU-Referenzen (`referenz-gpu/`) erst mit `--gpu --write` neu
   schreiben, wenn der Bildvergleich in SwiftShader grün ist.
 - Wackelt ein paralleler Lauf (Zeitüberschreitung, Flake), als alleinigen wiederholen (Bildvergleich mit `--jobs 1`).
