@@ -227,10 +227,9 @@ const story = {
   inDorf: false,      // eine Übung «Im Dorf» läuft (Ticket 07), dann ist uebung das Level statt steps[step]; mit
                       // replay als Wiederholen aus der Übersicht
   uebung: 0,          // die Übung im Dorf (0 … TUTORIAL_COUNT − 1, zugleich ihr Platz in LEVELS)
-  entering: null,     // ein Einstieg (enter) läuft, bis das Level zu wachsen beginnt: { skip } (Überspringen, land)
+  entering: null,     // ein Einstieg (enter) läuft, bis das Level zu wachsen beginnt: { skip } (Esc, land)
   endeWartet: false,  // «Überspringen» im Dorf, während eine Zwischenszene lief: danach (done)
-  skipShown: false,   // «Überspringen» (#btn-skip) ist zu sehen (update, skippable)
-  skipEinstieg: true, // es überspringt einen Einstieg, sonst das Kapitel «Im Dorf» (beim Einblenden; skipBeschriften)
+  skipShown: false,   // «Dorf überspringen» (#btn-skip) ist zu sehen (update, skippable)
   captionInhalt: null, // Inhalt des Untertitels (fillCaption), für einen Wechsel der Sprache (sprachwechsel)
   skipRuhe: 0,        // bis dann (performance.now) kein «Dorf überspringen»: gleich nach einem Einstieg
   landing: false,     // ein übersprungener Einstieg landet (land): Tippen beschleunigt nicht
@@ -1586,7 +1585,8 @@ const story = {
    * versunken (begin).
    * wie: was der Welt ch sonst entnommen wird (Einstieg ins Dorf: STORY_DORF.einstieg, ohne Träger): kicker, text, path
    * (Station), traeger (STORY_CARRIERS oder null), moment (gesehen, sobald das Level wächst).
-   * «Überspringen» oder Esc (Entscheid 10) bis dahin: weich landen (land), ohne Schnitt.
+   * Esc (Entscheid 10) bis dahin: weich landen (land), ohne Schnitt. Einen Knopf dafür gibt es nicht (Nutzer,
+   * 19.11.2026): Tippen genügt, das Licht hält ohnehin nur, bis der Spieler tippt.
    */
   async enter(index, ch, sunk, wie = {}) {
     prepareLevel(index); // nach «Üben» ein anderes als in begin
@@ -1753,8 +1753,8 @@ const story = {
     this.skipRuhe = Math.min(this.skipRuhe, performance.now() + STORY_SKIP_RUHE);
   },
   /**
-   * «Überspringen» (Knopf #btn-skip) bzw. Esc (taste): den Prolog (sein Knopf auf der Bühne), einen Einstieg (enter
-   * landet weich) und, nur mit dem Knopf, das Kapitel «Im Dorf» (dorfEnde). Die Reisen laufen ganz (Entscheid 28).
+   * Überspringen: Esc (taste) den Prolog (auch sein Knopf auf der Bühne) und einen Einstieg (enter landet weich), der
+   * Knopf «Dorf überspringen» (#btn-skip) das Kapitel «Im Dorf» (dorfEnde). Die Reisen laufen ganz (Entscheid 28).
    */
   skip(taste = false) {
     if (this.scene && !this.scene.skip.hidden) { this.skipProlog(); return; }
@@ -1768,12 +1768,14 @@ const story = {
     }
     if (!taste && this.skippable()) this.dorfEnde('uebersprungen');
   },
-  /** Ist «Überspringen» (#btn-skip) jetzt zu sehen: in einem Einstieg und solange das Kapitel «Im Dorf» läuft. */
+  /**
+   * Ist «Dorf überspringen» (#btn-skip) jetzt zu sehen: solange das Kapitel «Im Dorf» läuft. In einem Einstieg nicht
+   * (Nutzer, 19.11.2026: Tippen genügt dort; bis dahin hiess er dort «Überspringen»).
+   */
   skippable() {
-    if (this.choosing || this.outside || this.grade === null || flow.state === 'intro') return false;
-    if (this.entering) return !this.entering.skip;
-    // nach dem Einstieg ins Dorf eine Pause: «Überspringen» wechselt dort die Bedeutung (Einstieg → Kapitel), ein
-    // Tippen, das noch den Einstieg meinte, beendet sonst das Dorf (Review Ticket 07)
+    if (this.choosing || this.outside || this.grade === null || flow.state === 'intro' || this.entering) return false;
+    // nach dem Einstieg ins Dorf eine Pause (Review Ticket 07): Der Knopf kommt erst, wenn die Übung gewachsen ist,
+    // nicht unter einem Tippen, das noch dem Einstieg galt
     if (performance.now() < this.skipRuhe) return false;
     return this.inDorf && this.dorfLaeuft() && !this.endeWartet; // auch beim Wiederholen einer Übung davor
   },
@@ -1849,18 +1851,13 @@ const story = {
     el.querySelector('.tap').textContent = tap;
     this.licht = null; // neu messen (lichtHoch)
   },
-  /** «Überspringen» (#btn-skip) beschriften: im Einstieg die Fahrt, sonst (im Dorf) das Kapitel (skipEinstieg). */
-  skipBeschriften() {
-    this.skipBtn.textContent = t(this.skipEinstieg ? 'geschichte.ueberspringen' : 'geschichte.dorfUeberspringen');
-  },
   /**
-   * Wechsel der Sprache (Ticket 01 von .scratch/sprachwahl/, ohne Neuladen): «Überspringen» und der Untertitel (auch
-   * ein verborgener) aus seinem Inhalt (captionInhalt) in der neuen Sprache. Ihr Zustand bleibt: «Überspringen» meint
-   * dasselbe, Leiste und Gestalt des Untertitels bleiben, eine schon weggetippte Aufforderung kommt nicht wieder. Die
-   * Bühne schreibt ihre Texte selbst neu (createStoryScene), Kopfzeile und «Gelöst» ui.
+   * Wechsel der Sprache (Ticket 01 von .scratch/sprachwahl/, ohne Neuladen): der Untertitel (auch ein verborgener) aus
+   * seinem Inhalt (captionInhalt) in der neuen Sprache. Sein Zustand bleibt: Leiste und Gestalt bleiben, eine schon
+   * weggetippte Aufforderung kommt nicht wieder. Die Bühne schreibt ihre Texte selbst neu (createStoryScene),
+   * Kopfzeile und «Gelöst» ui, «Dorf überspringen» die Seite (data-t).
    */
   sprachwechsel() {
-    this.skipBeschriften();
     const i = this.captionInhalt;
     if (!i) return;
     const cap = this.el.querySelector('.caption'), tap = cap.querySelector('.tap');
@@ -1879,8 +1876,8 @@ const story = {
    * Ankunft in einer Welt (Abnahme Ticket 11): Das Licht hält über dem Untertitel an, die Aufforderung zum Tippen
    * erscheint, und es geht erst weiter, wenn der Spieler tippt, klickt oder Enter bzw. die Leertaste drückt; kein
    * Zeitablauf. Ein Tippen in den ersten STORY_FLUG.halt s galt noch dem Flug (es machte ihn schneller) und zählt
-   * nicht. Das Licht bleibt dabei still im Bild (haltAuf, update). e: Zustand des Einstiegs (enter): «Überspringen»
-   * bzw. Esc beenden den Halt ebenso (skip, e.skip).
+   * nicht. Das Licht bleibt dabei still im Bild (haltAuf, update). e: Zustand des Einstiegs (enter): Esc beendet den
+   * Halt ebenso (skip, e.skip).
    */
   async anhalten(e = null) {
     const cap = this.el.querySelector('.caption'), ab = performance.now();
@@ -2001,9 +1998,9 @@ const story = {
     if (fokus) this.keepFocus();
   },
   /**
-   * Der Fokus fiele auf body, weil sein Knopf eben verschwand (weg; Wahl im Angebot, «Überspringen») oder die
+   * Der Fokus fiele auf body, weil sein Knopf eben verschwand (weg; Wahl im Angebot, «Dorf überspringen») oder die
    * Geschichte ausblendet (Review Ticket 07): Er geht auf die Geschichte, solange sie zu sehen ist (Enter tippt, Tab
-   * führt zu «Überspringen»), sonst aufs Spielfeld. Ein anderer Fokus bleibt.
+   * führt im Prolog zu dessen «Überspringen»), sonst aufs Spielfeld. Ein anderer Fokus bleibt.
    */
   keepFocus(weg = null) {
     const a = document.activeElement;
@@ -2085,11 +2082,6 @@ const story = {
     const skip = this.skippable();
     if (skip !== this.skipShown) {
       this.skipShown = skip;
-      // im Dorf sagt der Knopf, was er überspringt (nur beim Einblenden: kein Wechsel vor den Augen)
-      if (skip) {
-        this.skipEinstieg = !!this.entering;
-        this.skipBeschriften();
-      }
       setShown(this.skipBtn, skip);
     }
     this.carrier?.update(dt * this.fast);
@@ -2410,8 +2402,8 @@ window.addEventListener('keydown', (e) => {
 /**
  * Zurück-Taste von Android (Ticket 10 von .scratch/umbau/): wie Esc auf der Tastatur. Im Level, im Dorf und in der
  * Reise ins Menü; die offene Übersicht schliesst; die Rückfrage «Von vorn» bricht ab; das Menü, das aus einem Level
- * kam, führt dorthin zurück; im Prolog und im Epilog überspringt sie (wie Esc). false: hier gibt es kein Zurück mehr
- * (Startbildschirm, Menü ohne Level dahinter), die App schliesst.
+ * kam, führt dorthin zurück; im Prolog, in einem Einstieg (dort ohne Knopf) und im Epilog überspringt sie (wie Esc).
+ * false: hier gibt es kein Zurück mehr (Startbildschirm, Menü ohne Level dahinter), die App schliesst.
  */
 function zurueckTaste() {
   if (flow.state === 'intro') return false;

@@ -215,23 +215,25 @@ hat kein eigenes Überspringen: «Gleich los» ist es. Im Code `story.offer`, Te
 Das Licht kommt nach «Üben» ins Dorf: ein Untertitel «Im Dorf · Erstes Licht» (Noa übt hinter dem Haus mit der
 Taschenlampe) in der Mitte wie bei der Ankunft in einer Welt, die Leiste darunter mit allen Zeichen blass; der
 Lichtpunkt fällt ohne Träger aufs Brett, und die erste Übung wächst. Danach ist der Moment `dorf`
-gesehen; er kommt je Grad nur einmal. Überspringbar wie der Einstieg in eine Welt. Abgrenzung: kein Einstieg in eine
-Welt, das Dorf ist keine.
+gesehen; er kommt je Grad nur einmal. Überspringbar wie der Einstieg in eine Welt (Esc). Abgrenzung: kein Einstieg in
+eine Welt, das Dorf ist keine.
 
 **Überspringen**:
 Eine Zwischenszene abkürzen, ohne Schnitt: den Prolog (sein Knopf auf der Bühne oder Esc; danach kommt das Angebot),
-einen Einstieg in eine Welt oder ins Dorf («Überspringen» oder Esc; das Licht landet weich auf dem Brett) und das
-Kapitel «Im Dorf» (nur der Knopf «Dorf überspringen»). Reisen und Finale laufen immer ganz (Entscheid des Nutzers), sie
-lassen sich nur durch Tippen beschleunigen. Ein Level lässt sich nie überspringen (ADR 0005).
+einen Einstieg in eine Welt oder ins Dorf (nur Esc bzw. die Zurück-Taste von Android; das Licht landet weich auf dem
+Brett) und das Kapitel «Im Dorf» (nur der Knopf «Dorf überspringen»). Im Einstieg gibt es keinen Knopf dafür
+(Entscheid des Nutzers): Tippen genügt dort, das Licht wartet ohnehin nur aufs Tippen. Reisen und Finale laufen immer
+ganz (Entscheid des Nutzers), sie lassen sich nur durch Tippen beschleunigen. Ein Level lässt sich nie überspringen
+(ADR 0005).
 _Vermeiden_: Überspringen für Level (gibt es nicht), Abbrechen
 
 **Einstieg in eine Welt**:
 Das Licht kommt zum ersten Mal je Grad in einer Welt an, ohne Reise davor (nach dem Prolog oder «Im Dorf», beim
 Fortsetzen): Ein Träger bringt es am schlafenden Stern dieser Welt vorbei, der kurz aufzuckt, ein Untertitel nennt die
-Welt (derselbe wie auf der Reise dorthin), dann fällt es aufs Brett. Kommt je Grad nur einmal und lässt sich
-überspringen wie der Prolog; das Licht landet dann ohne Schnitt auf dem Brett. «Im Dorf» hat einen eigenen Einstieg,
-ohne Träger und ohne Stern. Abgrenzung: Die Reise lässt sich nicht überspringen. Ein Einstieg im Level ist ein
-kurzer Strang, den ein anderer Strahl an einem seiner Spiegel trifft (siehe Füllteil).
+Welt (derselbe wie auf der Reise dorthin), dann fällt es aufs Brett. Kommt je Grad nur einmal und lässt sich mit Esc
+überspringen (ohne Knopf, siehe Überspringen); das Licht landet dann ohne Schnitt auf dem Brett. «Im Dorf» hat einen
+eigenen Einstieg, ohne Träger und ohne Stern. Abgrenzung: Die Reise lässt sich nicht überspringen. Ein Einstieg im
+Level ist ein kurzer Strang, den ein anderer Strahl an einem seiner Spiegel trifft (siehe Füllteil).
 
 **Reise**:
 Der Übergang von einer Welt in die nächste: Die Strahlen der Ziele steigen zum Stern dieser Welt auf, er erwacht; ein

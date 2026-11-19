@@ -341,7 +341,7 @@ const STORY_DORF = { station: 0, get title() { return t('geschichte.dorf.titel')
     get text() { return t('geschichte.dorf.einstieg'); } },
   get ende() { return t('geschichte.dorf.ende'); }, get done() { return t('geschichte.dorf.fertig'); },
   get next() { return t('geschichte.dorf.weiter'); } };
-/** So lange (ms) bleibt «Überspringen» nach dem Ende eines Einstiegs weg, bevor es im Dorf das Kapitel meint. */
+/** So lange (ms) kommt «Dorf überspringen» nach dem Ende eines Einstiegs ins Dorf noch nicht (story.skippable). */
 const STORY_SKIP_RUHE = 2000;
 /**
  * Stand des Dorfs im Speicherstand (prisma.noa.<grad>.dorf, nur nach «Üben»): { ende: null (das Kapitel läuft) |
