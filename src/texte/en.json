@@ -181,11 +181,11 @@
     "kapitelKicker": "Chapter {n} · {titel}",
     "prolog": {
       "1": "High up in the mountains there is a little village. Smoke rises from the chimneys, and the stars twinkle above the roofs.",
-      "2": "Every evening Noa climbs the hill behind the houses and looks for the North Star. It sits right at the end of the Little Dipper’s handle.",
-      "3": "Tonight Noa has brought the flashlight along. Click. The North Star is going to get a signal.",
-      "4": "But the light doesn’t get far. The stars of the Dipper are asleep, and without them it gets lost in the dark.",
+      "2": "Every evening Noa climbs the hill behind the houses and looks up at the North Star. It is the only star that always stays in the same place.",
+      "3": "In the village, people say the North Star sees every light. Tonight Noa wants to find out and switches on the flashlight.",
+      "4": "But the light doesn’t get far. The way to the North Star leads across the stars of the Little Dipper, and they are still asleep.",
       "5": "Then something blinks at the edge of the forest. A swarm of fireflies comes flying over and catches the light.",
-      "6": "Each star in the Dipper belongs to a place and only wakes up when light gets there. Help the fireflies carry the light from place to place until it reaches the North Star."
+      "6": "Each star in the Dipper belongs to a faraway place and only wakes up when light gets there. Help carry the light to each place. The fireflies go first."
     },
     "dorf": {
       "titel": "Village",
@@ -208,13 +208,13 @@
       "meer": {
         "titel": "The Sea",
         "reise": "Above the forest, the first star has woken up. It points toward the sea, and the fireflies fly the light over the hills and down to the beach.",
-        "fertig": "The sea is shining",
+        "fertig": "The sea is glittering",
         "weiter": "On to the desert"
       },
       "wueste": {
         "titel": "The Desert",
-        "reise": "Now the second star is shining too. The wind takes the light with it, far out across the water to where the desert begins.",
-        "fertig": "The desert is glowing",
+        "reise": "Now the second star is shining too. A wave tosses the light into the air, and the wind carries it across the water to the desert.",
+        "fertig": "The desert is shimmering",
         "weiter": "On to the volcano"
       },
       "vulkan": {
@@ -225,26 +225,26 @@
       },
       "planeten": {
         "titel": "The Planets",
-        "reise": "With the fourth star, the bowl of the Dipper is complete. Then the volcano erupts and flings the light high above the clouds.",
-        "fertig": "The planets are shining",
+        "reise": "With the fourth star, the bowl of the Dipper closes. The crater roars, and sparks carry the light up to the planets.",
+        "fertig": "The planets are gleaming",
         "weiter": "On to the stars"
       },
       "sterne": {
         "titel": "The Stars",
-        "reise": "Five stars are already shining, and only one is still asleep. A comet takes the light along, far out to the stars.",
+        "reise": "Noa already counts five bright stars in the sky. A comet takes the light along, out to the stars, where the last one is still asleep.",
         "fertig": "The Dipper is awake",
         "weiter": "Look up"
       }
     },
     "finale": {
       "1": "The last star wakes up. Now the whole Little Dipper is shining.",
-      "2": "The light travels along the handle all the way to the North Star.",
-      "3": "The North Star has seen Noa’s signal."
+      "2": "The light runs along the handle, all the way to the tip.",
+      "3": "There, the North Star lights up. It has seen Noa’s light."
     },
     "epilog": {
       "1": "That night Noa stays up on the hill for a long time, looking at the sky.",
       "2": "Then the North Star blinks. Once, twice, three times.",
-      "3": "Noa laughs and blinks back with the flashlight. Above the village, all seven stars are shining now."
+      "3": "Noa laughs and flashes the light back, three times too. Above the village, all seven stars are shining now."
     }
   },
   "fuehrung": {
