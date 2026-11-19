@@ -36,7 +36,10 @@ import { beiSprachwechsel, setzeSprache, sprache, spracheName, t, VORHANDEN } fr
    onAction({ aktion, grad }): 'weiter' | 'beginnen' | 'fortsetzen' | 'uebersicht' | 'vonvorn' (nach der Rückfrage).
    Bedienung: Ein Reiter wählt seinen Grad (Klick, Tippen, Fokus); der Knopf und Enter auf einem Reiter führen die
    Aktion des Grads aus. Pfeile: der Knopf, dann die Reiter von oben nach unten (Pos1, Ende); solange die Liste der
-   Sprachen offen ist, bedienen Pfeile, Pos1, Ende, Enter, Tab und Esc nur sie. Ohne Abhängigkeiten vom übrigen Spiel.
+   Sprachen offen ist, bedienen Pfeile, Pos1, Ende, Enter, Tab und Esc nur sie. Wischen (Finger oder Stift, nicht die
+   Maus) über Karte, Reiter und Stand wählt den Nachbargrad, mit Bewegung wie das Blättern in der Übersicht: Die Karte
+   folgt dem Finger, die des Nachbargrads fährt daneben herein, beim Loslassen gleitet sie ganz herein oder federt
+   zurück; bei Leicht und Sehr schwer nur zögernd (Gummiband). Ohne Abhängigkeiten vom übrigen Spiel.
    ===================================================================== */
 
 const createMenu = (() => {
@@ -74,6 +77,7 @@ const createMenu = (() => {
   // gleich wie im CSS des Menüs
   const HOCH = '(max-width: 600px) and (orientation: portrait)';
   const STILL = '(prefers-reduced-motion: reduce)';
+  const wenigBewegung = () => matchMedia(STILL).matches;
   const AUS_MS = 800, FRAGE_MS = 300; // Ausblenden des Menüs bzw. der Rückfrage (Transition im CSS des Menüs)
   /**
    * Sternkarte: echte Helligkeit (mag) der Sterne 1 … 7 (Kochab, Pherkad, η, ζ, ε, δ UMi, Polaris) für die Grösse der
@@ -91,6 +95,16 @@ const createMenu = (() => {
     gross: 6, kreis: 23.3, speiche: 30,
     moment: { ab: 0.7, schritt: 0.45 },
   };
+  /** Beginn des Erwachens von Stern k (s nach dem Öffnen), wenn vorher ab Sterne wach waren (KARTE.moment). */
+  const um = (k, ab) => KARTE.moment.ab + KARTE.moment.schritt * (Math.min(k, WELTEN.length + 1) - ab - 1);
+  /**
+   * Wischen über Karte, Reiter und Stand: die Werte des Blätterns in der Übersicht (WISCH in uebersicht.js), ausser
+   * min: Der Grad wechselt erst ab 90 px (dort 50; Nutzer 19.11.2026: man soll etwas weiter wischen müssen, hochkant
+   * gut ein Viertel der Breite); luecke: Abstand zwischen der Karte und der des Nachbargrads (px der Oberfläche; hoch
+   * liegt diese damit ganz neben dem Bild).
+   */
+  const WISCH = { min: 90, schwelle: 10, steigung: 0.6, gummi: 0.3, ms: 280, easing: 'cubic-bezier(0.25, 0.8, 0.3, 1)',
+    luecke: 32 };
   let zaehler = 0;
 
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -173,7 +187,7 @@ const createMenu = (() => {
       <div class="menue-inhalt">
         <header class="menue-kopf"><h2 class="menue-titel">Prisma</h2><p class="menue-unter">${esc(t('start.untertitel'))}</p></header>
         <ol class="menue-grade" aria-label="${esc(t('menue.grade'))}"></ol>
-        <div class="menue-karte" aria-hidden="true"><svg class="menue-sternkarte" focusable="false"></svg></div>
+        <div class="menue-karte" aria-hidden="true"><svg class="menue-sternkarte" focusable="false"></svg><svg class="menue-sternkarte menue-nachbar" focusable="false"></svg></div>
         <div class="menue-info" aria-hidden="true"><span class="menue-info-name"></span><span class="menue-stand"></span><span class="menue-fein"></span></div>
         <div class="menue-knoepfe">
           <button type="button" class="menue-weiter" data-menue-fokus="weiter"><span class="menue-was"></span><span class="menue-wohin"></span></button>
@@ -198,6 +212,7 @@ const createMenu = (() => {
     addEventListener('pointerdown', () => root.classList.add('menue-zeiger'), true);
     addEventListener('keydown', () => root.classList.remove('menue-zeiger'), true);
     const inhalt = $('.menue-inhalt'), karte = $('.menue-karte'), svg = $('.menue-sternkarte'), liste = $('.menue-grade');
+    const nachbar = $('.menue-nachbar'); // Karte des Nachbargrads beim Wischen, sonst leer
     const knopf = $('.menue-weiter'), knoepfe = $('.menue-knoepfe'), info = $('.menue-info');
     const frageEl = $('.menue-frage'), sr = $('.menue-sr');
     const neinBtn = $('[data-menue-frage="nein"]'), jaBtn = $('[data-menue-frage="ja"]');
@@ -227,6 +242,9 @@ const createMenu = (() => {
     const gezeigt = new Map(); // je Grad: so viele Sterne waren beim letzten Zeigen wach (der Moment des Erwachens)
     let gezeichnet = '';    // was die Karte zeigt (Grösse, Grad, Stand): dasselbe nicht neu zeichnen
     let momentBis = 0;      // bis dahin läuft der Moment (performance.now); danach einmal ohne ihn neu zeichnen
+    let wisch = null;       // laufendes Wischen (Finger oder Stift): { id, x, y, griff, waagrecht, gezeigt, r }
+    let fahrt = null;       // Bewegung der Karten nach dem Loslassen (Animationen)
+    let gewischtUm = -Infinity; // Ende des letzten Wischens (performance.now): ein Klick gleich danach gilt nicht
 
     const gewaehlt = () => daten.grade.find((g) => g.id === wahlId) ?? daten.grade[0];
     /** Reiter beim Öffnen: der Grad von «Weiter», sonst der hervorgehobene, der zuletzt gespielte, der erste begonnene. */
@@ -302,24 +320,59 @@ const createMenu = (() => {
     }
     function waehle(id) {
       if (id === wahlId) return;
+      beendeFahrt(); // Tippen auf einen Reiter, während die Karten noch gleiten
       wahlId = id;
       setzeWahl();
     }
 
     /* ---------- Sternkarte zeichnen (bei jeder Grössenänderung und jeder Wahl neu) ---------- */
 
+    /** Grösse der Karte in Pixeln der Oberfläche (getBoundingClientRect misst in Pixeln des Layouts, SEITE); hoch. */
+    function masse() {
+      const R = karte.getBoundingClientRect();
+      return { W: R.width / SEITE, H: R.height / SEITE, hoch: matchMedia(seiteMedia(HOCH)).matches };
+    }
     function zeichne() {
       if (!offen && !warm || !form.length) return;
-      // in Pixeln der Oberfläche: getBoundingClientRect misst in Pixeln des Layouts (SEITE)
-      const R = karte.getBoundingClientRect(), W = R.width / SEITE, H = R.height / SEITE;
-      if (!W || !H) return;
-      const g = gewaehlt(), hoch = matchMedia(seiteMedia(HOCH)).matches, rand = hoch ? KARTE.randHoch : KARTE.rand;
+      const m = masse();
+      if (!m.W || !m.H) return;
+      const g = gewaehlt();
       // dasselbe Bild nicht noch einmal (ResizeObserver, Schriften, show mit gleichem Stand): ein laufender Moment bliebe
       // sonst nicht stehen
-      const key = [W, H, hoch, g.id, g.art, g.wach, g.geloest].join();
+      const key = [m.W, m.H, m.hoch, g.id, g.art, g.wach, g.geloest].join();
       if (key === gezeichnet && (!momentBis || performance.now() < momentBis)) return;
       gezeichnet = key;
       momentBis = 0;
+      // Moment: erst beim Zeigen, nicht beim Vorwärmen; was seit dem letzten Zeigen dieses Grads erwacht ist
+      const vorher = gezeigt.get(g.id), still = !offen || wenigBewegung();
+      const ab = !still && vorher !== undefined && vorher < g.wach ? vorher : g.wach;
+      gezeigt.set(g.id, g.wach);
+      svg.setAttribute('viewBox', `0 0 ${f(m.W)} ${f(m.H)}`);
+      svg.innerHTML = karteBild(g, m, ab, `${uid}-rand`);
+      if (ab < g.wach) momentBis = performance.now() + (um(g.wach, ab) + 2) * 1000;
+    }
+    /**
+     * Die Karte des Grads g still in die zweite Fläche: die des Nachbargrads beim Wischen. vorMoment: ist seit dem
+     * letzten Zeigen von g ein Stern erwacht, so, wie sie vor dem Moment aussieht (seine Animationen angehalten, im
+     * Stil); gewählt beginnt er genau da, statt dass der Stern erst wach daneben steht und dann noch einmal erwacht.
+     */
+    function zeichneNachbar(g, vorMoment = false) {
+      const m = masse(), vorher = gezeigt.get(g.id);
+      const ab = vorMoment && vorher !== undefined && vorher < g.wach ? vorher : g.wach;
+      nachbar.setAttribute('viewBox', `0 0 ${f(m.W)} ${f(m.H)}`);
+      nachbar.innerHTML = form.length && m.W && m.H ? karteBild(g, m, ab, `${uid}-rand-n`) : '';
+      nachbar.dataset.grad = g.id;
+    }
+    function leereNachbar() {
+      nachbar.replaceChildren();
+      delete nachbar.dataset.grad;
+    }
+    /**
+     * Inhalt der Sternkarte des Grads g in der Grösse W × H (Pixel der Oberfläche; hoch: Handy hochkant). ab: so viele
+     * Sterne waren vorher wach (kleiner als g.wach: das Erwachen spielt, sonst still); clip: id des Rands der Karte.
+     */
+    function karteBild(g, { W, H, hoch }, ab, clip) {
+      const rand = hoch ? KARTE.randHoch : KARTE.rand;
       const xs = form.map((p) => p[0]), ys = form.map((p) => p[1]);
       const x0 = Math.min(...xs), y0 = Math.min(...ys), bw = Math.max(...xs) - x0, bh = Math.max(...ys) - y0;
       const s = clamp(Math.min((W - rand.links - rand.rechts) / bw, (H - rand.oben - rand.unten) / bh), 0.8, KARTE.gross);
@@ -329,12 +382,7 @@ const createMenu = (() => {
       const P = (k) => [ox + form[k - 1][0] * s, oy + form[k - 1][1] * s];
       const wach = (k) => (k === polar ? g.wach > WELTEN.length : k <= g.wach);
       const da = ([a, b]) => wach(a) && wach(b);
-      // Moment: erst beim Zeigen, nicht beim Vorwärmen; was seit dem letzten Zeigen dieses Grads erwacht ist
-      const vorher = gezeigt.get(g.id), still = !offen || matchMedia(STILL).matches;
-      const ab = !still && vorher !== undefined && vorher < g.wach ? vorher : g.wach;
-      gezeigt.set(g.id, g.wach);
       const warVorher = (k) => (k === polar ? ab > WELTEN.length : k <= ab);
-      const M = KARTE.moment, um = (k) => M.ab + M.schritt * (Math.min(k, WELTEN.length + 1) - ab - 1);
 
       const kern = clamp(0.45 * s, 1.4, 2.7), ring = Math.max(7, 2.2 * s), breite = clamp(0.45 + 0.24 * s, 0.8, 1.7);
       const abstand = clamp(2 * s + 8, 11, 20);
@@ -346,8 +394,8 @@ const createMenu = (() => {
         const a = w * Math.PI / 180;
         netz += `<line x1="${f(px)}" y1="${f(py)}" x2="${f(px + Math.cos(a) * weit)}" y2="${f(py + Math.sin(a) * weit)}"/>`;
       }
-      let teile = `<defs><clipPath id="${uid}-rand"><rect width="${f(W)}" height="${f(H)}" rx="24"/></clipPath></defs>`
-        + `<g class="menue-netz" clip-path="url(#${uid}-rand)">${netz}</g>`;
+      let teile = `<defs><clipPath id="${clip}"><rect width="${f(W)}" height="${f(H)}" rx="24"/></clipPath></defs>`
+        + `<g class="menue-netz" clip-path="url(#${clip})">${netz}</g>`;
       // Linien: noch fehlende gestrichelt, gezogene hell (eben gezogene ziehen sich vom ersten Stern zum zweiten)
       for (const l of linien) {
         const [ax, ay] = P(l[0]), [bx, by] = P(l[1]), xy = `x1="${f(ax)}" y1="${f(ay)}" x2="${f(bx)}" y2="${f(by)}"`;
@@ -355,13 +403,13 @@ const createMenu = (() => {
         if (!da(l)) continue;
         const neu = !(warVorher(l[0]) && warVorher(l[1]));
         teile += `<line class="menue-linie${neu ? ' menue-zieht' : ''}" ${xy} stroke-width="${f(breite)}"`
-          + (neu ? ` style="--len:${f(Math.hypot(bx - ax, by - ay) + 1)};--d:${um(Math.max(...l)) + 0.2}s"` : '') + '/>';
+          + (neu ? ` style="--len:${f(Math.hypot(bx - ax, by - ay) + 1)};--d:${um(Math.max(...l), ab) + 0.2}s"` : '') + '/>';
       }
       // Sterne: Punktgrösse nach der Helligkeit; wache mit Hof, schlafende klein und blass; der Polarstern mit Strahlen
       let namen = '';
       for (let k = 1; k <= form.length; k++) {
         const [x, y] = P(k), m = 1 + (4.9 - KARTE.mag[k - 1]) * 0.3, an = wach(k), neu = an && !warVorher(k);
-        const r = kern * m * (an ? 1 : 0.62), d = neu ? ` style="--d:${um(k)}s"` : '';
+        const r = kern * m * (an ? 1 : 0.62), d = neu ? ` style="--d:${um(k, ab)}s"` : '';
         teile += `<g transform="translate(${f(x)} ${f(y)})"><g class="menue-ks${an ? ' menue-an' : ''}${neu ? ' menue-erwacht' : ''}"${d}>`;
         if (k === polar) {
           const gr = kern * m * 4.6 / 46 * 100 * (an ? 1.25 : 1);
@@ -373,7 +421,7 @@ const createMenu = (() => {
         teile += '</g>';
         if (k === g.naechster) {
           teile += `<circle class="menue-ring${ab < g.wach ? ' menue-spaeter' : ''}" r="${f(ring)}"`
-            + (ab < g.wach ? ` style="--d:${um(g.wach) + 0.6}s"` : '') + '/>';
+            + (ab < g.wach ? ` style="--d:${um(g.wach, ab) + 0.6}s"` : '') + '/>';
         }
         teile += '</g>';
         // Name nach aussen, darunter bei geweckten und beim Stern der Welt die gelösten Level dieser Welt
@@ -390,9 +438,7 @@ const createMenu = (() => {
           + `<tspan x="${f(tx)}" dy="${d1}">${esc(k === polar ? t('welt.polarstern') : WELTEN[k - 1].name)}</tspan>`
           + (zahl ? `<tspan class="menue-klein" x="${f(tx)}" dy="${d2}">${zahl}</tspan>` : '') + '</text>';
       }
-      svg.setAttribute('viewBox', `0 0 ${f(W)} ${f(H)}`);
-      svg.innerHTML = teile + namen;
-      if (ab < g.wach) momentBis = performance.now() + (um(g.wach) + 2) * 1000;
+      return teile + namen;
     }
     /** Neu zeichnen im nächsten Bild (mehrere Anlässe zugleich: einmal). */
     function planen() {
@@ -407,6 +453,114 @@ const createMenu = (() => {
       const li = e.target.classList?.contains('menue-wahl') ? e.target.closest('.menue-grad') : null;
       if (li) waehle(li.dataset.grad);
     });
+
+    /* ---------- Wischen: der Nachbargrad, mit Bewegung wie das Blättern in der Übersicht ---------- */
+
+    const schrittweite = () => karte.clientWidth + WISCH.luecke;
+    /** Die Karte um dx px aus der Ruhe, die des Nachbargrads daneben (r: 1 rechts, der nächste Grad; -1 links; 0 keine). */
+    function schiebe(dx, r = 0) {
+      svg.style.transform = dx ? `translateX(${dx}px)` : '';
+      nachbar.style.transform = r ? `translateX(${dx + r * schrittweite()}px)` : '';
+    }
+    /** Karten gleiten von → nach (px aus der Ruhe); der Endstand steht schon im Stil, danach ist die zweite Fläche leer. */
+    function fahre(wege) {
+      const dauer = WISCH.ms * Math.min(1, Math.abs(wege[0][2] - wege[0][1]) / schrittweite());
+      const anims = wege.map(([el, von, nach]) => el.animate(
+        [{ transform: `translateX(${von}px)` }, { transform: `translateX(${nach}px)` }], { duration: dauer, easing: WISCH.easing }));
+      fahrt = anims;
+      anims[0].onfinish = () => { if (fahrt === anims) beendeFahrt(); };
+    }
+    /** Laufende Bewegung gleich fertig: die Karte in Ruhe, die des Nachbargrads weg. */
+    function beendeFahrt() {
+      const anims = fahrt;
+      fahrt = null;
+      anims?.forEach((a) => a.cancel());
+      leereNachbar();
+      schiebe(0);
+      karte.classList.remove('menue-wischt');
+    }
+    /**
+     * Weit genug gewischt: der Grad ziel (auf der Seite r) wird gewählt wie mit seinem Reiter; seine Karte gleitet von
+     * dort, wo sie beim Loslassen steht, ganz herein, die bisherige (still neu gezeichnet) zur anderen Seite hinaus. von:
+     * wo die Karte beim Loslassen steht (px aus der Ruhe; 0 nach einem schnellen Wisch ohne Bild dazwischen: die ganze
+     * Breite wie beim Blättern der Übersicht). Lag der Fokus auf einem Reiter, geht er zum neuen; auf «Von vorn» (jetzt
+     * verborgen) zu dem des neuen Grads, sonst auf den Knopf.
+     */
+    function gleite(ziel, r, von) {
+      const alt = gewaehlt(), a = root.contains(document.activeElement) ? document.activeElement : null;
+      wahlId = ziel.id;
+      setzeWahl();
+      if (a?.classList.contains('menue-wahl')) fokussiere(`wahl:${ziel.id}`);
+      else if (a?.classList.contains('menue-vonvorn')) fokussiere(`vonvorn:${ziel.id}`) || fokussiere('weiter');
+      if (wenigBewegung()) { beendeFahrt(); return; }
+      const w = schrittweite();
+      zeichneNachbar(alt);
+      schiebe(0);
+      nachbar.style.transform = `translateX(${-r * w}px)`;
+      fahre([[svg, von + r * w, 0], [nachbar, von, -r * w]]);
+    }
+    /** Zu kurz gewischt oder am Rand: die Karte federt zurück, die des Nachbargrads (Seite r) wieder hinaus. */
+    function zurueck(von, r) {
+      if (!von || wenigBewegung()) { beendeFahrt(); return; }
+      const w = schrittweite();
+      schiebe(0, r);
+      fahre([[svg, von, 0], ...(r ? [[nachbar, von + r * w, r * w]] : [])]);
+    }
+    function loslassen(e, abgebrochen) {
+      const w = wisch;
+      wisch = null;
+      if (!w.waagrecht) return;
+      gewischtUm = performance.now();
+      const dx = (e.clientX - w.x) / SEITE, r = dx < 0 ? 1 : -1; // Pixel der Oberfläche; nach links: der nächste
+      const ziel = daten.grade[gewaehlt().i + r];
+      if (!abgebrochen && Math.abs(dx) >= WISCH.min && ziel && offen && !gesperrt && !frage) gleite(ziel, r, w.gezeigt);
+      else zurueck(w.gezeigt, w.r);
+    }
+    // Beginn auf Karte, Reitern oder Stand (Finger oder Stift, nicht die Maus; nicht mit Rückfrage oder offener Liste der
+    // Sprachen); Ziehen und Loslassen zählen im ganzen Menü. Waagrechtes Ziehen überlässt der Browser dem Menü
+    // (touch-action: pan-y im Stil, dazu touchmove unten), senkrechtes bricht das Wischen ab.
+    inhalt.addEventListener('pointerdown', (e) => {
+      if (!offen || gesperrt || frage || sprachliste.offen || e.pointerType === 'mouse' || !e.isPrimary
+        || !e.target.closest?.('.menue-karte, .menue-grade, .menue-info')) return;
+      beendeFahrt();
+      wisch = { id: e.pointerId, x: e.clientX, y: e.clientY, griff: 0, waagrecht: false, gezeigt: 0, r: 0 };
+    });
+    root.addEventListener('pointerdown', (e) => {
+      gewischtUm = -Infinity; // neues Drücken: sein Klick gilt wieder
+      if (!e.isPrimary && wisch) loslassen(e, true); // ein zweiter Finger bricht ab
+    });
+    root.addEventListener('pointermove', (e) => {
+      const w = wisch;
+      if (w?.id !== e.pointerId) return;
+      if (!w.waagrecht) {
+        const dx = (e.clientX - w.x) / SEITE, dy = (e.clientY - w.y) / SEITE;
+        if (Math.hypot(dx, dy) < WISCH.schwelle) return;
+        if (Math.abs(dy) > Math.abs(dx) * WISCH.steigung) { wisch = null; return; } // senkrecht: kein Wischen
+        w.waagrecht = true;
+        w.griff = e.clientX; // ab hier folgt die Karte dem Finger, ohne Sprung
+        if (!wenigBewegung()) karte.classList.add('menue-wischt');
+        return;
+      }
+      if (wenigBewegung()) return;
+      const dx = (e.clientX - w.griff) / SEITE, r = dx < 0 ? 1 : -1, nb = daten.grade[gewaehlt().i + r];
+      if (!nb) leereNachbar();
+      else if (nachbar.dataset.grad !== nb.id) zeichneNachbar(nb, true);
+      w.r = nb ? r : 0;
+      w.gezeigt = nb ? dx : dx * WISCH.gummi; // bei Leicht und Sehr schwer nur zögernd
+      schiebe(w.gezeigt, w.r);
+    });
+    root.addEventListener('pointerup', (e) => { if (wisch?.id === e.pointerId) loslassen(e, false); });
+    root.addEventListener('pointercancel', (e) => { if (wisch?.id === e.pointerId) loslassen(e, true); });
+    // Ein Wischen bewegt nur das Menü: Ohne das gab Chrome einem schnellen Wisch noch Schwung (unsichtbar, im Menü
+    // scrollt nichts), und das nächste Tippen bis gut 1 s danach hielt nur ihn an, ein Reiter oder der Knopf reagierte
+    // nicht (Probe in Chrome mit Touch; touch-action: none allein half nicht). Auf Karte, Reitern und Stand scrollt
+    // nichts.
+    root.addEventListener('touchmove', (e) => { if (wisch && e.cancelable) e.preventDefault(); }, { passive: false });
+    // ein Klick gleich nach dem Wischen (ohne neues Drücken) wählt keinen Reiter und löst keinen Knopf aus (Chrome
+    // schickt nach einem Wischen mit dem Stift einen Klick, Befund beim Wischen in der Übersicht)
+    addEventListener('click', (e) => {
+      if (performance.now() - gewischtUm < 400 && root.contains(e.target)) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
 
     /* ---------- Fokus ---------- */
 
@@ -503,6 +657,7 @@ const createMenu = (() => {
       jaBtn.textContent = aktionName('vonvorn');
       const key = root.contains(document.activeElement) ? document.activeElement.dataset?.menueFokus : null;
       daten = lies(stand0, uebersicht);
+      beendeFahrt(); // die Karte des Nachbargrads hätte noch Namen in der alten Sprache
       render(); // Reiter und «Von vorn» neu, Knopf und Stand (die Karte zeichnet dasselbe Bild nicht neu: etiketten)
       etiketten();
       if (frage) {
@@ -565,6 +720,8 @@ const createMenu = (() => {
         const war = offen;
         const key = war && root.contains(document.activeElement) ? document.activeElement.dataset?.menueFokus : null;
         if (war && frage) schliesseFrage(false, true);
+        wisch = null;
+        beendeFahrt();
         if (!war) wahlId = startWahl();
         render();
         if (!war) {
@@ -606,6 +763,8 @@ const createMenu = (() => {
         if (momentBis) momentBis = 1; // ein unterbrochener Moment spielt beim nächsten Öffnen nicht noch einmal
         schliesseFrage(false, true);
         sprachliste.schliessen(true);
+        wisch = null;
+        beendeFahrt();
         if (root.contains(document.activeElement)) document.activeElement.blur();
         root.inert = true;
         root.classList.add('menue-aus');

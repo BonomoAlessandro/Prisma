@@ -604,10 +604,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Schaltflächen unten rechts: Level neu starten, Ton an/aus, Übersicht (nur in einem Level der Geschichte), Menü.
   Tasten: R neu starten, M Ton, Esc Menü (im Menü, das aus dem Spiel kam, zurück), L Übersicht (in der Übersicht
   schliesst L sie wieder), Enter weiter (nach dem Lösen), F Leistungsanzeige; im Menü Tab, Pfeile, Pos1/Ende und
-  Enter; in der Übersicht Pfeile (auch über die Grenze einer Welt), Pos1/Ende (mit Strg: der ganze Grad), Bild↑/↓,
-  Tab, Enter und Esc; in den Zwischenszenen Enter oder Leertaste weiter, Esc überspringt den Prolog. Level und
-  Hintergrund wählt die Geschichte (Entscheide 21 und 26 der Spec `.scratch/noa-geschichte/`): Der Hintergrund-Knopf
-  und die Tasten N, P und H sind mit Ticket 04 weggefallen, die Levelauswahl ersetzt die Übersicht (Ticket 06).
+  Enter, mit Finger oder Stift Wischen über Karte, Reiter und Stand zum Nachbargrad; in der Übersicht Pfeile (auch
+  über die Grenze einer Welt), Pos1/Ende (mit Strg: der ganze Grad), Bild↑/↓, Tab, Enter und Esc; in den
+  Zwischenszenen Enter oder Leertaste weiter, Esc überspringt den Prolog. Level und Hintergrund wählt die Geschichte
+  (Entscheide 21 und 26 der Spec `.scratch/noa-geschichte/`): Der Hintergrund-Knopf und die Tasten N, P und H sind
+  mit Ticket 04 weggefallen, die Levelauswahl ersetzt die Übersicht (Ticket 06).
 - **Würfel-Level (Prototyp, Branch `feature/3d-wuerfel`):** Level in einem 7×7×7-Würfel (`LEVELS_3D`, `dim: 3`), seit
   Noas Geschichte (Ticket 04) alle im Vorrat (`tools/vorrat/wuerfel.js`, zurückzuholen mit `tools/vorrat.mjs`). Jedes
   Element dreht um eine feste Achse in einem Ring (Achszapfen zeigen sie) und wirkt in der Ebene senkrecht dazu wie im
