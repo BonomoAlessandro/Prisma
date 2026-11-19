@@ -115,11 +115,15 @@ function orbitKeyLight(theta) {
   markShadowsDirty();
 }
 
-/** Beim Levelwechsel: in einem Bogen auf kürzestem Weg zurück zur Ausgangsansicht. */
+/**
+ * Beim Levelwechsel: in einem Bogen auf kürzestem Weg zurück zur Ausgangsansicht (Drehung und Neigung). Den Zoom von
+ * Hand behält sie (Wunsch des Nutzers vom 19.11.2026): Wer näher heran oder weiter weg gezoomt hat, spielt auch das
+ * nächste Level so.
+ */
 function cameraGoHome() {
-  const theta = cameraRig.goalTheta, phi = cameraRig.goalPhi, zoom = cameraRig.goalZoom;
-  if (Math.abs(theta) + Math.abs(phi) + Math.abs(zoom - 1) < 1e-3) return;
-  cameraRig.homing = { theta, phi, zoom, t: 0, duration: 0.8 + 0.25 * Math.abs(theta) };
+  const theta = cameraRig.goalTheta, phi = cameraRig.goalPhi;
+  if (Math.abs(theta) + Math.abs(phi) < 1e-3) return;
+  cameraRig.homing = { theta, phi, t: 0, duration: 0.8 + 0.25 * Math.abs(theta) };
 }
 
 function updateCamera(t, dt) {
@@ -129,7 +133,6 @@ function updateCamera(t, dt) {
     const e = h.t < 0.5 ? 4 * h.t ** 3 : 1 - (2 - 2 * h.t) ** 3 / 2; // ease-in-out
     cameraRig.goalTheta = h.theta * (1 - e);
     cameraRig.goalPhi = h.phi * (1 - e);
-    cameraRig.goalZoom = 1 + (h.zoom - 1) * (1 - e);
     if (h.t >= 1) cameraRig.homing = null;
   }
   const k = 1 - Math.pow(0.00002, dt); // Zeitkonstante ≈ 0.09 s: weich, aber nicht träge
