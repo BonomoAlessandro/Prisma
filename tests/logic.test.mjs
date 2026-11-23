@@ -1753,6 +1753,15 @@ console.log('Offline');
     assert.ok(errorsWith({ bursts: undefined }).some((e) => /bursts/.test(e)), 'Blasen');
     assert.ok(errorsWith({ plates: { ...pool.plates, crack: 0.7 } }).some((e) => /plates/.test(e)), 'Risse');
     assert.ok(errorsWith({ bursts: { ...pool.bursts, ring: [20, 10] } }).some((e) => /bursts/.test(e)), 'Blasenring');
+    // Lava am Fels: die Felsbrocken aus bakedMesh, Stau, Saum und wegtreibende Glut innerhalb der Karte, Widerschein bis 1
+    assert.equal(pool.shore?.data, volcano.layers.find((l) => l.type === 'bakedMesh').data, 'Lava am Fels: Daten der Felsbrocken');
+    assert.deepEqual(errorsWith({ shore: undefined }), [], 'Lava am Fels ist freiwillig');
+    assert.ok(errorsWith({ shore: { ...pool.shore, seam: [1.0, 0.4] } }).some((e) => /shore/.test(e)), 'Saum vertauscht');
+    assert.ok(errorsWith({ shore: { ...pool.shore, well: [0.1, pool.shore.reach] } }).some((e) => /shore/.test(e)), 'Glut über die Karte hinaus');
+    assert.ok(errorsWith({ shore: { ...pool.shore, jam: [pool.shore.jam[0], pool.shore.reach] } }).some((e) => /shore/.test(e)), 'Stau über die Karte hinaus');
+    assert.ok(errorsWith({ shore: { ...pool.shore, under: 1.5 } }).some((e) => /shore/.test(e)), 'Widerschein über 1');
+    assert.ok(checkSkies([{ ...volcano, layers: [{ ...pool, shore: { ...pool.shore, data: 'fehlt' } }] }], { root, types: layerTypes(html) })
+      .some((e) => /shore\.data/.test(e)), 'Daten fehlen in base');
     // Sterne erst über dem Kraterrand (die obere Wand liegt weiter weg als die Sterne)
     assert.ok(volcano.sky.starsFrom > 0 && volcano.sky.starsAboveHorizon, 'volcano: Sterne ab einer Höhe über dem Rand');
     const skyErrors = (sky) => checkSkies([{ ...volcano, sky: { ...volcano.sky, ...sky } }], { types: layerTypes(html) });

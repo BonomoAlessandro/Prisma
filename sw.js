@@ -20,7 +20,7 @@
 
 const APP_VERSION = '__APP_VERSION__';
 const CACHE = 'prisma-v1';
-const SKIES = 'd892a061';
+const SKIES = 'cd6ab0fc';
 const FILES = []; // beim Build gefüllt
 const LAZY = []; // beim Build gefüllt
 const NETWORK_WAIT = 3000; // ms
