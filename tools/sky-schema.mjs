@@ -144,6 +144,14 @@ const LAYER_PARAMS = {
     bursts: (v) => isInt(v?.count) && v.count <= 32 && isRange(v.ring) && isRange(v.size) && isRange(v.period),
     spatter: (v) => Number.isInteger(v?.count) && v.count >= 0 && isPos(v.height) && isPos(v.size) && isBright(v.color),
     sparks: (v) => Number.isInteger(v?.count) && v.count >= 0 && isPos(v.height) && isPos(v.size) && isBright(v.color),
+    // optional: Lava am Fels (Daten der Felsbrocken aus bakedMesh); Stau (bis 1,6 · jam[1]), Saum und wegtreibende Glut
+    // enden vor 0,95 · reach (dort endet im Shader der Zweig am Fels, sonst eine harte Kante; so weit reicht die Karte).
+    // Wärme der Kruste am Fels (warm) und Widerschein am Fels (under) 0 … 1: Anteile der Glut aus heat (dort isBright);
+    // der Widerschein kommt zur gebackenen Farbe des Felsens dazu
+    shore: (v) => v === undefined || (typeof v?.data === 'string' && isPos(v.reach) && isVec(v.jam, 2) && v.jam[0] >= 0
+      && v.jam[1] > 0 && 1.6 * v.jam[1] <= 0.95 * v.reach && isRange(v.seam) && isVec(v.well, 2) && v.well.every(isPos)
+      && v.seam[1] + v.well[1] <= 0.95 * v.reach
+      && isNum(v.warm) && v.warm >= 0 && v.warm <= 1 && isRange(v.rise) && isNum(v.under) && v.under >= 0 && v.under <= 1),
   },
   // Vulkan: Flammen der Feuernester (Daten vom Export der Szene). Farben unter der Bloom-Schwelle, Stufen bands
   // absteigend (core über der ersten, mid über der zweiten, edge über der dritten, sonst deep), cover 0 … 1 (so viel
@@ -339,6 +347,9 @@ export function checkSkies(skies, { root, types, boards, reserved = [], pending 
       }
       if (l.type === 'mistSheets' && !s.fog) err('Ebene mistSheets: braucht fog');
       if (l.type === 'lavaPool' && !(l.fade < l.radius)) err('Ebene lavaPool: fade muss kleiner sein als radius');
+      if (l.type === 'lavaPool' && l.shore && baseData && !baseData[l.shore.data]?.pos16) {
+        err(`Ebene lavaPool: shore.data ${l.shore.data} fehlt in base (Felsbrocken wie bei bakedMesh)`);
+      }
       if (l.type === 'waterSurface' && l.ripple !== undefined && l.calm !== true) err('Ebene waterSurface: ripple nur mit calm');
       if (l.type === 'fishSchools' && !s.layers.slice(0, s.layers.indexOf(l)).some((x) => x.type === 'waterSurface')) {
         err('Ebene fishSchools: braucht davor waterSurface');

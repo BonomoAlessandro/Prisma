@@ -813,7 +813,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Bewegt zeichnet das Spiel den See ums Brett (`lavaPool`: treibende Krustenplatten mit glühenden Rissen, die sich
   öffnen und schliessen; Gasblasen wölben die Kruste auf, reissen, Lava spritzt hoch und kühlt ab; Funken); Blender
   malt dort nur die Kruste. Ein Dutzend Felsbrocken im See vor dem Ufer zeichnet das Spiel wie die nahen Felsen am
-  Strand (`bakedMesh`, Licht gebacken und gemalt, `export()` der Szene).
+  Strand (`bakedMesh`, Licht gebacken und gemalt, `export()` der Szene). Wo sie in der Lava stehen, kennt der See ihren
+  Umriss (`lavaPool.shore`, aus denselben Daten beim Laden gerechnet): Die Kruste staut sich am Fels, ein glühender,
+  unterschiedlich breiter Saum umgibt ihn, Glut quillt dort auf (je Ort zeitversetzt) und treibt weg; am Fels leckt
+  ein dünner Glutfilm wellig hoch, darüber scheint die Lava von unten an. Um Brocken am Rand reicht die bewegte Lava
+  bis gut 3 m um den Umriss, auch über den Rand des bewegten Sees (29 m) hinaus, und läuft dort weich in die gemalte
+  Lava aus. Vorher stak jeder Brocken mit einer geraden, harten Kante in der bewegten Lava.
 - **Eishöhle** (`icecave`, PLAN 1.8): Das Brett schwebt 4 m über einem See in einer Gletscherhöhle nach Fotos echter
   Höhlen: eine längliche, unregelmässige Halle (Wand 72 … 96 m von der Mitte, Decke über dem Brett mindestens 35,6 m
   hoch, je Richtung eine eigene Superellipse), geradeaus ein Ausgang ins Tageslicht, schräg hinten ein dunkler Gang mit

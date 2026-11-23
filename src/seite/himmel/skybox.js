@@ -1417,10 +1417,18 @@ function mistSheets(ctx, opt) {
  * ihre Risse glühen auf, dann reisst sie, Lava spritzt kurz hoch (spatter: Tropfen je Blase, Höhe height in m, Grösse
  * size) und kühlt wieder zu Kruste ab. Dazu Funken (sparks). Nahe beim Brett (calm: Radien, Faktor) glüht alles
  * gedämpfter. Alle Farben sind Szenenwerte unter der Bloom-Schwelle.
+ * Mit shore (data: die Felsbrocken der Ebene bakedMesh) kennt der See die Felsen darin (lavaShore; vorher stak jeder
+ * mit einer geraden, harten Kante in der bewegten Lava): Am Fels staut sich die Kruste (jam: so viele m rückt das
+ * Muster an ihn heran, auf so vielen m bricht sie fein), ein glühender Saum umgibt ihn (seam: Breite in m, von bis,
+ * wandert und flackert), dort quillt Glut auf und treibt weg (well: Takt 1/s, Weg m), die Kruste daneben glimmt
+ * (warm). Am Fels selbst leckt die Lava hoch (rise), die Lava scheint von unten an (under). Bis reach m weit weiss der
+ * See, wo der nächste Fels ist; um die Felsen reicht er dazu über radius hinaus. Generator (sliced), wegen der Karte.
  */
-function lavaPool(ctx, opt) {
+function* lavaPool(ctx, opt) {
   const out = new THREE.Group();
   const y0 = opt.level + opt.lift;
+  const shore = opt.shore ? yield* lavaShore(ctx, opt, y0) : null;
+  if (shore) out.add(shore.rocks);
   const [calm0, calm1, calmK] = opt.calm;
   const [core, hot, deep] = opt.heat;
   const pl = opt.plates, bu = opt.bursts, sp = opt.spatter;
@@ -1433,8 +1441,10 @@ function lavaPool(ctx, opt) {
   });
   const burstU = bursts.map((b) => new THREE.Vector4(b.x, b.z, b.period, b.offset));
   const sizeU = bursts.map((b) => b.size);
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(opt.radius, 160).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
-    uniforms: { ...ctx.uniforms, uBursts: { value: burstU }, uBurstR: { value: sizeU } },
+  const sh = opt.shore, outer = Math.max(opt.radius, shore?.extent ?? 0); // um die Felsen reicht der See weiter
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(outer, 160).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
+    uniforms: { ...ctx.uniforms, uBursts: { value: burstU }, uBurstR: { value: sizeU },
+      ...(shore ? { uShore: { value: shore.map } } : {}) },
     transparent: true, depthWrite: false,
     vertexShader: `varying vec3 vPos;
         void main() {
@@ -1446,6 +1456,7 @@ function lavaPool(ctx, opt) {
         uniform vec4 uBursts[${bu.count}];
         uniform float uBurstR[${bu.count}];
         varying vec3 vPos;
+        ${shore ? 'uniform sampler2D uShore;' : ''}
         ${GLSL_NOISE}
         vec2 hash2(vec2 p) {
           p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
@@ -1474,18 +1485,49 @@ function lavaPool(ctx, opt) {
         vec3 glow(float h) { return h < 0.5 ? mix(DEEP, HOT, h * 2.0) : mix(HOT, CORE, h * 2.0 - 1.0); }
         void main() {
           vec2 p = vPos.xz;
+          float a = 1.0 - smoothstep(${glf(opt.radius - opt.fade)}, ${glf(opt.radius)}, length(p));
           float t = uTime;
           vec2 q = p - ${glv(pl.drift)} * t;
+          float jam = 0.0;${shore ? `
+          // Abstand zum nächsten Fels (m) und die Richtung von ihm weg
+          vec4 rk = texture2D(uShore, p * ${glf(0.5 / shore.half)} + 0.5);
+          float sd = rk.r * ${glf(sh.reach)};
+          vec2 sn = rk.gb * 2.0 - 1.0;
+          sn /= max(length(sn), 1e-3);
+          a = max(a, 1.0 - smoothstep(${glf(sh.reach * 0.55)}, ${glf(sh.reach * 0.95)}, sd));   // um die Felsen weiter
+          if (a <= 0.0) discard;
+          // die Kruste staut sich am Fels: das Muster rückt zusammen (kleinere Platten) und bricht fein
+          q -= sn * ${glf(sh.jam[0])} * exp(-sd / ${glf(sh.jam[1])})
+            * (1.0 - smoothstep(${glf(sh.reach * 0.6)}, ${glf(sh.reach * 0.95)}, sd));   // weiter weg gleich wie ohne
+          jam = 1.0 - smoothstep(${glf(sh.jam[1] * 0.5)}, ${glf(sh.jam[1] * 1.6)}, sd);` : `
+          if (a <= 0.0) discard;`}
           vec2 w = q + (vec2(fbm3(vec3(q * 0.12, t * 0.02)), fbm3(vec3(q * 0.12 + 7.0, t * 0.02))) - 0.44) * 8.0;
           float open = 0.7 + 0.6 * noise(vec3(p * 0.15, t * 0.25));            // Risse atmen
           float big = cells(w / ${glf(pl.scale)}, t * ${glf(pl.churn)});
           float small = cells(w / ${glf(pl.scale * 0.32)} + 9.0, t * ${glf(pl.churn * 1.3)});
-          float cw = ${glf(pl.crack)} * open;
+          float cw = ${glf(pl.crack)} * open * (1.0 + 0.3 * jam);
           float k1 = (1.0 - smoothstep(0.0, cw, big)) * mix(0.5, 1.0, smoothstep(0.3, 0.65, noise(vec3(w * 0.4, 2.0))));
-          float k2 = (1.0 - smoothstep(0.0, cw * 0.8, small)) * smoothstep(${glf(1 - pl.fine)}, ${glf(1 - pl.fine + 0.12)}, noise(vec3(p * 0.3, 5.0))) * 0.75;
+          float k2 = (1.0 - smoothstep(0.0, cw * 0.8, small))
+            * max(smoothstep(${glf(1 - pl.fine)}, ${glf(1 - pl.fine + 0.12)}, noise(vec3(p * 0.3, 5.0))), jam) * 0.75;
           float heat = max(k1, k2);
           float halo = (1.0 - smoothstep(0.0, cw * 3.5, big)) * 0.18;            // Kruste neben den Rissen glimmt
-          vec3 crust = mix(CRUST0, CRUST1, noise(vec3(w * 0.5, 1.0)));
+          vec3 crust = mix(CRUST0, CRUST1, noise(vec3(w * 0.5, 1.0)));${shore ? `
+          if (sd < ${glf(sh.reach * 0.95)}) {
+            // glühender Saum am Fels: unterschiedlich breit, wandert langsam, flackert
+            float sw = mix(${glf(sh.seam[0])}, ${glf(sh.seam[1])}, noise(vec3(p * 0.8, t * 0.3)));
+            float seam = (1.0 - smoothstep(sw * 0.3, sw, sd)) * (0.75 + 0.25 * noise(vec3(p * 2.5, t * 1.6)));
+            // Glut quillt am Fels auf und treibt weg (zwei Phasen, überblendet), verlischt mit dem Abstand. Der Takt ist
+            // je Ort versetzt und das Überblenden hält den Kontrast, sonst quillt es an allen Felsen im Gleichtakt.
+            float ph = fract(t * ${glf(sh.well[0])} + noise(vec3(p * 0.06, 7.0))), wk = 1.0 - abs(2.0 * ph - 1.0);
+            vec2 f0 = (p - sn * ph * ${glf(sh.well[1])}) * 1.4, f1 = (p - sn * fract(ph + 0.5) * ${glf(sh.well[1])}) * 1.4;
+            float lump = 0.5 + (mix(noise(vec3(f1, 3.0)), noise(vec3(f0, 9.0)), wk) - 0.5)
+              * inversesqrt(wk * wk + (1.0 - wk) * (1.0 - wk));
+            lump = smoothstep(0.6, 0.78, lump) * (1.0 - smoothstep(sw, sw + ${glf(sh.well[1])}, sd));
+            heat = max(heat, max(seam, lump * 0.6));
+            // Kruste am Fels warm, zum Rand des Zweigs hin weich auf 0 (sonst dort ein feiner Ring, 3 Stufen in Rot)
+            halo += ${glf(sh.warm)} * exp(-sd / 0.9) * (1.0 - smoothstep(${glf(sh.reach * 0.8)}, ${glf(sh.reach * 0.95)}, sd));
+            crust *= 1.0 + 0.5 * jam * noise(vec3(w * 1.7, 4.0));                // gestaute Schollen, rauer
+          }` : ''}
           // Blasen: Kruste wölbt sich, Risse glühen auf, reisst, glüht hell, kühlt ab
           for (int i = 0; i < ${bu.count}; i++) {
             vec4 b = uBursts[i];
@@ -1516,7 +1558,6 @@ function lavaPool(ctx, opt) {
           float calm = mix(${glf(calmK)}, 1.0, smoothstep(${glf(calm0)}, ${glf(calm1)}, length(p)));
           vec3 col = crust + DEEP * halo * calm;
           col = mix(col, glow(heat) * calm, smoothstep(0.02, 0.25, heat));
-          float a = 1.0 - smoothstep(${glf(opt.radius - opt.fade)}, ${glf(opt.radius)}, length(p));
           gl_FragColor = vec4(col, a * uFade * uReady);
         }`,
   }));
@@ -1591,6 +1632,129 @@ function lavaPool(ctx, opt) {
   const size = new THREE.Vector2();
   out.userData.update = () => { screenH.value = renderer.getDrawingBufferSize(size).y; };
   return out;
+}
+
+/**
+ * Lava am Fels (lavaPool.shore, Vulkan): Die Felsbrocken im See (Daten der Ebene bakedMesh: shore.data, Ecken in
+ * Spielkoordinaten) schneiden die Lava auf der Höhe y0 in Umrissen aus wenigen geraden Stücken. Daraus eine Karte von
+ * oben über das Quadrat ±half (RGBA, je Texel etwa 0,15 m, höchstens 512 × 512 Texel: R Abstand zum nächsten Umriss
+ * bis reach m, GB die Richtung von ihm weg) für den See, und das Netz der Felsen ein zweites Mal (rocks), über ihnen
+ * gezeichnet, nur über der Lava: Dort leckt die Lava am Fels hoch (rise: Höhe des Glutfilms in m, von bis; er wogt und
+ * schwappt, Rinnsale laufen darin hinunter, dunkle Haut treibt darauf), und die Lava scheint von unten an den Fels
+ * (under). Rückgabe { map, half, extent (bis zu diesem Radius muss der See reichen), rocks }. Generator (sliced: je
+ * Umrissstück und je 64 Zeilen der Karte ein Häppchen).
+ */
+function* lavaShore(ctx, opt, y0) {
+  const sh = opt.shore, set = ctx.data[sh.data];
+  if (!set?.pos16) throw new Error(`shore: Daten ${sh.data} fehlen`);
+  const q = new Int16Array(yield* b64Bytes(set.pos16));
+  const idx = set.idx16 ? new Uint16Array(yield* b64Bytes(set.idx16)) : new Uint32Array(yield* b64Bytes(set.idx32));
+  const pos = Float32Array.from(q, (v) => v / set.scale);
+  // Umrisse auf der Höhe der Lava: je Dreieck, das sie schneidet, ein Stück
+  const segs = [];
+  let far = 0;
+  for (let i = 0; i < idx.length; i += 3) {
+    const pts = [];
+    for (let e = 0; e < 3; e++) {
+      const a = idx[i + e] * 3, b = idx[i + ((e + 1) % 3)] * 3;
+      const da = pos[a + 1] - y0, db = pos[b + 1] - y0;
+      if ((da < 0) === (db < 0)) continue;
+      const k = da / (da - db);
+      pts.push(pos[a] + k * (pos[b] - pos[a]), pos[a + 2] + k * (pos[b + 2] - pos[a + 2]));
+    }
+    if (pts.length !== 4) continue;
+    segs.push(pts);
+    far = Math.max(far, Math.hypot(pts[0], pts[1]), Math.hypot(pts[2], pts[3]));
+  }
+  const reach = sh.reach, half = far + reach + 0.5;
+  const n = Math.min(512, Math.ceil((2 * half) / 0.15)), cell = (2 * half) / n;
+  const dist = new Float32Array(n * n).fill(reach), dir = new Float32Array(n * n * 2);
+  const texel = (v) => Math.min(n - 1, Math.max(0, Math.floor((v + half) / cell)));
+  for (let s = 0; s < segs.length; s++) {
+    const [ax, az, bx, bz] = segs[s];
+    const ex = bx - ax, ez = bz - az, ll = ex * ex + ez * ez || 1e-9;
+    const i0 = texel(Math.min(ax, bx) - reach), i1 = texel(Math.max(ax, bx) + reach);
+    const j0 = texel(Math.min(az, bz) - reach), j1 = texel(Math.max(az, bz) + reach);
+    for (let j = j0; j <= j1; j++) {
+      const z = -half + (j + 0.5) * cell;
+      for (let i = i0; i <= i1; i++) {
+        const x = -half + (i + 0.5) * cell, o = j * n + i;
+        const k = Math.min(1, Math.max(0, ((x - ax) * ex + (z - az) * ez) / ll));
+        const dx = x - ax - k * ex, dz = z - az - k * ez, d = Math.hypot(dx, dz);
+        if (d >= dist[o]) continue;
+        dist[o] = d;
+        dir[o * 2] = d > 1e-6 ? dx / d : 0;
+        dir[o * 2 + 1] = d > 1e-6 ? dz / d : 0;
+      }
+    }
+    yield; // je Stück: 16 auf einmal brauchten am Desktop beim ersten Mal bis 26 ms
+  }
+  const data = new Uint8Array(n * n * 4);
+  for (let j = 0; j < n; j++) {
+    for (let o = j * n, e = o + n; o < e; o++) {
+      data[o * 4] = Math.round((dist[o] / reach) * 255);
+      data[o * 4 + 1] = Math.round((dir[o * 2] * 0.5 + 0.5) * 255);
+      data[o * 4 + 2] = Math.round((dir[o * 2 + 1] * 0.5 + 0.5) * 255);
+      data[o * 4 + 3] = 255;
+    }
+    if (j % 64 === 63) yield; // die ganze Karte in einem Stück: am Desktop 8–10 ms
+  }
+  const map = new THREE.DataTexture(data, n, n, THREE.RGBAFormat);
+  map.minFilter = map.magFilter = THREE.LinearFilter;
+  map.needsUpdate = true;
+  yield;
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
+  geo.computeVertexNormals();
+  const [core, hot, deep] = opt.heat;
+  const rocks = new THREE.Mesh(geo, new THREE.ShaderMaterial({
+    uniforms: ctx.uniforms,
+    transparent: true, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4, // auf dem Fels, der schon gezeichnet ist
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    vertexShader: `varying vec3 vPos, vN;
+        void main() {
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vPos = wp.xyz;
+          vN = normalize(mat3(modelMatrix) * normal);
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }`,
+    fragmentShader: `uniform float uTime, uFade, uReady;
+        varying vec3 vPos, vN;
+        ${GLSL_NOISE}
+        const vec3 CORE = ${glv(core)}, HOT = ${glv(hot)}, DEEP = ${glv(deep)};
+        vec3 glow(float h) { return h < 0.5 ? mix(DEEP, HOT, h * 2.0) : mix(HOT, CORE, h * 2.0 - 1.0); }
+        void main() {
+          float h = vPos.y - ${glf(y0)};
+          if (h < 0.0 || h > 4.5) discard;                         // unter der Lava; weiter oben kein Widerschein mehr
+          float t = uTime;
+          vec2 xz = vPos.xz;
+          // Rand des Glutfilms: wogt langsam, dazu ab und zu ein Schwall
+          float lick = 0.75 * noise(vec3(xz * 0.9, t * 0.4)) + 0.25 * noise(vec3(xz * 2.3 + 4.0, t * 0.8));
+          float surge = pow(noise(vec3(xz * 0.45, t * 0.22 + 11.0)), 3.0);
+          float edge = mix(${glf(sh.rise[0])}, ${glf(sh.rise[1])}, lick) + ${glf(sh.rise[1] * 1.2)} * surge;
+          float film = 1.0 - smoothstep(edge * 0.75, edge, h);
+          float up = clamp(h / max(edge, 1e-3), 0.0, 1.0);
+          // Rinnsale laufen im Film hinunter (Muster aus x, z: senkrechte Streifen, die nach unten wandern)
+          float drip = smoothstep(0.6, 0.75, noise(vec3(xz * 3.5, h * 0.7 + t * 0.5))) * up;
+          // unten hell wie der Saum im See, nach oben kühler; dunkle Haut treibt darauf
+          float skin = smoothstep(0.5, 0.68, noise(vec3(xz * 2.2, h * 1.6 + t * 0.35))) * smoothstep(0.15, 0.7, up);
+          float hot = max(mix(0.95, 0.35, up) * (0.85 + 0.15 * noise(vec3(xz * 2.0, t * 1.4))) * (1.0 - 0.75 * skin), drip * 0.8);
+          // Widerschein der Lava von unten, auf Flächen, die nach unten oder zur Seite schauen
+          float under = ${glf(sh.under)} * exp(-h / 0.9) * clamp(0.7 - vN.y, 0.0, 1.0)
+            * (0.85 + 0.15 * noise(vec3(xz, t * 1.2)));
+          // vormultipliziert: der Widerschein kommt dazu, der Film deckt
+          vec3 c = mix(mix(DEEP, HOT, exp(-h / 0.6)) * under, glow(hot), film);
+          float k = uFade * uReady;
+          gl_FragColor = vec4(c * k, film * k);
+        }`,
+  }));
+  rocks.renderOrder = -899; // gleich nach dem See
+  rocks.frustumCulled = false;
+  return { map, half, extent: far + reach, rocks };
 }
 
 /**

@@ -17,7 +17,8 @@
 # Hauptlichts) gibt nur einen Hauch Kühle.
 # Das Spiel zeichnet selbst: den See bis LAVA_GAME, bewegt (lavaPool; Blender malt dort nur die Kruste), und ein
 # Dutzend Felsbrocken im See vor dem Ufer (bakedMesh, wie die nahen Felsen am Strand: gebackenes Licht, gemalt;
-# Sammlung „Spiel“, für die Panoramakamera unsichtbar).
+# Sammlung „Spiel“, für die Panoramakamera unsichtbar). Den Übergang von der Lava zu den Brocken (Saum, Glutfilm am
+# Fels) rechnet das Spiel aus denselben Daten (lavaPool.shore in skybox.json), Blender malt dort nichts.
 # Koordinaten: Blender (x, y, z) = Spiel (x, −z, y). Brett im Ursprung, Panorama-Mittelpunkt (0, 0, 3).
 import bpy, math, os, sys, time, importlib.util
 import numpy as np
